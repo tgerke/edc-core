@@ -1,11 +1,13 @@
 import { healthResponseSchema } from "@edc-core/schemas";
+import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "./server.js";
 
 describe("GET /health", () => {
-  const server = buildServer();
+  let server: FastifyInstance;
 
   beforeAll(async () => {
+    server = await buildServer();
     await server.ready();
   });
 
