@@ -285,6 +285,41 @@ describe.skipIf(!dbAvailable)("capture workflow (integration)", () => {
     expect(subject.cells["SE.SCREENING:FO.DEMOGRAPHICS"].status).toBe("in_progress");
   });
 
+  it("manages sites: study.manage creates, members list, others cannot create", async () => {
+    const created = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/sites`,
+      payload: { oid: "SITE.3", name: "Site Three" },
+      headers: as("dm"),
+    });
+    expect(created.statusCode).toBe(201);
+
+    const denied = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/sites`,
+      payload: { oid: "SITE.4", name: "Nope" },
+      headers: as("inv"),
+    });
+    expect(denied.statusCode).toBe(403);
+
+    const list = await server.inject({
+      method: "GET",
+      url: `/studies/${fx.studyId}/sites`,
+      headers: as("inv"),
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json().map((s: { oid: string }) => s.oid)).toEqual(["SITE.1", "SITE.2", "SITE.3"]);
+  });
+
+  it("returns the pinned build version with form data", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/forms/${fx.formId}`,
+      headers: as("inv"),
+    });
+    expect(res.json().buildVersion).toBe(1);
+  });
+
   it("hides capture from non-members", async () => {
     const res = await server.inject({
       method: "GET",
