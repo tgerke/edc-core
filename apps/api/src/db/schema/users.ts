@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sites, studies } from "./studies.js";
 
 // Accounts are never deleted or recycled (21 CFR 11.100(a): signatures must
@@ -12,6 +12,9 @@ export const users = pgTable("users", {
   status: text("status", { enum: ["active", "locked", "deactivated"] })
     .notNull()
     .default("active"),
+  // System-level administration (create studies, manage users) sits outside
+  // study-scoped RBAC; per-study capabilities always come from role grants.
+  isSystemAdmin: boolean("is_system_admin").notNull().default(false),
   failedLoginCount: integer("failed_login_count").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
   passwordChangedAt: timestamp("password_changed_at", { withTimezone: true })
