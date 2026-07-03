@@ -1,0 +1,49 @@
+name: edc-core
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16
+    environment:
+      POSTGRES_USER: edc
+      POSTGRES_PASSWORD: edc-dev-only # local development only; never deploy with this
+      POSTGRES_DB: edc
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edc -d edc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://edc:edc-dev-only@postgres:5432/edc
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+  r-engine:
+    build:
+      context: ../services/r-engine
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
