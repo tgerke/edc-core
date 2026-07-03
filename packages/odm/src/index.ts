@@ -36,3 +36,4 @@ export function serializeOdm(file: OdmFile, serialization: OdmSerialization): st
   if (serialization === "xml") return serializeOdmXml(file);
   return JSON.stringify(file, null, 2);
 }
+export * from "./resolve.js";

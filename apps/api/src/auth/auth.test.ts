@@ -264,6 +264,17 @@ describe.skipIf(!dbAvailable)("auth + rbac (integration)", () => {
       expect(forbidden.statusCode).toBe(403);
     });
 
+    it("system admin can make the first role grant in a new study", async () => {
+      const { token } = (await login("root")).json();
+      const res = await server.inject({
+        method: "POST",
+        url: `/studies/${fx.studyBId}/roles`,
+        payload: { userId: fx.bobId, roleName: "read_only" },
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
     it("system admin can create studies; non-admins cannot", async () => {
       const { token: rootToken } = (await login("root")).json();
       const created = await server.inject({

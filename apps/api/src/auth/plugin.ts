@@ -107,16 +107,23 @@ export function requireSystemAdmin() {
 /**
  * Route guard: 401 unauthenticated, 403 when the permission is not held in
  * the scope the route resolves from its request (P11-04).
+ *
+ * `allowSystemAdmin` is for administrative permissions only (e.g. the first
+ * role grant in a new study, which would otherwise be unreachable). Never
+ * set it on clinical capabilities — system administration must not entitle
+ * anyone to enter, verify, or sign data.
  */
 export function requirePermission(
   permission: Permission,
   resolveScope: (request: FastifyRequest) => PermissionScope,
+  opts: { allowSystemAdmin?: boolean } = {},
 ) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     if (!request.user) {
       await reply.code(401).send({ error: "authentication required" });
       return;
     }
+    if (opts.allowSystemAdmin && request.user.isSystemAdmin) return;
     const allowed = await hasPermission(
       request.server.db,
       request.user.id,
