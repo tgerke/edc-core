@@ -64,7 +64,8 @@ export const studyRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/studies/:studyId/roles",
-    { preHandler: requirePermission("roles.grant", studyScope) },
+    // allowSystemAdmin: the first grant in a new study must come from somewhere.
+    { preHandler: requirePermission("roles.grant", studyScope, { allowSystemAdmin: true }) },
     async (request, reply) => {
       const parsed = grantRoleRequestSchema.safeParse(request.body);
       if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
@@ -91,7 +92,7 @@ export const studyRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     "/studies/:studyId/roles/:grantId",
-    { preHandler: requirePermission("roles.grant", studyScope) },
+    { preHandler: requirePermission("roles.grant", studyScope, { allowSystemAdmin: true }) },
     async (request, reply) => {
       const { grantId } = request.params as { grantId: string };
       const user = request.user as AuthenticatedUser;
