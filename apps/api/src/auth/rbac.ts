@@ -43,6 +43,22 @@ export async function hasPermission(
   return rows.length > 0;
 }
 
+/** Membership = any unrevoked role grant in the study (read visibility). */
+export async function isStudyMember(db: Db, userId: string, studyId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: userStudyRoles.id })
+    .from(userStudyRoles)
+    .where(
+      and(
+        eq(userStudyRoles.userId, userId),
+        eq(userStudyRoles.studyId, studyId),
+        isNull(userStudyRoles.revokedAt),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 export async function grantRole(
   db: Db,
   grant: {
