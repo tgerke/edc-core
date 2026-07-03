@@ -8,16 +8,21 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@edc-core/schemas": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.0.0",
+    "postgres": "^3.4.9",
     "tsx": "^4.19.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
+    "drizzle-kit": "^0.31.10",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
   }
