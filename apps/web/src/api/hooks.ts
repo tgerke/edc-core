@@ -95,6 +95,127 @@ export function useImportOdm(studyId: string) {
   });
 }
 
+export interface Site {
+  id: string;
+  oid: string;
+  name: string;
+}
+
+export interface SubjectSummary {
+  id: string;
+  subjectKey: string;
+  status: string;
+  siteId: string;
+  siteName: string;
+}
+
+export interface MatrixCell {
+  formInstanceId: string;
+  status: string;
+}
+
+export interface Matrix {
+  buildVersion: number | null;
+  events: { oid: string; name: string; forms: { oid: string; name: string }[] }[];
+  subjects: (SubjectSummary & { cells: Record<string, MatrixCell | null> })[];
+}
+
+export interface FormValue {
+  item_group_oid: string;
+  item_group_repeat_key: number;
+  item_oid: string;
+  version: number;
+  value: string | null;
+}
+
+export interface FormData {
+  context: {
+    formInstanceId: string;
+    formOid: string;
+    status: string;
+    subjectId: string;
+    subjectKey: string;
+    studyId: string;
+    siteId: string;
+    eventOid: string;
+    eventRepeatKey: number;
+  };
+  buildVersion: number | null;
+  values: FormValue[];
+}
+
+export function useSites(studyId: string) {
+  return useQuery<Site[]>({
+    queryKey: ["sites", studyId],
+    queryFn: () => api<Site[]>(`/studies/${studyId}/sites`),
+  });
+}
+
+export function useMatrix(studyId: string) {
+  return useQuery<Matrix>({
+    queryKey: ["matrix", studyId],
+    queryFn: () => api<Matrix>(`/studies/${studyId}/matrix`),
+  });
+}
+
+export function useEnrollSubject(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { siteId: string; subjectKey: string }) =>
+      api<SubjectSummary>(`/studies/${studyId}/subjects`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["matrix", studyId] }),
+  });
+}
+
+export function useEnsureForm() {
+  return useMutation({
+    mutationFn: (input: { subjectId: string; eventOid: string; formOid: string }) =>
+      api<{ id: string }>(`/subjects/${input.subjectId}/forms`, {
+        method: "POST",
+        body: JSON.stringify({ eventOid: input.eventOid, formOid: input.formOid }),
+      }),
+  });
+}
+
+export function useFormData(formInstanceId: string) {
+  return useQuery<FormData>({
+    queryKey: ["form", formInstanceId],
+    queryFn: () => api<FormData>(`/forms/${formInstanceId}`),
+  });
+}
+
+export function useWriteItem(formInstanceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      itemGroupOid: string;
+      itemGroupRepeatKey?: number;
+      itemOid: string;
+      value: string | null;
+      reasonForChange?: string;
+    }) => api(`/forms/${formInstanceId}/items`, { method: "PUT", body: JSON.stringify(body) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] }),
+  });
+}
+
+export function useTransitionForm(formInstanceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: string) =>
+      api(`/forms/${formInstanceId}/status`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
+      queryClient.invalidateQueries({ queryKey: ["matrix"] });
+    },
+  });
+}
+
 export function useStudyBuild(studyId: string, version: number) {
   return useQuery<OdmFile>({
     queryKey: ["study-build", studyId, version],

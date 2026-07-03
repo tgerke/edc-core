@@ -32,7 +32,19 @@ export function StudyPage() {
   return (
     <div>
       <div className="flex items-start justify-between">
-        <PageTitle sub={study?.oid}>{study?.name ?? "Study"}</PageTitle>
+        <PageTitle
+          sub={
+            <>
+              {study?.oid}
+              {" · "}
+              <Link to="/studies/$studyId/subjects" params={{ studyId }} className="underline">
+                subjects
+              </Link>
+            </>
+          }
+        >
+          {study?.name ?? "Study"}
+        </PageTitle>
         <div>
           <input
             ref={fileInput}

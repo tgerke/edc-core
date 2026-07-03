@@ -10,7 +10,9 @@ import {
 import { useLogout, useMe } from "./api/hooks.js";
 import { Button, Spinner } from "./components/ui.js";
 import { BuilderPage } from "./pages/BuilderPage.js";
+import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { MatrixPage } from "./pages/MatrixPage.js";
 import { StudiesPage } from "./pages/StudiesPage.js";
 import { StudyPage } from "./pages/StudyPage.js";
 
@@ -102,9 +104,28 @@ const builderRoute = createRoute({
   component: BuilderPage,
 });
 
+const matrixRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/subjects",
+  component: MatrixPage,
+});
+
+const formEntryRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/forms/$formInstanceId",
+  component: FormEntryPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([indexRoute, studiesRoute, studyRoute, builderRoute]),
+  appRoute.addChildren([
+    indexRoute,
+    studiesRoute,
+    studyRoute,
+    builderRoute,
+    matrixRoute,
+    formEntryRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });
