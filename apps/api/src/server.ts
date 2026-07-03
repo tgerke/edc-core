@@ -4,6 +4,7 @@ import type { AuthConfig } from "./auth/config.js";
 import { authPlugin } from "./auth/plugin.js";
 import { createDb, type Db } from "./db/client.js";
 import { studyRoutes } from "./routes/studies.js";
+import { studyBuildRoutes } from "./routes/study-builds.js";
 
 export const API_VERSION = "0.0.1";
 
@@ -29,6 +30,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     ...(opts.authConfig ? { config: opts.authConfig } : {}),
   });
   await server.register(studyRoutes);
+  await server.register(studyBuildRoutes);
 
   server.get("/health", async () => {
     return healthResponseSchema.parse({
