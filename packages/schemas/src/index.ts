@@ -17,3 +17,26 @@ export const oidSchema = z
   .regex(/^\S(.*\S)?$/, "OIDs must not have leading or trailing whitespace");
 
 export type Oid = z.infer<typeof oidSchema>;
+
+export const loginRequestSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+});
+
+export type LoginRequest = z.infer<typeof loginRequestSchema>;
+
+export const createStudyRequestSchema = z.object({
+  oid: oidSchema,
+  name: z.string().min(1),
+  protocolName: z.string().min(1).optional(),
+});
+
+export type CreateStudyRequest = z.infer<typeof createStudyRequestSchema>;
+
+export const grantRoleRequestSchema = z.object({
+  userId: z.uuid(),
+  roleName: z.string().min(1),
+  siteId: z.uuid().optional(),
+});
+
+export type GrantRoleRequest = z.infer<typeof grantRoleRequestSchema>;

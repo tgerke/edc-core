@@ -15,6 +15,20 @@
       "when": 1783058354854,
       "tag": "0001_audit_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783059149536,
+      "tag": "0002_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783059150530,
+      "tag": "0003_seed_roles",
+      "breakpoints": true
     }
   ]
 }
