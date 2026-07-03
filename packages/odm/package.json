@@ -11,7 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@edc-core/schemas": "workspace:*"
+    "@edc-core/schemas": "workspace:*",
+    "fast-xml-parser": "^5.9.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
