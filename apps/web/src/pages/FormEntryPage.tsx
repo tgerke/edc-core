@@ -2,9 +2,11 @@ import {
   type CodeList,
   displayText,
   type ItemDef,
+  type MetaDataVersion,
   type ResolvedGroup,
   resolveGroup,
 } from "@edc-core/odm";
+import { buildRuleContext, compileEditChecks, runChecks } from "@edc-core/rules";
 import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -179,9 +181,18 @@ function EntryGroup({
   );
 }
 
-function EntryForm({ form, data }: { form: ResolvedGroup; data: FormData }) {
+function EntryForm({
+  form,
+  mdv,
+  data,
+}: {
+  form: ResolvedGroup;
+  mdv: MetaDataVersion;
+  data: FormData;
+}) {
   const writeItem = useWriteItem(data.context.formInstanceId);
   const transition = useTransitionForm(data.context.formInstanceId);
+  const checks = useMemo(() => compileEditChecks(mdv), [mdv]);
 
   const serverValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -212,6 +223,29 @@ function EntryForm({ form, data }: { form: ResolvedGroup; data: FormData }) {
       return next;
     });
   }, [serverValues]);
+
+  // Instant client-side evaluation of the same checks the server enforces.
+  const [findings, setFindings] = useState<{ oid: string; message: string }[]>([]);
+  useEffect(() => {
+    if (checks.length === 0) return;
+    let cancelled = false;
+    const flat: Record<string, string | null> = {};
+    for (const [key, value] of Object.entries(values)) {
+      const itemOid = key.split(":")[2];
+      if (itemOid) flat[itemOid] = value === "" ? null : (value ?? null);
+    }
+    void runChecks(checks, buildRuleContext(mdv, flat)).then((results) => {
+      if (cancelled) return;
+      setFindings(
+        [...results.entries()]
+          .filter(([, result]) => result.fired)
+          .map(([oid, result]) => ({ oid, message: result.message })),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [values, checks, mdv]);
 
   const editable = WRITABLE.has(data.context.status);
   const dirtyKeys = Object.keys(values).filter(
@@ -280,6 +314,33 @@ function EntryForm({ form, data }: { form: ResolvedGroup; data: FormData }) {
         </div>
       ) : null}
 
+      {data.openQueries.length > 0 ? (
+        <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800 ring-1 ring-rose-200">
+          <div className="font-medium">
+            {data.openQueries.length} open quer{data.openQueries.length === 1 ? "y" : "ies"}
+          </div>
+          <ul className="mt-1 list-inside list-disc">
+            {data.openQueries.map((query) => (
+              <li key={query.id}>
+                {query.checkOid
+                  ? (checks.find((c) => c.oid === query.checkOid)?.message ?? query.checkOid)
+                  : "Manual query"}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {findings.length > 0 && editable ? (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+          <div className="font-medium">Edit checks</div>
+          <ul className="mt-1 list-inside list-disc">
+            {findings.map((finding) => (
+              <li key={finding.oid}>{finding.message}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <Card className="bg-zinc-50/50 p-6">
         <EntryGroup
           group={form}
@@ -336,7 +397,7 @@ export function FormEntryPage() {
   );
 
   if (isPending || build.isPending) return <Spinner />;
-  if (isError || !data || !resolved) return <ErrorNote>Failed to load form.</ErrorNote>;
+  if (isError || !data || !mdv || !resolved) return <ErrorNote>Failed to load form.</ErrorNote>;
 
   return (
     <div>
@@ -358,7 +419,7 @@ export function FormEntryPage() {
       >
         {resolved.def.name}
       </PageTitle>
-      <EntryForm form={resolved} data={data} />
+      <EntryForm form={resolved} mdv={mdv} data={data} />
     </div>
   );
 }
