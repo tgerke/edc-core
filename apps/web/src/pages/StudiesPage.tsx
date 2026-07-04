@@ -88,7 +88,7 @@ export function StudiesPage() {
 
       <div className="grid gap-3">
         {studies?.map((study) => (
-          <Link key={study.id} to="/studies/$studyId" params={{ studyId: study.id }}>
+          <Link key={study.id} to="/studies/$studyId/subjects" params={{ studyId: study.id }}>
             <Card className="flex items-center gap-4 p-5 transition-shadow hover:shadow-md">
               <div>
                 <div className="font-medium text-zinc-900">{study.name}</div>
