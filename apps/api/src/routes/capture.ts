@@ -4,7 +4,13 @@ import { z } from "zod";
 import type { Permission } from "../auth/permissions.js";
 import { hasPermission, isStudyMember } from "../auth/rbac.js";
 import type { AuthenticatedUser } from "../auth/service.js";
-import { formInstances, sites, studyEventInstances, subjects } from "../db/schema/index.js";
+import {
+  formInstances,
+  sites,
+  studyEventInstances,
+  studyMetadataVersions,
+  subjects,
+} from "../db/schema/index.js";
 import {
   CaptureError,
   enrollSubject,
@@ -241,7 +247,12 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       sql`SELECT item_group_oid, item_group_repeat_key, item_oid, version, value
           FROM item_values_current WHERE form_instance_id = ${formInstanceId}`,
     );
-    return { context, values };
+    const [build] = await app.db
+      .select({ version: studyMetadataVersions.version })
+      .from(studyMetadataVersions)
+      .where(eq(studyMetadataVersions.id, context.metadataVersionId))
+      .limit(1);
+    return { context, buildVersion: build?.version ?? null, values };
   });
 
   app.put("/forms/:formInstanceId/items", async (request, reply) => {

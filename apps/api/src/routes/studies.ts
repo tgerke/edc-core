@@ -1,10 +1,13 @@
-import { createStudyRequestSchema, grantRoleRequestSchema } from "@edc-core/schemas";
+import { createStudyRequestSchema, grantRoleRequestSchema, oidSchema } from "@edc-core/schemas";
 import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
+import { z } from "zod";
 import { requirePermission, requireSystemAdmin } from "../auth/plugin.js";
-import { grantRole, revokeRole } from "../auth/rbac.js";
+import { grantRole, isStudyMember, revokeRole } from "../auth/rbac.js";
 import type { AuthenticatedUser } from "../auth/service.js";
-import { auditEvents, roles, studies, userStudyRoles } from "../db/schema/index.js";
+import { auditEvents, roles, sites, studies, userStudyRoles } from "../db/schema/index.js";
+
+const createSiteSchema = z.object({ oid: oidSchema, name: z.string().min(1) });
 
 function studyScope(request: FastifyRequest) {
   return { studyId: (request.params as { studyId: string }).studyId };
@@ -61,6 +64,45 @@ export const studyRoutes: FastifyPluginAsync = async (app) => {
     });
     return reply.code(201).send(study);
   });
+
+  app.get("/studies/:studyId/sites", async (request, reply) => {
+    const user = request.user;
+    if (!user) return reply.code(401).send({ error: "authentication required" });
+    const { studyId } = request.params as { studyId: string };
+    if (!user.isSystemAdmin && !(await isStudyMember(app.db, user.id, studyId))) {
+      return reply.code(403).send({ error: "not a member of this study" });
+    }
+    return app.db.select().from(sites).where(eq(sites.studyId, studyId)).orderBy(sites.oid);
+  });
+
+  app.post(
+    "/studies/:studyId/sites",
+    { preHandler: requirePermission("study.manage", studyScope, { allowSystemAdmin: true }) },
+    async (request, reply) => {
+      const parsed = createSiteSchema.safeParse(request.body);
+      if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+      const { studyId } = request.params as { studyId: string };
+      const user = request.user as AuthenticatedUser;
+
+      const site = await app.db.transaction(async (tx) => {
+        const [row] = await tx
+          .insert(sites)
+          .values({ studyId, oid: parsed.data.oid, name: parsed.data.name })
+          .returning();
+        if (!row) throw new Error("site insert returned no row");
+        await tx.insert(auditEvents).values({
+          actorId: user.id,
+          studyId,
+          action: "site.created",
+          entityType: "site",
+          entityId: row.id,
+          newValue: parsed.data,
+        });
+        return row;
+      });
+      return reply.code(201).send(site);
+    },
+  );
 
   app.post(
     "/studies/:studyId/roles",
