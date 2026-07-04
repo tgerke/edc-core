@@ -6,6 +6,7 @@ import { hasPermission, isStudyMember } from "../auth/rbac.js";
 import type { AuthenticatedUser } from "../auth/service.js";
 import {
   formInstances,
+  queries,
   sites,
   studyEventInstances,
   studyMetadataVersions,
@@ -22,6 +23,7 @@ import {
   transitionForm,
   writeItemValue,
 } from "../services/capture.js";
+import { evaluateFormChecks } from "../services/checks.js";
 import type { StudyBuildDefinition } from "../services/study-builds.js";
 
 const enrollSchema = z.object({ siteId: z.uuid(), subjectKey: z.string().min(1) });
@@ -252,7 +254,16 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       .from(studyMetadataVersions)
       .where(eq(studyMetadataVersions.id, context.metadataVersionId))
       .limit(1);
-    return { context, buildVersion: build?.version ?? null, values };
+    const openQueries = await app.db
+      .select({
+        id: queries.id,
+        origin: queries.origin,
+        checkOid: queries.checkOid,
+        createdAt: queries.createdAt,
+      })
+      .from(queries)
+      .where(and(eq(queries.formInstanceId, formInstanceId), eq(queries.status, "open")));
+    return { context, buildVersion: build?.version ?? null, values, openQueries };
   });
 
   app.put("/forms/:formInstanceId/items", async (request, reply) => {
@@ -279,7 +290,8 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
           : {}),
         ...(parsed.data.reasonForChange ? { reasonForChange: parsed.data.reasonForChange } : {}),
       });
-      return reply.code(201).send(version);
+      const findings = await evaluateFormChecks(app.db, context, user.id);
+      return reply.code(201).send({ ...version, findings });
     } catch (err) {
       if (err instanceof Error && /reasonForChange is required/.test(err.message)) {
         return reply.code(400).send({ error: err.message });
