@@ -40,7 +40,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned (phase in par
 | E6-05 | Access management: unique credentials, role-appropriate access, timely revocation | RBAC with per-study/per-site scoping; admin audit of grants/revocations | ⚪ (1) |
 | E6-06 | Security incident detection and response | Structured app/access logging; failed-login surfacing; anomaly reporting (basic) | ⚪ (1+) |
 | E6-07 | Reproducible point-in-time datasets (interim analysis, DB lock) | DuckLake snapshot versioning; extracts reference immutable snapshot IDs | ⚪ (5) |
-| E6-08 | Query management supporting data review | Threaded query lifecycle (open → answered → closed), manual + system-raised, fully audited | ⚪ (4) |
+| E6-08 | Query management supporting data review | Threaded query lifecycle (open → answered → closed, monitor reopen), manual + system-raised, fully audited; study-wide query dashboard | 🟢 `queries.test.ts`, `checks.test.ts` |
 | E6-09 | Investigator control over their data and signatures | Site-scoped roles; investigator signature workflow; signature invalidation on change | ⚪ (4) |
 | E6-10 | Retention and retrievability of essential records | Standards-based archive that outlives the running system | ⚪ (5) |
 

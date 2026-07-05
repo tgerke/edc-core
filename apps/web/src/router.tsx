@@ -13,6 +13,7 @@ import { BuilderPage } from "./pages/BuilderPage.js";
 import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { MatrixPage } from "./pages/MatrixPage.js";
+import { QueriesPage } from "./pages/QueriesPage.js";
 import { StudiesPage } from "./pages/StudiesPage.js";
 import { StudyPage } from "./pages/StudyPage.js";
 
@@ -110,6 +111,12 @@ const matrixRoute = createRoute({
   component: MatrixPage,
 });
 
+const queriesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/queries",
+  component: QueriesPage,
+});
+
 const formEntryRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/forms/$formInstanceId",
@@ -124,6 +131,7 @@ const routeTree = rootRoute.addChildren([
     studyRoute,
     builderRoute,
     matrixRoute,
+    queriesRoute,
     formEntryRoute,
   ]),
 ]);
