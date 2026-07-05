@@ -12,10 +12,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type FormData,
   useFormData,
+  usePermissions,
   useStudyBuild,
   useTransitionForm,
   useWriteItem,
 } from "../api/hooks.js";
+import { QueryPanel } from "../components/QueryPanel.js";
 import { Badge, Button, Card, ErrorNote, PageTitle, Spinner } from "../components/ui.js";
 import { STATUS_STYLES, statusLabel } from "./MatrixPage.js";
 
@@ -35,6 +37,19 @@ const ACTIONS_BY_STATUS: Record<string, { action: string; label: string }[]> = {
 };
 
 const WRITABLE = new Set(["not_started", "in_progress"]);
+
+function collectItemOptions(
+  group: ResolvedGroup,
+): { oid: string; groupOid: string; label: string }[] {
+  return group.children.flatMap((child) => {
+    if (child.kind === "item") {
+      const label =
+        displayText(child.def.question) ?? displayText(child.def.description) ?? child.def.name;
+      return [{ oid: child.def.oid, groupOid: group.def.oid, label }];
+    }
+    return collectItemOptions(child);
+  });
+}
 
 function fieldKey(groupOid: string, repeatKey: number, itemOid: string): string {
   return `${groupOid}:${repeatKey}:${itemOid}`;
@@ -192,7 +207,10 @@ function EntryForm({
 }) {
   const writeItem = useWriteItem(data.context.formInstanceId);
   const transition = useTransitionForm(data.context.formInstanceId);
+  const permissions = usePermissions(data.context.studyId, data.context.siteId);
   const checks = useMemo(() => compileEditChecks(mdv), [mdv]);
+  const checkMessages = useMemo(() => new Map(checks.map((c) => [c.oid, c.message])), [checks]);
+  const itemOptions = useMemo(() => collectItemOptions(form), [form]);
 
   const serverValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -381,6 +399,15 @@ function EntryForm({
           corrections.
         </p>
       )}
+
+      <div className="border-t border-zinc-200 pt-4">
+        <QueryPanel
+          formInstanceId={data.context.formInstanceId}
+          permissions={permissions.data ?? []}
+          itemOptions={itemOptions}
+          checkMessages={checkMessages}
+        />
+      </div>
     </div>
   );
 }

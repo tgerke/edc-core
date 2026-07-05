@@ -1,5 +1,5 @@
 import { buildRuleContext, compileEditChecks, runChecks } from "@edc-core/rules";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, queries, studyMetadataVersions } from "../db/schema/index.js";
 import type { FormContext } from "./capture.js";
@@ -43,18 +43,20 @@ export async function evaluateFormChecks(
 
   const results = await runChecks(checks, buildRuleContext(mdv, values));
 
-  const openSystemQueries = await db
+  // "Active" includes answered: a site's answer must not let a still-failing
+  // check open a duplicate query for the same problem.
+  const activeSystemQueries = await db
     .select()
     .from(queries)
     .where(
       and(
         eq(queries.formInstanceId, context.formInstanceId),
         eq(queries.origin, "system"),
-        eq(queries.status, "open"),
+        inArray(queries.status, ["open", "answered"]),
         isNotNull(queries.checkOid),
       ),
     );
-  const openByCheck = new Map(openSystemQueries.map((q) => [q.checkOid as string, q]));
+  const openByCheck = new Map(activeSystemQueries.map((q) => [q.checkOid as string, q]));
 
   const findings: CheckFinding[] = [];
   for (const check of checks) {

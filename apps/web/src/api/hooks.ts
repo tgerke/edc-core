@@ -224,6 +224,92 @@ export function useTransitionForm(formInstanceId: string) {
   });
 }
 
+export interface QueryMessage {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface QueryThread {
+  id: string;
+  formInstanceId: string;
+  itemGroupOid: string | null;
+  itemGroupRepeatKey: number | null;
+  itemOid: string | null;
+  origin: "manual" | "system";
+  checkOid: string | null;
+  status: "open" | "answered" | "closed";
+  openedBy: string;
+  createdAt: string;
+  closedAt: string | null;
+  messages: QueryMessage[];
+}
+
+export interface StudyQueryRow extends QueryThread {
+  subjectKey: string;
+  eventOid: string;
+  formOid: string;
+}
+
+export function useFormQueries(formInstanceId: string) {
+  return useQuery<QueryThread[]>({
+    queryKey: ["queries", "form", formInstanceId],
+    queryFn: () => api<QueryThread[]>(`/forms/${formInstanceId}/queries`),
+  });
+}
+
+export function useStudyQueries(studyId: string, status?: string) {
+  return useQuery<StudyQueryRow[]>({
+    queryKey: ["queries", "study", studyId, status ?? "all"],
+    queryFn: () =>
+      api<StudyQueryRow[]>(`/studies/${studyId}/queries${status ? `?status=${status}` : ""}`),
+  });
+}
+
+export function usePermissions(studyId: string, siteId?: string) {
+  return useQuery<string[]>({
+    queryKey: ["permissions", studyId, siteId ?? ""],
+    queryFn: async () =>
+      (
+        await api<{ permissions: string[] }>(
+          `/studies/${studyId}/permissions${siteId ? `?siteId=${siteId}` : ""}`,
+        )
+      ).permissions,
+  });
+}
+
+export function useOpenQuery(formInstanceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { itemGroupOid?: string; itemOid?: string; body: string }) =>
+      api(`/forms/${formInstanceId}/queries`, { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queries"] });
+      queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
+    },
+  });
+}
+
+export function useQueryAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      queryId: string;
+      action: "answer" | "reopen" | "close";
+      body?: string;
+    }) =>
+      api(`/queries/${input.queryId}/${input.action}`, {
+        method: "POST",
+        body: JSON.stringify(input.body ? { body: input.body } : {}),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queries"] });
+      queryClient.invalidateQueries({ queryKey: ["form"] });
+    },
+  });
+}
+
 export function useStudyBuild(studyId: string, version: number) {
   return useQuery<OdmFile>({
     queryKey: ["study-build", studyId, version],
