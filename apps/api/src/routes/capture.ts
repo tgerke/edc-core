@@ -24,6 +24,7 @@ import {
   writeItemValue,
 } from "../services/capture.js";
 import { evaluateFormChecks } from "../services/checks.js";
+import { listFormSignatures, SignatureError, signForm } from "../services/signatures.js";
 import type { StudyBuildDefinition } from "../services/study-builds.js";
 
 const enrollSchema = z.object({ siteId: z.uuid(), subjectKey: z.string().min(1) });
@@ -42,6 +43,11 @@ const writeItemSchema = z.object({
 });
 const transitionSchema = z.object({
   action: z.enum(Object.keys(FORM_TRANSITIONS) as [FormTransitionAction]),
+});
+const signSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+  meaning: z.string().min(1),
 });
 
 function sendCaptureError(reply: FastifyReply, err: unknown) {
@@ -263,7 +269,46 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       })
       .from(queries)
       .where(and(eq(queries.formInstanceId, formInstanceId), eq(queries.status, "open")));
-    return { context, buildVersion: build?.version ?? null, values, openQueries };
+    const formSignatures = await listFormSignatures(app.db, formInstanceId);
+    return {
+      context,
+      buildVersion: build?.version ?? null,
+      values,
+      openQueries,
+      signatures: formSignatures,
+    };
+  });
+
+  // Part 11 e-signature: distinct from /status transitions because it
+  // requires re-entry of both credential components at signing time.
+  app.post("/forms/:formInstanceId/sign", async (request, reply) => {
+    const { formInstanceId } = request.params as { formInstanceId: string };
+    const parsed = signSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+
+    const context = await resolveFormContext(app.db, formInstanceId);
+    if (!context) return reply.code(404).send({ error: "form not found" });
+    const user = await guard(request, reply, "data.sign", {
+      studyId: context.studyId,
+      siteId: context.siteId,
+    });
+    if (!user) return;
+
+    try {
+      const signature = await signForm(app.db, app.authService, context, {
+        actorId: user.id,
+        username: parsed.data.username,
+        password: parsed.data.password,
+        meaning: parsed.data.meaning,
+      });
+      return reply.code(201).send({ id: signature.id, signedAt: signature.signedAt });
+    } catch (err) {
+      if (err instanceof SignatureError) {
+        const status = { reauth_failed: 403, locked: 423, conflict: 409 }[err.code];
+        return reply.code(status).send({ error: err.message });
+      }
+      return sendCaptureError(reply, err);
+    }
   });
 
   app.put("/forms/:formInstanceId/items", async (request, reply) => {
