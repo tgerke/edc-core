@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { AuthConfig } from "./auth/config.js";
 import { authPlugin } from "./auth/plugin.js";
 import { createDb, type Db } from "./db/client.js";
+import { auditRoutes } from "./routes/audit.js";
 import { captureRoutes } from "./routes/capture.js";
 import { queryRoutes } from "./routes/queries.js";
 import { studyRoutes } from "./routes/studies.js";
@@ -35,6 +36,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await server.register(studyBuildRoutes);
   await server.register(captureRoutes);
   await server.register(queryRoutes);
+  await server.register(auditRoutes);
 
   server.get("/health", async () => {
     return healthResponseSchema.parse({

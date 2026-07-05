@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { useLogout, useMe } from "./api/hooks.js";
 import { Button, Spinner } from "./components/ui.js";
+import { AuditPage } from "./pages/AuditPage.js";
 import { BuilderPage } from "./pages/BuilderPage.js";
 import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
@@ -117,6 +118,12 @@ const queriesRoute = createRoute({
   component: QueriesPage,
 });
 
+const auditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/audit",
+  component: AuditPage,
+});
+
 const formEntryRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/forms/$formInstanceId",
@@ -132,6 +139,7 @@ const routeTree = rootRoute.addChildren([
     builderRoute,
     matrixRoute,
     queriesRoute,
+    auditRoute,
     formEntryRoute,
   ]),
 ]);
