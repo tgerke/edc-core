@@ -135,6 +135,17 @@ export interface OpenQuery {
   createdAt: string;
 }
 
+export interface SignatureManifestEntry {
+  id: string;
+  signerName: string;
+  signerUsername: string;
+  meaning: string;
+  recordHash: string;
+  signedAt: string;
+  invalidatedAt: string | null;
+  invalidatedReason: string | null;
+}
+
 export interface FormData {
   context: {
     formInstanceId: string;
@@ -150,6 +161,7 @@ export interface FormData {
   buildVersion: number | null;
   values: FormValue[];
   openQueries: OpenQuery[];
+  signatures: SignatureManifestEntry[];
 }
 
 export function useSites(studyId: string) {
@@ -217,6 +229,18 @@ export function useTransitionForm(formInstanceId: string) {
         method: "POST",
         body: JSON.stringify({ action }),
       }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
+      queryClient.invalidateQueries({ queryKey: ["matrix"] });
+    },
+  });
+}
+
+export function useSignForm(formInstanceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { username: string; password: string; meaning: string }) =>
+      api(`/forms/${formInstanceId}/sign`, { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
       queryClient.invalidateQueries({ queryKey: ["matrix"] });

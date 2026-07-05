@@ -13,6 +13,7 @@ import {
   type FormData,
   useFormData,
   usePermissions,
+  useSignForm,
   useStudyBuild,
   useTransitionForm,
   useWriteItem,
@@ -33,8 +34,15 @@ const ACTIONS_BY_STATUS: Record<string, { action: string; label: string }[]> = {
     { action: "unverify", label: "Unverify" },
     { action: "lock", label: "Lock" },
   ],
+  signed: [
+    { action: "reopen", label: "Reopen for correction" },
+    { action: "lock", label: "Lock" },
+  ],
   locked: [{ action: "unlock", label: "Unlock" }],
 };
+
+const SIGNABLE = new Set(["complete", "verified"]);
+const SIGNATURE_MEANINGS = ["Investigator approval", "Review", "Responsibility"];
 
 const WRITABLE = new Set(["not_started", "in_progress"]);
 
@@ -225,6 +233,11 @@ function EntryForm({
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const signForm = useSignForm(data.context.formInstanceId);
+  const [signing, setSigning] = useState(false);
+  const [signUsername, setSignUsername] = useState("");
+  const [signPassword, setSignPassword] = useState("");
+  const [signMeaning, setSignMeaning] = useState(SIGNATURE_MEANINGS[0] ?? "");
 
   // Refetches land while the user may hold unsaved edits (each write's
   // onSuccess refetches the form). Adopt the fresh server values but keep
@@ -302,6 +315,25 @@ function EntryForm({
     }
   }
 
+  async function sign() {
+    setError(null);
+    try {
+      await signForm.mutateAsync({
+        username: signUsername,
+        password: signPassword,
+        meaning: signMeaning,
+      });
+      setSigning(false);
+      setSignUsername("");
+      setSignPassword("");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const canSign =
+    SIGNABLE.has(data.context.status) && (permissions.data ?? []).includes("data.sign");
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -322,10 +354,85 @@ function EntryForm({
               {label}
             </Button>
           ))}
+          {canSign ? (
+            <Button onClick={() => setSigning((v) => !v)}>{signing ? "Cancel" : "Sign…"}</Button>
+          ) : null}
         </div>
       </div>
 
       {error ? <ErrorNote>{error}</ErrorNote> : null}
+
+      {signing && canSign ? (
+        <Card className="space-y-3 border-violet-200 bg-violet-50/40 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900">Electronic signature</h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              21 CFR Part 11: re-enter your own username and password to sign. Your signature is
+              bound to the data as it stands now; later corrections will invalidate it.
+            </p>
+          </div>
+          <div className="grid max-w-md gap-2">
+            <input
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+              placeholder="Username"
+              autoComplete="off"
+              value={signUsername}
+              onChange={(e) => setSignUsername(e.target.value)}
+            />
+            <input
+              type="password"
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+              placeholder="Password"
+              autoComplete="new-password"
+              value={signPassword}
+              onChange={(e) => setSignPassword(e.target.value)}
+            />
+            <select
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+              value={signMeaning}
+              onChange={(e) => setSignMeaning(e.target.value)}
+            >
+              {SIGNATURE_MEANINGS.map((meaning) => (
+                <option key={meaning} value={meaning}>
+                  {meaning}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={sign} disabled={signForm.isPending || !signUsername || !signPassword}>
+            {signForm.isPending ? "Signing…" : "Sign form"}
+          </Button>
+        </Card>
+      ) : null}
+
+      {data.signatures.length > 0 ? (
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-zinc-900">Signatures</h3>
+          <ul className="mt-2 space-y-1.5">
+            {data.signatures.map((signature) => (
+              <li
+                key={signature.id}
+                className={`flex flex-wrap items-center gap-2 text-sm ${
+                  signature.invalidatedAt ? "text-zinc-400 line-through" : "text-zinc-800"
+                }`}
+              >
+                <span className="font-medium">{signature.signerName}</span>
+                <span>·</span>
+                <span>{signature.meaning}</span>
+                <span>·</span>
+                <span>{new Date(signature.signedAt).toLocaleString()}</span>
+                {signature.invalidatedAt ? (
+                  <span className="no-underline">
+                    <Badge tone="amber">invalidated: {signature.invalidatedReason}</Badge>
+                  </span>
+                ) : (
+                  <Badge tone="emerald">valid</Badge>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       {saved ? (
         <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-200">
           Saved.

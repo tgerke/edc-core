@@ -21,10 +21,10 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned (phase in par
 | P11-05 | Validation of systems to ensure accuracy, reliability, consistent intended performance (§11.10(a)) | Versioned releases, CI test evidence, shipped validation pack (traceability + results) | ⚪ (6) |
 | P11-06 | Accurate and complete copies of records in human-readable and electronic form (§11.10(b)) | Full study export: ODM metadata + Dataset-JSON data + audit trail + signatures | ⚪ (5) |
 | P11-07 | Record protection for accurate retrieval throughout retention period (§11.10(c)) | Self-contained archive format (ODM XML/JSON + Dataset-JSON); PDF casebooks roadmap | ⚪ (5+) |
-| P11-08 | E-signatures unique to one individual, not reused/reassigned (§11.100(a)) | Signatures bound to unique user accounts; accounts never recycled | ⚪ (4) |
-| P11-09 | Signature manifest: printed name, date/time, meaning (§11.50) | Signature records carry signer, UTC timestamp, and meaning (e.g., investigator approval) | ⚪ (4) |
-| P11-10 | Signatures linked to their records; not excisable or transferable (§11.70) | Signature cryptographically bound to the specific record version; edits flag/invalidate | ⚪ (4) |
-| P11-11 | Two distinct identification components; re-entry at signing in a continuous session (§11.200(a)) | In-app re-authentication (ID + password) at each signing event, independent of SSO | ⚪ (4) |
+| P11-08 | E-signatures unique to one individual, not reused/reassigned (§11.100(a)) | Signatures bound to unique user accounts; re-auth credentials must belong to the session user | 🟢 `signatures.test.ts` |
+| P11-09 | Signature manifest: printed name, date/time, meaning (§11.50) | Signature records carry signer full name, UTC timestamp, and meaning; manifest shown on the form | 🟢 `signatures.test.ts` |
+| P11-10 | Signatures linked to their records; not excisable or transferable (§11.70) | SHA-256 record hash over form identity, pinned build, and every current value version; DB trigger forbids signature UPDATE/DELETE beyond one-way invalidation | 🟢 `signatures.test.ts`, `audit.test.ts` |
+| P11-11 | Two distinct identification components; re-entry at signing in a continuous session (§11.200(a)) | In-app re-authentication (username + password) at each signing event; failures audited and counted toward lockout; any transition back to editable invalidates live signatures | 🟢 `signatures.test.ts` |
 | P11-12 | Password controls: uniqueness, periodic checks, deauthorization on compromise (§11.300) | Argon2 hashing, configurable password policy, lockout, admin deauthorization | ⚪ (1) |
 | P11-13 | Operational/sequence checks enforcing permitted step order (§11.10(f)) | Entry workflow state machine (not started → … → signed → locked) enforced server-side | ⚪ (3) |
 | P11-14 | Device/terminal checks where required (§11.10(h)) | Session binding + structured access logging | ⚪ (1) |
