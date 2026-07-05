@@ -15,7 +15,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned (phase in par
 | ID | Requirement (citation) | System mechanism | Status |
 |---|---|---|---|
 | P11-01 | Secure, computer-generated, time-stamped audit trails for create/modify/delete; prior values not obscured (§11.10(e)) | Append-only version rows + DB triggers rejecting UPDATE/DELETE (ADR-0002) | ⚪ (1) |
-| P11-02 | Audit trail retained as long as the record, available for review and copying (§11.10(e)) | Audit included in study archive exports; audit review UI with filter/export | ⚪ (4) |
+| P11-02 | Audit trail retained as long as the record, available for review and copying (§11.10(e)) | Append-only trail with review UI (filter by action/entity/actor, paginated) and CSV export; full-archive export in Phase 5 | 🟢 `audit.test.ts` |
 | P11-03 | System access limited to authorized individuals (§11.10(d)) | Unique accounts, RBAC scoped per-study/per-site, session timeout, lockout | ⚪ (1) |
 | P11-04 | Authority checks: only authorized users can use the system, sign, or alter records (§11.10(g)) | Permission guards on every mutating route; signing permission is role-gated | ⚪ (1/4) |
 | P11-05 | Validation of systems to ensure accuracy, reliability, consistent intended performance (§11.10(a)) | Versioned releases, CI test evidence, shipped validation pack (traceability + results) | ⚪ (6) |
@@ -35,7 +35,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned (phase in par
 |---|---|---|---|
 | E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (§4, Annex 1/2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; lifecycle procedures doc | ⚪ (2/3) |
 | E6-02 | Computerized systems validated proportionate to risk | Risk-tiered test strategy in validation pack; deterministic versioned builds | ⚪ (6) |
-| E6-03 | Audit trails enabled by default; metadata defined; routine review expected | Audit always-on (not configurable off); dedicated audit review UI with saved review filters | ⚪ (4) |
+| E6-03 | Audit trails enabled by default; metadata defined; routine review expected | Audit always-on (not configurable off); dedicated review UI (`/studies/:id/audit`) with action/entity/actor filters, facets, pagination, CSV export; `audit.review` permission-gated | 🟢 `audit.test.ts` |
 | E6-04 | Traceability of data corrections and transformations | Reason-for-change on corrections; R engine executions record script version, snapshot ID, logs, outputs | ⚪ (1/5) |
 | E6-05 | Access management: unique credentials, role-appropriate access, timely revocation | RBAC with per-study/per-site scoping; admin audit of grants/revocations | ⚪ (1) |
 | E6-06 | Security incident detection and response | Structured app/access logging; failed-login surfacing; anomaly reporting (basic) | ⚪ (1+) |

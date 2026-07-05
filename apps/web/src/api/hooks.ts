@@ -236,6 +236,51 @@ export function useTransitionForm(formInstanceId: string) {
   });
 }
 
+export interface AuditEvent {
+  id: string;
+  occurredAt: string;
+  actor: string;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  oldValue: unknown;
+  newValue: unknown;
+  reason: string | null;
+}
+
+export interface AuditFilters {
+  action?: string;
+  entityType?: string;
+  actor?: string;
+  limit: number;
+  offset: number;
+}
+
+export interface AuditPage {
+  total: number;
+  events: AuditEvent[];
+  facets: { actions: string[]; entityTypes: string[] };
+}
+
+export function auditQueryString(filters: AuditFilters): string {
+  const params = new URLSearchParams();
+  if (filters.action) params.set("action", filters.action);
+  if (filters.entityType) params.set("entityType", filters.entityType);
+  if (filters.actor) params.set("actor", filters.actor);
+  params.set("limit", String(filters.limit));
+  params.set("offset", String(filters.offset));
+  return params.toString();
+}
+
+export function useAudit(studyId: string, filters: AuditFilters) {
+  return useQuery<AuditPage>({
+    queryKey: ["audit", studyId, filters],
+    placeholderData: (previous) => previous,
+    queryFn: () => api<AuditPage>(`/studies/${studyId}/audit?${auditQueryString(filters)}`),
+  });
+}
+
 export function useSignForm(formInstanceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
