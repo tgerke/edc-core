@@ -272,4 +272,60 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
     expect(snapshots[0].createdBy).toBe(`dm-${suffix}`);
     expect(snapshots.every((s: { status: string }) => s.status === "published")).toBe(true);
   });
+
+  it(
+    "exports Dataset-JSON v1.1, CSV, and Parquet pinned to the snapshot",
+    async () => {
+      const list = (
+        await server.inject({
+          method: "GET",
+          url: `/studies/${fx.studyId}/snapshots`,
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json().snapshots;
+      const [second, first] = list; // newest-first
+
+      const get = (snapshotId: string, qs: string, token = fx.dmToken) =>
+        server.inject({
+          method: "GET",
+          url: `/snapshots/${snapshotId}/export?${qs}`,
+          headers: { authorization: `Bearer ${token}` },
+        });
+
+      // Site users cannot export; unknown tables 404.
+      expect(
+        (await get(first.id, "table=ig_demographics&format=csv", fx.entryToken)).statusCode,
+      ).toBe(403);
+      expect((await get(first.id, "table=nope&format=csv")).statusCode).toBe(404);
+      // Dataset-JSON is only defined for datasets, not core tables.
+      expect((await get(first.id, "table=subjects&format=dataset-json")).statusCode).toBe(409);
+
+      // Dataset-JSON from the FIRST snapshot still carries the original DOB.
+      const dsj = await get(first.id, "table=ig_demographics&format=dataset-json");
+      expect(dsj.statusCode).toBe(200);
+      expect(dsj.headers["content-disposition"]).toContain("attachment");
+      const doc = dsj.json();
+      expect(doc.datasetJSONVersion).toBe("1.1.0");
+      expect(doc.itemGroupOID).toBe("IG.DEMOGRAPHICS");
+      expect(doc.records).toBe(1);
+      expect(doc.columns[0].itemOID).toBe("ITEMGROUPDATASEQ");
+      const dobIndex = doc.columns.findIndex((c: { itemOID: string }) => c.itemOID === "IT.DOB");
+      expect(doc.columns[dobIndex].dataType).toBe("date");
+      expect(doc.rows[0][dobIndex]).toBe("1957-05-07");
+
+      // CSV from the SECOND snapshot has the corrected value.
+      const csv = await get(second.id, "table=ig_demographics&format=csv");
+      expect(csv.statusCode).toBe(200);
+      expect(csv.headers["content-type"]).toContain("text/csv");
+      const [header, row] = csv.body.trim().split("\n");
+      expect(header).toContain("it_dob");
+      expect(row).toContain("1957-05-08");
+
+      // Parquet round-trips (magic bytes PAR1).
+      const parquet = await get(second.id, "table=ig_demographics&format=parquet");
+      expect(parquet.statusCode).toBe(200);
+      expect(parquet.rawPayload.subarray(0, 4).toString("ascii")).toBe("PAR1");
+    },
+    LAKE_TIMEOUT,
+  );
 });
