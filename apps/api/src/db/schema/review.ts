@@ -15,6 +15,8 @@ export const queries = pgTable("queries", {
   itemGroupRepeatKey: integer("item_group_repeat_key"),
   itemOid: text("item_oid"),
   origin: text("origin", { enum: ["manual", "system"] }).notNull(),
+  // For system queries: the edit-check ConditionDef that raised this query.
+  checkOid: text("check_oid"),
   status: text("status", { enum: ["open", "answered", "closed"] })
     .notNull()
     .default("open"),
