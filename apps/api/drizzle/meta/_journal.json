@@ -36,6 +36,13 @@
       "when": 1783179348261,
       "tag": "0004_query_check_oid",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783357841696,
+      "tag": "0005_snapshots",
+      "breakpoints": true
     }
   ]
 }

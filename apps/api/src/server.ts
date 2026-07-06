@@ -6,6 +6,7 @@ import { createDb, type Db } from "./db/client.js";
 import { auditRoutes } from "./routes/audit.js";
 import { captureRoutes } from "./routes/capture.js";
 import { queryRoutes } from "./routes/queries.js";
+import { snapshotRoutes } from "./routes/snapshots.js";
 import { studyRoutes } from "./routes/studies.js";
 import { studyBuildRoutes } from "./routes/study-builds.js";
 
@@ -37,6 +38,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await server.register(captureRoutes);
   await server.register(queryRoutes);
   await server.register(auditRoutes);
+  await server.register(snapshotRoutes);
 
   server.get("/health", async () => {
     return healthResponseSchema.parse({
