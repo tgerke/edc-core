@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { snapshots, studies } from "../db/schema/index.js";
 import { API_VERSION } from "../server.js";
-import { ident, lit, withLakeReader } from "./lake.js";
+import { ident, lakeRef, lit, withLakeReader } from "./lake.js";
 import type { SnapshotManifest, SnapshotTable } from "./snapshots.js";
 
 export class ExportError extends Error {
@@ -94,7 +94,8 @@ export async function exportSnapshotTable(
   if (!entry) throw new ExportError("not_found", `table ${input.table} is not in this snapshot`);
 
   const lakeVersion = String(snapshot.lakeVersion);
-  const source = `FROM lake.${ident(manifest.schema)}.${ident(entry.table)} AT (VERSION => ${lakeVersion})`;
+  const ref = lakeRef(manifest.schema);
+  const source = `FROM lake.${ident(entry.table)} AT (VERSION => ${lakeVersion})`;
   const base = `${entry.table}-snapshot-v${lakeVersion}`;
 
   if (input.format === "dataset-json") {
@@ -102,7 +103,7 @@ export async function exportSnapshotTable(
       throw new ExportError("invalid", "Dataset-JSON export is only defined for dataset tables");
     }
     const [study] = await db.select().from(studies).where(eq(studies.id, snapshot.studyId));
-    const rows = await withLakeReader(async (conn) => {
+    const rows = await withLakeReader(ref, async (conn) => {
       const result = await conn.runAndReadAll(`SELECT * ${source}`);
       return { columns: result.columnNames(), rows: result.getRows() };
     });
@@ -157,7 +158,7 @@ export async function exportSnapshotTable(
   const ext = input.format === "csv" ? "csv" : "parquet";
   const tmp = path.join(os.tmpdir(), `edc-export-${randomUUID()}.${ext}`);
   try {
-    await withLakeReader(async (conn) => {
+    await withLakeReader(ref, async (conn) => {
       const options = input.format === "csv" ? "(HEADER, DELIMITER ',')" : "(FORMAT PARQUET)";
       await conn.run(`COPY (SELECT * ${source}) TO ${lit(tmp)} ${options}`);
     });
