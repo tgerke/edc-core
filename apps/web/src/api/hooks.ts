@@ -128,6 +128,13 @@ export interface FormValue {
   value: string | null;
 }
 
+export interface OpenQuery {
+  id: string;
+  origin: "manual" | "system";
+  checkOid: string | null;
+  createdAt: string;
+}
+
 export interface FormData {
   context: {
     formInstanceId: string;
@@ -142,6 +149,7 @@ export interface FormData {
   };
   buildVersion: number | null;
   values: FormValue[];
+  openQueries: OpenQuery[];
 }
 
 export function useSites(studyId: string) {
