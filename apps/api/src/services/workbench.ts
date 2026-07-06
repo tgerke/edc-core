@@ -6,7 +6,7 @@ import type { SnapshotManifest } from "./snapshots.js";
 
 export class WorkbenchError extends Error {
   constructor(
-    public readonly code: "not_found" | "invalid" | "query" | "timeout",
+    public readonly code: "not_found" | "invalid" | "query" | "timeout" | "engine",
     message: string,
   ) {
     super(message);
