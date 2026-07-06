@@ -10,7 +10,7 @@ import { desc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, snapshots, studies, users } from "../db/schema/index.js";
 import { latestMetadataVersion } from "./capture.js";
-import { ident, lit, sqlName, withLakeWriter } from "./lake.js";
+import { ident, lakeRef, lit, sqlName, withLakeWriter } from "./lake.js";
 
 export class SnapshotError extends Error {
   constructor(
@@ -122,8 +122,8 @@ export function collectDatasets(mdv: MetaDataVersion): DatasetSpec[] {
   return specs;
 }
 
-function subjectsSql(schema: string, studyId: string): string {
-  return `CREATE OR REPLACE TABLE lake.${ident(schema)}.subjects AS
+function subjectsSql(studyId: string): string {
+  return `CREATE OR REPLACE TABLE lake.subjects AS
     SELECT s.subject_key, st.oid AS site_oid, st.name AS site_name, s.status, s.created_at
     FROM src.public.subjects s
     JOIN src.public.sites st ON st.id = s.site_id
@@ -131,8 +131,8 @@ function subjectsSql(schema: string, studyId: string): string {
     ORDER BY s.subject_key`;
 }
 
-function queriesSql(schema: string, studyId: string): string {
-  return `CREATE OR REPLACE TABLE lake.${ident(schema)}.queries AS
+function queriesSql(studyId: string): string {
+  return `CREATE OR REPLACE TABLE lake.queries AS
     SELECT sub.subject_key, sei.event_oid, fi.form_oid, q.item_group_oid, q.item_oid,
            q.origin, q.check_oid, q.status, q.created_at AS opened_at, q.closed_at
     FROM src.public.queries q
@@ -143,7 +143,7 @@ function queriesSql(schema: string, studyId: string): string {
     ORDER BY q.created_at`;
 }
 
-function datasetSql(schema: string, studyId: string, ds: DatasetSpec): string {
+function datasetSql(studyId: string, ds: DatasetSpec): string {
   const itemColumns = ds.columns.map((col) => {
     const raw = `MAX(v.value) FILTER (WHERE v.item_oid = ${lit(col.itemOid)})`;
     const duckType = DUCK_TYPE[col.dataType.toLowerCase()];
@@ -153,7 +153,7 @@ function datasetSql(schema: string, studyId: string, ds: DatasetSpec): string {
   // Latest version per value cell = the current value (same rule as the
   // item_values_current view, restated here because the postgres scanner
   // reads base tables).
-  return `CREATE OR REPLACE TABLE lake.${ident(schema)}.${ident(ds.table)} AS
+  return `CREATE OR REPLACE TABLE lake.${ident(ds.table)} AS
     SELECT sub.subject_key, st.oid AS site_oid,
            sei.event_oid, sei.repeat_key AS event_repeat_key,
            fi.form_oid, fi.repeat_key AS form_repeat_key, fi.status AS form_status,
@@ -195,7 +195,8 @@ export async function publishSnapshot(db: Db, input: PublishInput) {
   if (!mdv) throw new SnapshotError("invalid", "study has no published build to snapshot");
   const definition = mdv.definition as { metaDataVersion: MetaDataVersion };
   const datasets = collectDatasets(definition.metaDataVersion);
-  const schemaName = `study_${sqlName(study.oid)}`;
+  // Per-study lake: catalog schema + data subdirectory (see lake.ts).
+  const schemaName = `ducklake_${sqlName(study.oid)}`;
 
   const [row] = await db
     .insert(snapshots)
@@ -209,12 +210,11 @@ export async function publishSnapshot(db: Db, input: PublishInput) {
   if (!row) throw new SnapshotError("failed", "snapshot insert returned no row");
 
   try {
-    const { lakeVersion, manifest } = await withLakeWriter(async (conn) => {
-      await conn.run(`CREATE SCHEMA IF NOT EXISTS lake.${ident(schemaName)}`);
+    const { lakeVersion, manifest } = await withLakeWriter(lakeRef(schemaName), async (conn) => {
       await conn.run("BEGIN");
-      await conn.run(subjectsSql(schemaName, input.studyId));
-      await conn.run(queriesSql(schemaName, input.studyId));
-      for (const ds of datasets) await conn.run(datasetSql(schemaName, input.studyId, ds));
+      await conn.run(subjectsSql(input.studyId));
+      await conn.run(queriesSql(input.studyId));
+      for (const ds of datasets) await conn.run(datasetSql(input.studyId, ds));
       await conn.run("COMMIT");
 
       const versionResult = await conn.runAndReadAll(
@@ -224,9 +224,7 @@ export async function publishSnapshot(db: Db, input: PublishInput) {
 
       const tables: SnapshotTable[] = [];
       const countRows = async (table: string) => {
-        const result = await conn.runAndReadAll(
-          `SELECT count(*) AS n FROM lake.${ident(schemaName)}.${ident(table)}`,
-        );
+        const result = await conn.runAndReadAll(`SELECT count(*) AS n FROM lake.${ident(table)}`);
         return Number(result.getRowObjects()[0]?.n ?? 0);
       };
       tables.push({ table: "subjects", kind: "core", rows: await countRows("subjects") });

@@ -9,6 +9,7 @@ import { queryRoutes } from "./routes/queries.js";
 import { snapshotRoutes } from "./routes/snapshots.js";
 import { studyRoutes } from "./routes/studies.js";
 import { studyBuildRoutes } from "./routes/study-builds.js";
+import { workbenchRoutes } from "./routes/workbench.js";
 
 export const API_VERSION = "0.0.1";
 
@@ -39,6 +40,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await server.register(queryRoutes);
   await server.register(auditRoutes);
   await server.register(snapshotRoutes);
+  await server.register(workbenchRoutes);
 
   server.get("/health", async () => {
     return healthResponseSchema.parse({

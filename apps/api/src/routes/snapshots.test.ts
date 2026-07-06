@@ -9,9 +9,9 @@ import { hashPassword } from "../auth/password.js";
 import { grantRole } from "../auth/rbac.js";
 import { createDb, databaseUrl } from "../db/client.js";
 import { runMigrations } from "../db/migrate.js";
-import { roles, sites, studies, users } from "../db/schema/index.js";
+import { auditEvents, roles, sites, studies, users } from "../db/schema/index.js";
 import { buildServer } from "../server.js";
-import { withLakeReader } from "../services/lake.js";
+import { lakeRef, withLakeReader } from "../services/lake.js";
 import type { SnapshotManifest, SnapshotTable } from "../services/snapshots.js";
 import { importStudyBuild } from "../services/study-builds.js";
 
@@ -199,9 +199,9 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
       );
 
       // The pivoted row is typed: DATE for dob, BIGINT for sex.
-      const rows = await withLakeReader(async (conn) => {
+      const rows = await withLakeReader(lakeRef(fx.schema), async (conn) => {
         const result = await conn.runAndReadAll(
-          `SELECT subject_key, it_dob, it_sex FROM lake."${fx.schema}"."${demographics?.table}"
+          `SELECT subject_key, it_dob, it_sex FROM lake."${demographics?.table}"
            AT (VERSION => ${fx.firstLakeVersion})`,
         );
         return result.getRowObjects();
@@ -243,10 +243,10 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
       const demographics = (second.manifest as SnapshotManifest).tables.find(
         (t) => t.itemGroupOid === "IG.DEMOGRAPHICS",
       );
-      const [oldRow, newRow] = await withLakeReader(async (conn) => {
+      const [oldRow, newRow] = await withLakeReader(lakeRef(fx.schema), async (conn) => {
         const at = async (version: string) => {
           const result = await conn.runAndReadAll(
-            `SELECT it_dob FROM lake."${fx.schema}"."${demographics?.table}"
+            `SELECT it_dob FROM lake."${demographics?.table}"
              AT (VERSION => ${version})`,
           );
           return result.getRowObjects()[0];
@@ -325,6 +325,78 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
       const parquet = await get(second.id, "table=ig_demographics&format=parquet");
       expect(parquet.statusCode).toBe(200);
       expect(parquet.rawPayload.subarray(0, 4).toString("ascii")).toBe("PAR1");
+    },
+    LAKE_TIMEOUT,
+  );
+
+  it(
+    "runs sandboxed workbench SQL against pinned snapshot views",
+    async () => {
+      const list = (
+        await server.inject({
+          method: "GET",
+          url: `/studies/${fx.studyId}/snapshots`,
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json().snapshots;
+      const [second, first] = list;
+
+      const run = (sql: string, snapshotId = first.id, token = fx.dmToken) =>
+        server.inject({
+          method: "POST",
+          url: `/studies/${fx.studyId}/workbench/sql`,
+          payload: { snapshotId, sql },
+          headers: { authorization: `Bearer ${token}` },
+        });
+
+      // data_entry lacks analytics.run.
+      expect((await run("SELECT 1", first.id, fx.entryToken)).statusCode).toBe(403);
+
+      // Tables are plain names, pinned to the chosen snapshot's version:
+      // the first snapshot still shows the pre-correction DOB.
+      const joined = await run(
+        `SELECT d.subject_key, d.it_dob, s.site_name
+         FROM ig_demographics d JOIN subjects s USING (subject_key)`,
+      );
+      expect(joined.statusCode).toBe(200);
+      const body = joined.json();
+      expect(body.columns).toEqual(["subject_key", "it_dob", "site_name"]);
+      expect(body.rows).toEqual([["SNAP-001", "1957-05-07", "Site One"]]);
+      expect(body.lakeVersion).toBe(first.lakeVersion);
+      const corrected = await run("SELECT it_dob FROM ig_demographics", second.id);
+      expect(corrected.json().rows).toEqual([["1957-05-08"]]);
+
+      // Sandbox: no filesystem, no ATTACH, no config changes.
+      for (const sql of [
+        "SELECT * FROM read_csv('/etc/passwd')",
+        "COPY (SELECT 1) TO '/tmp/evil.csv'",
+        "ATTACH 'postgres://x@y/z' AS pg (TYPE postgres)",
+        "SET enable_external_access=true",
+      ]) {
+        expect((await run(sql)).statusCode, sql).toBe(400);
+      }
+
+      // Results are capped and flagged as truncated.
+      const big = await run("SELECT * FROM range(10000)");
+      expect(big.json().rowCount).toBe(5000);
+      expect(big.json().truncated).toBe(true);
+
+      // Snapshots from another study are unreachable through this route.
+      const foreign = await server.inject({
+        method: "POST",
+        url: `/studies/${fx.emptyStudyId}/workbench/sql`,
+        payload: { snapshotId: first.id, sql: "SELECT 1" },
+        headers: { authorization: `Bearer ${fx.emptyDmToken}` },
+      });
+      expect(foreign.statusCode).toBe(404);
+
+      // Executions are audited with the SQL text (E6-04).
+      const audit = await db.select().from(auditEvents).where(eq(auditEvents.studyId, fx.studyId));
+      const executed = audit.filter((e) => e.action === "workbench.executed");
+      expect(executed.length).toBeGreaterThanOrEqual(2);
+      expect(
+        executed.some((e) => (e.newValue as { sql?: string }).sql?.includes("USING (subject_key)")),
+      ).toBe(true);
     },
     LAKE_TIMEOUT,
   );

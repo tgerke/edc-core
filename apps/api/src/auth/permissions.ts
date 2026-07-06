@@ -10,6 +10,7 @@ export const PERMISSIONS = [
   "query.answer",
   "audit.review",
   "export.data",
+  "analytics.run",
   "roles.grant",
 ] as const;
 
