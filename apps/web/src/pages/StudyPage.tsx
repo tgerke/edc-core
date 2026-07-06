@@ -48,6 +48,10 @@ export function StudyPage() {
               <Link to="/studies/$studyId/audit" params={{ studyId }} className="underline">
                 audit trail
               </Link>
+              {" · "}
+              <Link to="/studies/$studyId/workbench" params={{ studyId }} className="underline">
+                analytics
+              </Link>
             </>
           }
         >
