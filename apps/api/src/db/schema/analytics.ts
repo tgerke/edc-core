@@ -1,4 +1,14 @@
-import { bigint, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { studies } from "./studies.js";
 import { users } from "./users.js";
 
@@ -31,4 +41,69 @@ export const snapshots = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }),
   },
   (t) => [index("snapshot_study_idx").on(t.studyId, t.createdAt)],
+);
+
+// Saved workbench scripts. Content is versioned (E6-04: traceable
+// transformations) — saving appends a new version row, never rewrites.
+export const workbenchScripts = pgTable(
+  "workbench_scripts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studyId: uuid("study_id")
+      .notNull()
+      .references(() => studies.id),
+    name: text("name").notNull(),
+    language: text("language", { enum: ["r", "sql"] }).notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("workbench_script_name_unique").on(t.studyId, t.name)],
+);
+
+export const workbenchScriptVersions = pgTable(
+  "workbench_script_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scriptId: uuid("script_id")
+      .notNull()
+      .references(() => workbenchScripts.id),
+    version: integer("version").notNull(),
+    content: text("content").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("workbench_script_version_unique").on(t.scriptId, t.version)],
+);
+
+// One row per R execution: exact content run, pinned snapshot, logs, and
+// outputs — the E6-04 evidence trail for data transformations.
+export const workbenchExecutions = pgTable(
+  "workbench_executions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studyId: uuid("study_id")
+      .notNull()
+      .references(() => studies.id),
+    snapshotId: uuid("snapshot_id")
+      .notNull()
+      .references(() => snapshots.id),
+    scriptId: uuid("script_id").references(() => workbenchScripts.id),
+    scriptVersion: integer("script_version"),
+    language: text("language", { enum: ["r"] }).notNull(),
+    content: text("content").notNull(),
+    status: text("status", { enum: ["succeeded", "failed"] }).notNull(),
+    stdout: text("stdout"),
+    error: text("error"),
+    result: jsonb("result"),
+    elapsedMs: integer("elapsed_ms"),
+    executedBy: uuid("executed_by")
+      .notNull()
+      .references(() => users.id),
+    executedAt: timestamp("executed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("workbench_execution_study_idx").on(t.studyId, t.executedAt)],
 );

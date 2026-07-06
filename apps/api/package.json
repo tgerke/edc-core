@@ -14,7 +14,7 @@
     "db:bootstrap-admin": "tsx src/scripts/bootstrap-admin.ts"
   },
   "dependencies": {
-    "@duckdb/node-api": "1.5.4-r.1",
+    "@duckdb/node-api": "1.4.5-r.1",
     "@edc-core/odm": "workspace:*",
     "@edc-core/rules": "workspace:*",
     "@edc-core/schemas": "workspace:*",

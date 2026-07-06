@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
@@ -400,4 +402,141 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
     },
     LAKE_TIMEOUT,
   );
+
+  it("versions saved scripts and records R executions with logs and outputs", async () => {
+    // Fake R engine: asserts the API sends a pinned, study-scoped payload
+    // without needing R in CI; the real engine is services/r-engine.
+    const received: unknown[] = [];
+    const engine = createServer((req, res) => {
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk;
+      });
+      req.on("end", () => {
+        const payload = JSON.parse(body) as { script: string };
+        received.push(payload);
+        res.setHeader("content-type", "application/json");
+        if (payload.script.includes("stop(")) {
+          res.end(JSON.stringify({ ok: false, stdout: "", error: "boom: forced failure" }));
+        } else {
+          res.end(
+            JSON.stringify({
+              ok: true,
+              stdout: "[1] 42",
+              resultColumns: ["subject_key", "n"],
+              resultJson: '[["SNAP-001",1]]',
+              elapsedMs: 5,
+            }),
+          );
+        }
+      });
+    });
+    await new Promise<void>((resolve) => engine.listen(0, resolve));
+    const address = engine.address() as AddressInfo;
+    process.env.R_ENGINE_URL = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const snapshot = (
+        await server.inject({
+          method: "GET",
+          url: `/studies/${fx.studyId}/snapshots`,
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json().snapshots[0];
+
+      // Saving twice under one name appends versions.
+      const save = (content: string) =>
+        server.inject({
+          method: "PUT",
+          url: `/studies/${fx.studyId}/workbench/scripts`,
+          payload: { name: "enrollment-summary", language: "r", content },
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        });
+      expect((await save("lake_read('subjects')")).json().version).toBe(1);
+      const v2 = (await save("dplyr::count(lake_read('subjects'))")).json();
+      expect(v2.version).toBe(2);
+      const scripts = (
+        await server.inject({
+          method: "GET",
+          url: `/studies/${fx.studyId}/workbench/scripts`,
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json().scripts;
+      expect(scripts).toHaveLength(1);
+      expect(scripts[0].version).toBe(2);
+
+      // data_entry lacks analytics.run.
+      const denied = await server.inject({
+        method: "POST",
+        url: `/studies/${fx.studyId}/workbench/r`,
+        payload: { snapshotId: snapshot.id, content: "1 + 1" },
+        headers: { authorization: `Bearer ${fx.entryToken}` },
+      });
+      expect(denied.statusCode).toBe(403);
+
+      const run = await server.inject({
+        method: "POST",
+        url: `/studies/${fx.studyId}/workbench/r`,
+        payload: {
+          snapshotId: snapshot.id,
+          content: v2.content,
+          scriptId: v2.id,
+          scriptVersion: 2,
+        },
+        headers: { authorization: `Bearer ${fx.dmToken}` },
+      });
+      expect(run.statusCode).toBe(200);
+      const execution = run.json();
+      expect(execution.status).toBe("succeeded");
+      expect(execution.stdout).toBe("[1] 42");
+      expect(execution.result).toEqual({ columns: ["subject_key", "n"], rows: [["SNAP-001", 1]] });
+
+      // The engine got a study-scoped, version-pinned payload.
+      const payload = received.at(-1) as {
+        metadataSchema: string;
+        version: number;
+        tables: string[];
+      };
+      expect(payload.metadataSchema).toBe(fx.schema);
+      expect(String(payload.version)).toBe(snapshot.lakeVersion);
+      expect(payload.tables).toContain("ig_demographics");
+
+      // Failures are recorded, not lost.
+      const failed = (
+        await server.inject({
+          method: "POST",
+          url: `/studies/${fx.studyId}/workbench/r`,
+          payload: { snapshotId: snapshot.id, content: "stop('x')" },
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json();
+      expect(failed.status).toBe("failed");
+      expect(failed.error).toContain("boom");
+
+      // History lists both runs, newest first, with script attribution.
+      const executions = (
+        await server.inject({
+          method: "GET",
+          url: `/studies/${fx.studyId}/workbench/executions`,
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json().executions;
+      expect(executions.length).toBeGreaterThanOrEqual(2);
+      expect(executions[0].status).toBe("failed");
+      expect(executions[1].scriptVersion).toBe(2);
+
+      // Engine down → 502, nothing recorded as succeeded.
+      process.env.R_ENGINE_URL = "http://127.0.0.1:1";
+      const down = await server.inject({
+        method: "POST",
+        url: `/studies/${fx.studyId}/workbench/r`,
+        payload: { snapshotId: snapshot.id, content: "1 + 1" },
+        headers: { authorization: `Bearer ${fx.dmToken}` },
+      });
+      expect(down.statusCode).toBe(502);
+    } finally {
+      delete process.env.R_ENGINE_URL;
+      engine.close();
+    }
+  });
 });
