@@ -390,3 +390,149 @@ export function useStudyBuild(studyId: string, version: number) {
     },
   });
 }
+
+export interface SnapshotColumn {
+  column: string;
+  itemOid: string;
+  dataType: string;
+  label?: string;
+}
+
+export interface SnapshotTable {
+  table: string;
+  kind: "core" | "dataset";
+  itemGroupOid?: string;
+  label?: string;
+  rows: number;
+  columns?: SnapshotColumn[];
+}
+
+export interface SnapshotManifest {
+  schema: string;
+  metadataVersion: number;
+  tables: SnapshotTable[];
+}
+
+export interface Snapshot {
+  id: string;
+  note: string | null;
+  status: "pending" | "published" | "failed";
+  schemaName: string;
+  lakeVersion: string | null;
+  manifest: SnapshotManifest | null;
+  error: string | null;
+  createdBy: string;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export function useSnapshots(studyId: string) {
+  return useQuery<Snapshot[]>({
+    queryKey: ["snapshots", studyId],
+    queryFn: async () =>
+      (await api<{ snapshots: Snapshot[] }>(`/studies/${studyId}/snapshots`)).snapshots,
+  });
+}
+
+export function usePublishSnapshot(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { note?: string }) =>
+      api<Snapshot>(`/studies/${studyId}/snapshots`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["snapshots", studyId] }),
+  });
+}
+
+export interface WorkbenchResult {
+  columns: string[];
+  rows: unknown[][];
+  rowCount: number;
+  truncated: boolean;
+  elapsedMs: number;
+  lakeVersion: string;
+}
+
+export function useRunSql(studyId: string) {
+  return useMutation({
+    mutationFn: (body: { snapshotId: string; sql: string }) =>
+      api<WorkbenchResult>(`/studies/${studyId}/workbench/sql`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  });
+}
+
+export interface SavedScript {
+  id: string;
+  name: string;
+  language: "r" | "sql";
+  version: number;
+  content: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface WorkbenchExecution {
+  id: string;
+  snapshotId: string;
+  scriptId: string | null;
+  scriptVersion: number | null;
+  language: "r";
+  content: string;
+  status: "succeeded" | "failed";
+  stdout: string | null;
+  error: string | null;
+  result: { columns: string[]; rows: unknown[][] } | null;
+  elapsedMs: number | null;
+  executedBy: string;
+  executedAt: string;
+}
+
+export function useScripts(studyId: string) {
+  return useQuery<SavedScript[]>({
+    queryKey: ["workbench-scripts", studyId],
+    queryFn: async () =>
+      (await api<{ scripts: SavedScript[] }>(`/studies/${studyId}/workbench/scripts`)).scripts,
+  });
+}
+
+export function useSaveScript(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; language: "r" | "sql"; content: string }) =>
+      api<SavedScript>(`/studies/${studyId}/workbench/scripts`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workbench-scripts", studyId] }),
+  });
+}
+
+export function useRunR(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      snapshotId: string;
+      content: string;
+      scriptId?: string;
+      scriptVersion?: number;
+    }) =>
+      api<WorkbenchExecution>(`/studies/${studyId}/workbench/r`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workbench-executions", studyId] }),
+  });
+}
+
+export function useExecutions(studyId: string) {
+  return useQuery<WorkbenchExecution[]>({
+    queryKey: ["workbench-executions", studyId],
+    queryFn: async () =>
+      (await api<{ executions: WorkbenchExecution[] }>(`/studies/${studyId}/workbench/executions`))
+        .executions,
+  });
+}

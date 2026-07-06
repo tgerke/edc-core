@@ -12,3 +12,5 @@ coverage/
 *.tsbuildinfo
 .claude/settings.local.json
 .claude/launch.json
+# Local DuckLake data (Parquet files); the catalog lives in Postgres
+apps/api/data/
