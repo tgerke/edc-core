@@ -43,6 +43,34 @@ export async function hasPermission(
   return rows.length > 0;
 }
 
+/**
+ * All permissions the user's unrevoked grants confer in the scope. Serves the
+ * UI's action gating; route guards still call hasPermission — this is
+ * advisory, never authorization.
+ */
+export async function effectivePermissions(
+  db: Db,
+  userId: string,
+  scope: PermissionScope,
+): Promise<Permission[]> {
+  const siteCondition = scope.siteId
+    ? or(isNull(userStudyRoles.siteId), eq(userStudyRoles.siteId, scope.siteId))
+    : isNull(userStudyRoles.siteId);
+  const rows = await db
+    .selectDistinct({ permission: rolePermissions.permission })
+    .from(userStudyRoles)
+    .innerJoin(rolePermissions, eq(rolePermissions.roleId, userStudyRoles.roleId))
+    .where(
+      and(
+        eq(userStudyRoles.userId, userId),
+        eq(userStudyRoles.studyId, scope.studyId),
+        isNull(userStudyRoles.revokedAt),
+        siteCondition,
+      ),
+    );
+  return rows.map((r) => r.permission as Permission).sort();
+}
+
 /** Membership = any unrevoked role grant in the study (read visibility). */
 export async function isStudyMember(db: Db, userId: string, studyId: string): Promise<boolean> {
   const rows = await db

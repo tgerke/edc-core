@@ -10,6 +10,7 @@ import {
   studyMetadataVersions,
   subjects,
 } from "../db/schema/index.js";
+import { invalidateLiveSignatures } from "./signatures.js";
 
 export type FormStatus =
   | "not_started"
@@ -29,19 +30,21 @@ export class CaptureError extends Error {
 }
 
 /**
- * The entry-workflow state machine (P11-13). Signing transitions are
- * deliberately absent until Phase 4 implements Part 11 e-signatures with
- * re-authentication; locking is available to close out forms meanwhile.
+ * The entry-workflow state machine (P11-13). Signing is not listed here —
+ * it is its own path (services/signatures.ts) because it demands Part 11
+ * re-authentication. Any transition back into `in_progress` invalidates
+ * live signatures: a record never becomes editable while a signature
+ * silently continues to vouch for it (P11-11).
  */
 export const FORM_TRANSITIONS: Record<
   string,
   { from: FormStatus[]; to: FormStatus; permission: Permission }
 > = {
   complete: { from: ["in_progress"], to: "complete", permission: "data.enter" },
-  reopen: { from: ["complete"], to: "in_progress", permission: "data.enter" },
+  reopen: { from: ["complete", "signed"], to: "in_progress", permission: "data.enter" },
   verify: { from: ["complete"], to: "verified", permission: "data.verify" },
   unverify: { from: ["verified"], to: "complete", permission: "data.verify" },
-  lock: { from: ["complete", "verified"], to: "locked", permission: "data.lock" },
+  lock: { from: ["complete", "verified", "signed"], to: "locked", permission: "data.lock" },
   unlock: { from: ["locked"], to: "complete", permission: "data.lock" },
 };
 
@@ -301,6 +304,9 @@ export async function transitionForm(
       .returning();
     if (!updated) {
       throw new CaptureError("conflict", "form status changed concurrently; retry");
+    }
+    if (transition.to === "in_progress") {
+      await invalidateLiveSignatures(tx, context, actorId, `form reopened for correction`);
     }
     await tx.insert(auditEvents).values({
       actorId,
