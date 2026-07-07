@@ -1,0 +1,49 @@
+project:
+  type: website
+
+website:
+  title: "edc-core"
+  description: "A modern, open-source Electronic Data Capture system for clinical research"
+  site-url: https://tgerke.github.io/edc-core/
+  repo-url: https://github.com/tgerke/edc-core
+  repo-actions: [issue]
+  page-navigation: true
+  navbar:
+    background: dark
+    pinned: true
+    left:
+      - href: index.qmd
+        text: Home
+      - href: installation.qmd
+        text: Installation
+      - href: tour.qmd
+        text: Five-minute tour
+      - text: User guide
+        href: guide/study-builds.qmd
+      - href: compliance.qmd
+        text: Compliance
+    right:
+      - icon: github
+        href: https://github.com/tgerke/edc-core
+        aria-label: GitHub
+  sidebar:
+    - title: "User guide"
+      style: floating
+      contents:
+        - guide/study-builds.qmd
+        - guide/data-capture.qmd
+        - guide/review.qmd
+        - guide/analytics.qmd
+  page-footer:
+    left: "edc-core is AGPL-3.0 · clinical research infrastructure should stay open"
+    right:
+      - icon: github
+        href: https://github.com/tgerke/edc-core
+
+format:
+  html:
+    theme: [cosmo, theme.scss]
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    link-external-newwindow: true

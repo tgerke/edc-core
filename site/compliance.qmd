@@ -1,0 +1,73 @@
+---
+title: "Compliance"
+---
+
+::: {.callout-important}
+## What a product can — and can't — claim
+
+No software is "Part 11 compliant" on its own: compliance belongs to the
+sponsor's validated implementation, SOPs, and training. edc-core's job is to
+make that validation **cheap and defensible** — every regulatory requirement
+maps to a designed mechanism with automated test evidence you can inspect.
+:::
+
+## The traceability matrix
+
+The living map from requirements to mechanisms to tests is
+[`docs/regulatory-traceability.md`](https://github.com/tgerke/edc-core/blob/main/docs/regulatory-traceability.md).
+It covers 21 CFR Part 11 (and EU Annex 11 overlap), ICH E6(R3) data-governance
+expectations, data protection (GDPR pseudonymization by design), and CDISC
+standards conformance. Each row carries an ID (`P11-*`, `E6-*`, `DP-*`,
+`SC-*`) that pull requests reference when they implement or modify the
+mechanism.
+
+## The validation pack
+
+Every tagged release ships a **validation pack**: the traceability matrix
+joined to that exact commit's automated test results, with per-requirement
+evidence files. It fails the release if any cited evidence is missing or any
+test fails. Regenerate it locally against your own deployment's commit:
+
+```sh
+pnpm validation-pack
+```
+
+This is the artifact to hand your validation team — it demonstrates vendor
+testing per requirement, so your effort can focus on your intended use.
+
+## Mechanism highlights
+
+**Append-only audit trail (P11-01).** Every create, change, and state
+transition writes an audit event in the same database transaction; PostgreSQL
+triggers reject `UPDATE`/`DELETE` on audit and version tables. Prior values
+are never obscured. Time-stamped, independently reviewable, exportable.
+
+**Electronic signatures (P11-08 – P11-11).** Two-component re-authentication
+at signing; signature manifest with name, time, and meaning; SHA-256 binding
+to the exact signed record versions; one-way invalidation on subsequent edits.
+
+**Access control (P11-03, E6-05).** Unique accounts with Argon2 password
+hashing, configurable password policy, session timeout and lockout; role-based
+permissions scoped per-study and per-site with six default clinical roles.
+
+**Audit trail review (E6-03).** A dedicated review UI — filter by action,
+entity, actor, and time; export to CSV — because E6(R3) treats review as an
+expectation, not an option.
+
+**Point-in-time data (E6-07).** Published snapshots are immutable and
+version-pinned; an interim analysis or DB lock references a snapshot that can
+be re-read identically forever.
+
+**Traceable transformations (E6-04).** Workbench SQL and R executions are
+recorded with their full code, logs, outputs, actor, and snapshot version.
+
+**Accurate and complete copies (P11-06).** The study archive is a
+self-contained bundle — ODM metadata, Dataset-JSON/CSV data, complete audit
+trail, signature manifest — in open formats that outlive the running system.
+
+## Known gaps
+
+Tracked openly in the matrix: PDF casebook rendering, device/terminal checks,
+formal lifecycle-procedure documentation, anomaly reporting, and hardened
+deployment guidance are on the [roadmap](https://github.com/tgerke/edc-core#roadmap)
+and marked 🟡/⚪ rather than claimed.

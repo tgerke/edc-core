@@ -8,7 +8,7 @@ automated test evidence as the **validation pack**.
 implementation and own their SOPs. This matrix exists to make that validation cheap and to
 show that every requirement has a designed, tested mechanism.
 
-Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned (phase in parentheses)
+Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 
 ## 21 CFR Part 11 — Electronic Records; Electronic Signatures
 

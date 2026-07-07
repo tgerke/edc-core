@@ -1,0 +1,51 @@
+---
+title: "Data capture"
+---
+
+## The subject matrix
+
+Each study's home for site staff is the subject matrix: subjects as rows,
+scheduled events and forms as columns, with each cell showing that form's
+workflow state. Coordinators enroll subjects here and jump straight into
+entry.
+
+![](../images/subject-matrix.png){.screenshot fig-alt="Subject matrix"}
+
+Site-scoped roles (coordinator, investigator) see only their site's subjects;
+study-scoped roles (data manager, monitor) see all sites.
+
+## Entering data
+
+CRFs render directly from the study build's metadata — field types, required
+flags, units, and codelists all come from the ODM item definitions. Failing
+edit checks surface immediately as you type, before anything is saved.
+
+![](../images/form-entry.png){.screenshot fig-alt="Metadata-driven CRF with edit checks and query panel"}
+
+Saving writes each item value as a new immutable version row, in the same
+database transaction as its audit event. **Changing a saved value requires a
+reason for change**, and the previous value is never overwritten — the full
+version history stays queryable and appears in the audit trail.
+
+## Workflow states
+
+Every form instance moves through a server-enforced state machine:
+
+```
+not started → in progress → complete → verified → signed → locked
+```
+
+Transitions are role-gated (a monitor verifies, an investigator signs) and
+validated server-side — the UI only offers actions the API would accept.
+Reopening a signed form for correction invalidates its signature and returns
+it to the editable state, leaving the signature record and its invalidation in
+the audit trail.
+
+## System queries from edit checks
+
+When a saved value fails an edit check, edc-core opens a **system query** on
+that item automatically. The query thread lives on the form (visible in the
+screenshot above) and in the study-wide queries dashboard. Correct the data
+and the system query closes itself; the resolution is audited like everything
+else. Manual queries work the same way — see
+[Review workflows](review.qmd).
