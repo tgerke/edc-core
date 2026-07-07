@@ -16,3 +16,6 @@ coverage/
 apps/api/data/
 # Generated release artifact (pnpm validation-pack)
 validation-pack/
+# Quarto docs site build output
+site/_site/
+site/.quarto/
