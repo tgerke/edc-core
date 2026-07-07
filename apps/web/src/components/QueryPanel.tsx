@@ -50,6 +50,9 @@ function Thread({
         {query.itemOid ? (
           <span className="font-mono text-[11px] text-zinc-400">{query.itemOid}</span>
         ) : null}
+        {query.itemGroupRepeatKey != null ? (
+          <Badge>occurrence {query.itemGroupRepeatKey}</Badge>
+        ) : null}
         <span className="ml-auto text-xs text-zinc-400">
           opened by {query.openedBy} · {when(query.createdAt)}
         </span>

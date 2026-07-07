@@ -6,7 +6,7 @@ import {
   type ResolvedGroup,
   resolveGroup,
 } from "@edc-core/odm";
-import { buildRuleContext, compileEditChecks, runChecks } from "@edc-core/rules";
+import { compileEditChecks, type ItemValueRow, runChecksOverRows } from "@edc-core/rules";
 import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -61,6 +61,25 @@ function collectItemOptions(
 
 function fieldKey(groupOid: string, repeatKey: number, itemOid: string): string {
   return `${groupOid}:${repeatKey}:${itemOid}`;
+}
+
+function parseFieldKey(key: string): { groupOid: string; repeatKey: number; itemOid: string } {
+  const [groupOid = "", repeatKey = "1", itemOid = ""] = key.split(":");
+  return { groupOid, repeatKey: Number(repeatKey), itemOid };
+}
+
+/** Occurrences to render for a repeating group: every stored key, plus added rows. */
+function occurrenceCount(
+  groupOid: string,
+  values: Record<string, string>,
+  added: Record<string, number>,
+): number {
+  let max = 1;
+  for (const key of Object.keys(values)) {
+    const parsed = parseFieldKey(key);
+    if (parsed.groupOid === groupOid && parsed.repeatKey > max) max = parsed.repeatKey;
+  }
+  return max + (added[groupOid] ?? 0);
 }
 
 function EntryControl({
@@ -137,15 +156,21 @@ function EntryControl({
 function EntryGroup({
   group,
   depth,
+  repeatKey = 1,
   values,
   editable,
+  added,
   onChange,
+  onAddOccurrence,
 }: {
   group: ResolvedGroup;
   depth: number;
+  repeatKey?: number;
   values: Record<string, string>;
   editable: boolean;
+  added: Record<string, number>;
   onChange: (key: string, value: string) => void;
+  onAddOccurrence: (groupOid: string) => void;
 }) {
   const isRepeating = group.def.repeating && group.def.repeating !== "No";
   return (
@@ -153,13 +178,13 @@ function EntryGroup({
       {depth > 0 ? (
         <div className="mb-2 flex items-center gap-2">
           <h3 className="text-sm font-semibold text-zinc-900">{group.def.name}</h3>
-          {isRepeating ? <Badge tone="sky">repeating · first occurrence shown</Badge> : null}
+          {isRepeating ? <Badge tone="sky">occurrence {repeatKey}</Badge> : null}
         </div>
       ) : null}
       <div className="divide-y divide-zinc-100">
         {group.children.map((child, index) => {
           if (child.kind === "item") {
-            const key = fieldKey(group.def.oid, 1, child.def.oid);
+            const key = fieldKey(group.def.oid, repeatKey, child.def.oid);
             const label =
               displayText(child.def.question) ??
               displayText(child.def.description) ??
@@ -187,15 +212,45 @@ function EntryGroup({
               </div>
             );
           }
+
+          const childRepeats = child.def.repeating && child.def.repeating !== "No";
+          if (!childRepeats) {
+            return (
+              <div key={child.def.oid} className={index > 0 ? "pt-3" : ""}>
+                <EntryGroup
+                  group={child}
+                  depth={depth + 1}
+                  values={values}
+                  editable={editable}
+                  added={added}
+                  onChange={onChange}
+                  onAddOccurrence={onAddOccurrence}
+                />
+              </div>
+            );
+          }
+
+          const count = occurrenceCount(child.def.oid, values, added);
           return (
-            <div key={child.def.oid} className={index > 0 ? "pt-3" : ""}>
-              <EntryGroup
-                group={child}
-                depth={depth + 1}
-                values={values}
-                editable={editable}
-                onChange={onChange}
-              />
+            <div key={child.def.oid} className={`space-y-3 ${index > 0 ? "pt-3" : ""}`}>
+              {Array.from({ length: count }, (_, i) => i + 1).map((occurrence) => (
+                <EntryGroup
+                  key={occurrence}
+                  group={child}
+                  depth={depth + 1}
+                  repeatKey={occurrence}
+                  values={values}
+                  editable={editable}
+                  added={added}
+                  onChange={onChange}
+                  onAddOccurrence={onAddOccurrence}
+                />
+              ))}
+              {editable ? (
+                <Button variant="secondary" onClick={() => onAddOccurrence(child.def.oid)}>
+                  + Add {child.def.name} occurrence
+                </Button>
+              ) : null}
             </div>
           );
         })}
@@ -230,6 +285,7 @@ function EntryForm({
   }, [data.values]);
 
   const [values, setValues] = useState<Record<string, string>>(serverValues);
+  const [added, setAdded] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -255,22 +311,27 @@ function EntryForm({
     });
   }, [serverValues]);
 
-  // Instant client-side evaluation of the same checks the server enforces.
-  const [findings, setFindings] = useState<{ oid: string; message: string }[]>([]);
+  // Instant client-side evaluation of the same checks the server enforces,
+  // occurrence-aware for repeating item groups.
+  const [findings, setFindings] = useState<
+    { oid: string; message: string; repeatKey: number | null }[]
+  >([]);
   useEffect(() => {
     if (checks.length === 0) return;
     let cancelled = false;
-    const flat: Record<string, string | null> = {};
-    for (const [key, value] of Object.entries(values)) {
-      const itemOid = key.split(":")[2];
-      if (itemOid) flat[itemOid] = value === "" ? null : (value ?? null);
-    }
-    void runChecks(checks, buildRuleContext(mdv, flat)).then((results) => {
+    const rows: ItemValueRow[] = Object.entries(values).map(([key, value]) => {
+      const parsed = parseFieldKey(key);
+      return {
+        itemGroupOid: parsed.groupOid,
+        itemGroupRepeatKey: parsed.repeatKey,
+        itemOid: parsed.itemOid,
+        value: value === "" ? null : (value ?? null),
+      };
+    });
+    void runChecksOverRows(checks, mdv, rows).then((results) => {
       if (cancelled) return;
       setFindings(
-        [...results.entries()]
-          .filter(([, result]) => result.fired)
-          .map(([oid, result]) => ({ oid, message: result.message })),
+        results.map((f) => ({ oid: f.checkOid, message: f.message, repeatKey: f.repeatKey })),
       );
     });
     return () => {
@@ -450,6 +511,9 @@ function EntryForm({
                 {query.checkOid
                   ? (checks.find((c) => c.oid === query.checkOid)?.message ?? query.checkOid)
                   : "Manual query"}
+                {query.itemGroupRepeatKey != null
+                  ? ` (occurrence ${query.itemGroupRepeatKey})`
+                  : ""}
               </li>
             ))}
           </ul>
@@ -460,7 +524,10 @@ function EntryForm({
           <div className="font-medium">Edit checks</div>
           <ul className="mt-1 list-inside list-disc">
             {findings.map((finding) => (
-              <li key={finding.oid}>{finding.message}</li>
+              <li key={`${finding.oid}:${finding.repeatKey ?? ""}`}>
+                {finding.message}
+                {finding.repeatKey != null ? ` (occurrence ${finding.repeatKey})` : ""}
+              </li>
             ))}
           </ul>
         </div>
@@ -472,10 +539,14 @@ function EntryForm({
           depth={0}
           values={values}
           editable={editable}
+          added={added}
           onChange={(key, value) => {
             setSaved(false);
             setValues((prev) => ({ ...prev, [key]: value }));
           }}
+          onAddOccurrence={(groupOid) =>
+            setAdded((prev) => ({ ...prev, [groupOid]: (prev[groupOid] ?? 0) + 1 }))
+          }
         />
       </Card>
 

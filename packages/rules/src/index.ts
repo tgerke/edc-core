@@ -135,3 +135,80 @@ export async function runChecks(
   }
   return results;
 }
+
+/** One stored item value, addressed by group + occurrence (repeat key). */
+export interface ItemValueRow {
+  itemGroupOid: string;
+  itemGroupRepeatKey: number;
+  itemOid: string;
+  value: string | null;
+}
+
+export interface OccurrenceFinding {
+  checkOid: string;
+  message: string;
+  /** null = form-level; a number = fired for that repeating-group occurrence. */
+  repeatKey: number | null;
+}
+
+/** Item groups whose values repeat per occurrence (Repeating != "No"). */
+export function repeatingGroupOids(mdv: MetaDataVersion): Set<string> {
+  return new Set(
+    mdv.itemGroupDefs
+      .filter((g) => g.repeating !== undefined && g.repeating !== "No")
+      .map((g) => g.oid),
+  );
+}
+
+/**
+ * Repeat-aware check evaluation, identical in the browser and on the server.
+ *
+ * Values in non-repeating groups form the base context; checks that fire
+ * against it alone are form-level findings (repeatKey null). Each occurrence
+ * of a repeating group is then evaluated as base + that occurrence's values;
+ * checks that fire there but not at form level are per-occurrence findings.
+ */
+export async function runChecksOverRows(
+  checks: CompiledCheck[],
+  mdv: MetaDataVersion,
+  rows: ItemValueRow[],
+): Promise<OccurrenceFinding[]> {
+  if (checks.length === 0) return [];
+  const repeating = repeatingGroupOids(mdv);
+
+  const base: Record<string, string | null> = {};
+  const byOccurrence = new Map<number, Record<string, string | null>>();
+  for (const row of rows) {
+    if (repeating.has(row.itemGroupOid)) {
+      let occurrence = byOccurrence.get(row.itemGroupRepeatKey);
+      if (!occurrence) {
+        occurrence = {};
+        byOccurrence.set(row.itemGroupRepeatKey, occurrence);
+      }
+      occurrence[row.itemOid] = row.value;
+    } else {
+      base[row.itemOid] = row.value;
+    }
+  }
+
+  const findings: OccurrenceFinding[] = [];
+  const baseResults = await runChecks(checks, buildRuleContext(mdv, base));
+  const firedAtFormLevel = new Set<string>();
+  for (const [oid, result] of baseResults) {
+    if (result.fired) {
+      firedAtFormLevel.add(oid);
+      findings.push({ checkOid: oid, message: result.message, repeatKey: null });
+    }
+  }
+
+  for (const key of [...byOccurrence.keys()].sort((a, b) => a - b)) {
+    const context = buildRuleContext(mdv, { ...base, ...byOccurrence.get(key) });
+    const results = await runChecks(checks, context);
+    for (const [oid, result] of results) {
+      if (result.fired && !firedAtFormLevel.has(oid)) {
+        findings.push({ checkOid: oid, message: result.message, repeatKey: key });
+      }
+    }
+  }
+  return findings;
+}
