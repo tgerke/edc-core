@@ -3,3 +3,8 @@ packages:
   - packages/*
 allowBuilds:
   esbuild: true
+# fontkit (via pdfkit) pulls @swc/helpers, which requires tslib without declaring it.
+packageExtensions:
+  "@swc/helpers":
+    dependencies:
+      tslib: ^2
