@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edc-core demo study (SC-03): a small CDASH-aligned protocol exercising
+     every core capability — demographics and vitals capture, an adverse
+     event log, coded values, and JSONata edit checks that raise queries.
+     Import via the UI ("Import ODM" on a study) or seed a complete demo
+     environment with the api package's db:seed-demo script (examples/README.md). -->
+<ODM xmlns="http://www.cdisc.org/ns/odm/v2.0"
+     CreationDateTime="2026-07-06T12:00:00Z"
+     FileOID="EDC_CORE_DEMO"
+     FileType="Snapshot"
+     Granularity="Metadata"
+     ODMVersion="2.0"
+     SourceSystem="edc-core">
+  <Study OID="ST.CDASH.DEMO" StudyName="edc-core Demo Study" ProtocolName="EDC-DEMO-001">
+    <Description><TranslatedText xml:lang="en" Type="text/plain">CDASH-aligned demonstration study: screening demographics, vital signs at screening and baseline, and an adverse event log with edit checks.</TranslatedText></Description>
+    <MetaDataVersion Name="Version 1" OID="MDV.1">
+
+      <StudyEventDef Name="Screening" OID="SE.SCREENING" Repeating="No" Type="Scheduled">
+        <ItemGroupRef ItemGroupOID="FO.DM" Mandatory="Yes"/>
+        <ItemGroupRef ItemGroupOID="FO.VS" Mandatory="Yes"/>
+      </StudyEventDef>
+      <StudyEventDef Name="Baseline" OID="SE.BASELINE" Repeating="No" Type="Scheduled">
+        <ItemGroupRef ItemGroupOID="FO.VS" Mandatory="Yes"/>
+      </StudyEventDef>
+      <StudyEventDef Name="Adverse Events" OID="SE.AE" Repeating="Yes" Type="Common">
+        <ItemGroupRef ItemGroupOID="FO.AE" Mandatory="No"/>
+      </StudyEventDef>
+
+      <!-- Demographics (CDASH DM) -->
+      <ItemGroupDef Name="Demographics" OID="FO.DM" Type="Form" Repeating="No">
+        <ItemGroupRef ItemGroupOID="IG.DM" Mandatory="Yes"/>
+      </ItemGroupDef>
+      <ItemGroupDef Name="Demographics" OID="IG.DM" Type="Section" Repeating="No">
+        <ItemRef ItemOID="IT.DM.BRTHDTC" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.DM.SEX" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.DM.ETHNIC" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.DM.RACE" Mandatory="Yes"/>
+      </ItemGroupDef>
+
+      <!-- Vital signs (CDASH VS) -->
+      <ItemGroupDef Name="Vital Signs" OID="FO.VS" Type="Form" Repeating="No">
+        <ItemGroupRef ItemGroupOID="IG.VS" Mandatory="Yes"/>
+      </ItemGroupDef>
+      <ItemGroupDef Name="Vital Signs" OID="IG.VS" Type="Section" Repeating="No">
+        <ItemRef ItemOID="IT.VS.VSDTC" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.VS.SYSBP" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.VS.DIABP" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.VS.PULSE" Mandatory="No"/>
+        <ItemRef ItemOID="IT.VS.TEMP" Mandatory="No"/>
+        <ItemRef ItemOID="IT.VS.HEIGHT" Mandatory="No"/>
+        <ItemRef ItemOID="IT.VS.WEIGHT" Mandatory="No"/>
+      </ItemGroupDef>
+
+      <!-- Adverse events (CDASH AE) -->
+      <ItemGroupDef Name="Adverse Event" OID="FO.AE" Type="Form" Repeating="Dynamic">
+        <ItemGroupRef ItemGroupOID="IG.AE" Mandatory="Yes"/>
+      </ItemGroupDef>
+      <ItemGroupDef Name="Adverse Event" OID="IG.AE" Type="Section" Repeating="No">
+        <ItemRef ItemOID="IT.AE.AETERM" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.AE.AESTDTC" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.AE.AEENDTC" Mandatory="No"/>
+        <ItemRef ItemOID="IT.AE.AESEV" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.AE.AESER" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.AE.AEREL" Mandatory="Yes"/>
+      </ItemGroupDef>
+
+      <ItemDef DataType="date" Name="Birth Date" OID="IT.DM.BRTHDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What is the subject's date of birth?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="1" Name="Sex" OID="IT.DM.SEX">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What is the sex of the subject?</TranslatedText></Question>
+        <CodeListRef CodeListOID="CL.SEX"/>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="1" Name="Ethnicity" OID="IT.DM.ETHNIC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What is the ethnicity of the subject?</TranslatedText></Question>
+        <CodeListRef CodeListOID="CL.ETHNIC"/>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="2" Name="Race" OID="IT.DM.RACE">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What is the race of the subject?</TranslatedText></Question>
+        <CodeListRef CodeListOID="CL.RACE"/>
+      </ItemDef>
+
+      <ItemDef DataType="date" Name="Vital Signs Date" OID="IT.VS.VSDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the date of the measurements?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="3" Name="Systolic Blood Pressure (mmHg)" OID="IT.VS.SYSBP">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the systolic blood pressure?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="3" Name="Diastolic Blood Pressure (mmHg)" OID="IT.VS.DIABP">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the diastolic blood pressure?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="3" Name="Pulse Rate (beats/min)" OID="IT.VS.PULSE">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the pulse rate?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="float" SignificantDigits="1" Name="Temperature (C)" OID="IT.VS.TEMP">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the temperature?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="float" SignificantDigits="1" Name="Height (cm)" OID="IT.VS.HEIGHT">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the height?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="float" SignificantDigits="1" Name="Weight (kg)" OID="IT.VS.WEIGHT">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the weight?</TranslatedText></Question>
+      </ItemDef>
+
+      <ItemDef DataType="text" Length="200" Name="Reported Term" OID="IT.AE.AETERM">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What is the adverse event term?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="date" Name="Start Date" OID="IT.AE.AESTDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the start date of the adverse event?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="date" Name="End Date" OID="IT.AE.AEENDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the end date of the adverse event?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="1" Name="Severity" OID="IT.AE.AESEV">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the severity of the adverse event?</TranslatedText></Question>
+        <CodeListRef CodeListOID="CL.AESEV"/>
+      </ItemDef>
+      <ItemDef DataType="boolean" Name="Serious" OID="IT.AE.AESER">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">Was the adverse event serious?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="integer" Length="1" Name="Relationship to Study Treatment" OID="IT.AE.AEREL">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the relationship to study treatment?</TranslatedText></Question>
+        <CodeListRef CodeListOID="CL.AEREL"/>
+      </ItemDef>
+
+      <CodeList DataType="integer" Name="Sex" OID="CL.SEX">
+        <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">Male</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Female</TranslatedText></Decode></CodeListItem>
+      </CodeList>
+      <CodeList DataType="integer" Name="Ethnicity" OID="CL.ETHNIC">
+        <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">Hispanic or Latino</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Not Hispanic or Latino</TranslatedText></Decode></CodeListItem>
+      </CodeList>
+      <CodeList DataType="integer" Name="Race" OID="CL.RACE">
+        <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">White</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Black or African American</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="3"><Decode><TranslatedText xml:lang="en" Type="text/plain">Asian</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="4"><Decode><TranslatedText xml:lang="en" Type="text/plain">Native Hawaiian or Other Pacific Islander</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="5"><Decode><TranslatedText xml:lang="en" Type="text/plain">American Indian or Alaska Native</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="99"><Decode><TranslatedText xml:lang="en" Type="text/plain">Other</TranslatedText></Decode></CodeListItem>
+      </CodeList>
+      <CodeList DataType="integer" Name="Severity" OID="CL.AESEV">
+        <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">Mild</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Moderate</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="3"><Decode><TranslatedText xml:lang="en" Type="text/plain">Severe</TranslatedText></Decode></CodeListItem>
+      </CodeList>
+      <CodeList DataType="integer" Name="Relationship" OID="CL.AEREL">
+        <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">Not Related</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Possibly Related</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="3"><Decode><TranslatedText xml:lang="en" Type="text/plain">Related</TranslatedText></Decode></CodeListItem>
+      </CodeList>
+
+      <!-- Edit checks: ConditionDefs with JSONata expressions describing the
+           data problem (ADR-0007); a true result raises a system query. -->
+      <ConditionDef OID="CK.VS.SYSBP_RANGE" Name="Systolic BP plausible range">
+        <Description><TranslatedText xml:lang="en" Type="text/plain">Systolic blood pressure is outside the plausible range (70–250 mmHg). Please confirm the measurement.</TranslatedText></Description>
+        <FormalExpression Context="jsonata">`IT.VS.SYSBP` != null and (`IT.VS.SYSBP` &lt; 70 or `IT.VS.SYSBP` &gt; 250)</FormalExpression>
+      </ConditionDef>
+      <ConditionDef OID="CK.VS.BP_INVERTED" Name="Systolic exceeds diastolic">
+        <Description><TranslatedText xml:lang="en" Type="text/plain">Systolic blood pressure must be greater than diastolic blood pressure.</TranslatedText></Description>
+        <FormalExpression Context="jsonata">`IT.VS.SYSBP` != null and `IT.VS.DIABP` != null and `IT.VS.SYSBP` &lt;= `IT.VS.DIABP`</FormalExpression>
+      </ConditionDef>
+      <ConditionDef OID="CK.AE.END_BEFORE_START" Name="AE end date before start date">
+        <Description><TranslatedText xml:lang="en" Type="text/plain">The adverse event end date is before its start date.</TranslatedText></Description>
+        <FormalExpression Context="jsonata">`IT.AE.AESTDTC` != null and `IT.AE.AEENDTC` != null and `IT.AE.AEENDTC` &lt; `IT.AE.AESTDTC`</FormalExpression>
+      </ConditionDef>
+    </MetaDataVersion>
+  </Study>
+</ODM>

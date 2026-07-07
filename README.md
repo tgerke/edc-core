@@ -68,16 +68,28 @@ pnpm check        # lint + typecheck + tests
 podman compose -f infra/compose.yaml up --build
 # web UI:  http://localhost:5173
 # API:     http://localhost:3000/health
+
+# bootstrap the first admin, then a ready-to-tour demo study
+pnpm --filter @edc-core/api db:bootstrap-admin
+pnpm --filter @edc-core/api db:seed-demo   # see examples/README.md
 ```
+
+Tagged releases publish versioned images to GHCR
+(`ghcr.io/tgerke/edc-core-{api,web,r-engine}`) along with a **validation
+pack** — the [regulatory traceability matrix](docs/regulatory-traceability.md)
+joined to that release's automated test results (regenerate locally with
+`pnpm validation-pack`).
 
 ## Roadmap
 
-- **Phase 1** — Data model + append-only audit core, auth/RBAC
-- **Phase 2** — ODM v2.0 import + visual study builder
-- **Phase 3** — Metadata-driven data capture, edit checks
-- **Phase 4** — Query management, Part 11 e-signatures, audit review UI
-- **Phase 5** — DuckLake snapshots, Dataset-JSON v1.1 exports, R workbench
-- **Phase 6** — Validation pack, demo study, v0.1.0 release
+- **Phase 1** — Data model + append-only audit core, auth/RBAC ✅
+- **Phase 2** — ODM v2.0 import + visual study builder ✅
+- **Phase 3** — Metadata-driven data capture, edit checks ✅
+- **Phase 4** — Query management, Part 11 e-signatures, audit review UI ✅
+- **Phase 5** — DuckLake snapshots, Dataset-JSON v1.1 exports, SQL + R workbench ✅
+- **Phase 6** — Validation pack, demo study, GHCR images, v0.1.0 release ✅
+- **Next** — Python workbench sidecar, point-and-click form editing, repeating
+  item-group entry, ODM 1.3.2 import shim, PDF casebooks, OIDC SSO
 
 ## License
 
