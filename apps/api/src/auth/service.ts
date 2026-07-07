@@ -92,6 +92,51 @@ export class AuthService {
     return { ok: true, token, userId: user.id };
   }
 
+  /**
+   * Part 11 §11.200(a) re-authentication at signing: the signer re-enters
+   * both credential components, which must belong to the session user —
+   * nobody signs as anyone else. Failures count toward lockout exactly like
+   * login failures (§11.300(d)) and are audited as signature attempts.
+   */
+  async reauthenticate(
+    actorId: string,
+    username: string,
+    password: string,
+  ): Promise<{ ok: true } | { ok: false; reason: "invalid_credentials" | "locked" }> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, actorId)).limit(1);
+    if (!user || user.status !== "active") return { ok: false, reason: "invalid_credentials" };
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      return { ok: false, reason: "locked" };
+    }
+
+    const valid = user.username === username && (await verifyPassword(user.passwordHash, password));
+    if (!valid) {
+      const failedCount = user.failedLoginCount + 1;
+      const lock = failedCount >= this.config.maxFailedLogins;
+      const lockedUntil = lock ? new Date(Date.now() + this.config.lockoutMinutes * 60_000) : null;
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({ failedLoginCount: failedCount, lockedUntil, updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+        await tx.insert(auditEvents).values({
+          actorId: user.id,
+          action: lock ? "auth.lockout" : "signature.reauth_failed",
+          entityType: "user",
+          entityId: user.id,
+          newValue: { failedLoginCount: failedCount },
+        });
+      });
+      return { ok: false, reason: lock ? "locked" : "invalid_credentials" };
+    }
+
+    await this.db
+      .update(users)
+      .set({ failedLoginCount: 0, lockedUntil: null, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+    return { ok: true };
+  }
+
   /** Validates a bearer token; slides the idle window on success. */
   async validateSession(token: string): Promise<AuthenticatedUser | null> {
     const [row] = await this.db
