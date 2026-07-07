@@ -1,8 +1,12 @@
 import {
+  detectOdmSerialization,
+  isOdm13Xml,
   type MetaDataVersion,
   type OdmSerialization,
+  odmFileSchema,
   parseOdm,
   serializeOdm,
+  upconvertOdm13Xml,
   type ValidationIssue,
   validateMetaDataVersion,
 } from "@edc-core/odm";
@@ -30,8 +34,17 @@ export async function importStudyBuild(
   input: { studyId: string; content: string; actorId: string; note?: string },
 ): Promise<ImportResult> {
   let definition: StudyBuildDefinition;
+  let conversionWarnings: ValidationIssue[] = [];
   try {
-    const file = parseOdm(input.content);
+    // Legacy ODM 1.3.x imports upconvert to the v2.0 model with warnings.
+    let file: ReturnType<typeof parseOdm>;
+    if (detectOdmSerialization(input.content) === "xml" && isOdm13Xml(input.content)) {
+      const converted = upconvertOdm13Xml(input.content);
+      file = odmFileSchema.parse(converted.file);
+      conversionWarnings = converted.warnings;
+    } else {
+      file = parseOdm(input.content);
+    }
     const mdv = file.study?.metaDataVersions[0];
     if (!file.study || !mdv) {
       return {
@@ -107,7 +120,7 @@ export async function importStudyBuild(
     ok: true,
     id: inserted.id,
     version: inserted.version,
-    warnings: issues.filter((i) => i.severity === "warning"),
+    warnings: [...conversionWarnings, ...issues.filter((i) => i.severity === "warning")],
   };
 }
 

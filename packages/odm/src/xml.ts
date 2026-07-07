@@ -18,6 +18,7 @@ import type {
 export const ODM_V2_NAMESPACE = "http://www.cdisc.org/ns/odm/v2.0";
 
 // Elements that may occur more than once must always parse as arrays.
+// Includes ODM 1.3-only elements so the same parser serves the 1.3 shim.
 const ARRAY_ELEMENTS = new Set([
   "Study",
   "MetaDataVersion",
@@ -34,9 +35,15 @@ const ARRAY_ELEMENTS = new Set([
   "FormalExpression",
   "RangeCheck",
   "Alias",
+  "FormDef",
+  "FormRef",
+  "StudyEventRef",
+  "EnumeratedItem",
+  "MeasurementUnit",
+  "MeasurementUnitRef",
 ]);
 
-const parser = new XMLParser({
+export const odmXmlParser: XMLParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   textNodeName: "#text",
@@ -47,26 +54,26 @@ const parser = new XMLParser({
   isArray: (name) => ARRAY_ELEMENTS.has(name),
 });
 
-type XNode = Record<string, unknown>;
+export type XNode = Record<string, unknown>;
 
-class OdmParseError extends Error {}
+export class OdmParseError extends Error {}
 
-function asNode(value: unknown): XNode {
+export function asNode(value: unknown): XNode {
   return typeof value === "object" && value !== null ? (value as XNode) : {};
 }
 
-function attr(node: XNode, name: string): string | undefined {
+export function attr(node: XNode, name: string): string | undefined {
   const value = node[`@_${name}`];
   return typeof value === "string" ? value : undefined;
 }
 
-function requireAttr(node: XNode, name: string, context: string): string {
+export function requireAttr(node: XNode, name: string, context: string): string {
   const value = attr(node, name);
   if (!value) throw new OdmParseError(`${context}: missing required attribute ${name}`);
   return value;
 }
 
-function intAttr(node: XNode, name: string): number | undefined {
+export function intAttr(node: XNode, name: string): number | undefined {
   const raw = attr(node, name);
   if (raw === undefined) return undefined;
   const parsed = Number.parseInt(raw, 10);
@@ -74,7 +81,7 @@ function intAttr(node: XNode, name: string): number | undefined {
 }
 
 /** Everything not consumed by the typed mapping is preserved verbatim. */
-function collectExtra(
+export function collectExtra(
   node: XNode,
   knownAttrs: readonly string[],
   knownChildren: readonly string[],
@@ -90,7 +97,7 @@ function collectExtra(
   return Object.keys(extra).length > 0 ? extra : undefined;
 }
 
-function parseTranslatedTexts(container: unknown): TranslatedText[] | undefined {
+export function parseTranslatedTexts(container: unknown): TranslatedText[] | undefined {
   const node = asNode(Array.isArray(container) ? container[0] : container);
   const list = node.TranslatedText;
   if (!list) return undefined;
@@ -331,7 +338,7 @@ function parseStudy(raw: unknown): OdmStudy {
 }
 
 export function parseOdmXml(content: string): OdmFile {
-  const doc = asNode(parser.parse(content));
+  const doc = asNode(odmXmlParser.parse(content));
   const root = asNode(doc.ODM);
   if (Object.keys(root).length === 0) {
     throw new OdmParseError("document has no ODM root element");
