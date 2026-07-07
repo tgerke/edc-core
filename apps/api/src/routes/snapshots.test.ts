@@ -539,4 +539,56 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
       engine.close();
     }
   });
+
+  it(
+    "exports a self-contained study archive zip (P11-06)",
+    async () => {
+      const denied = await server.inject({
+        method: "GET",
+        url: `/studies/${fx.studyId}/archive`,
+        headers: { authorization: `Bearer ${fx.entryToken}` },
+      });
+      expect(denied.statusCode).toBe(403);
+
+      // No published snapshot yet on the empty study → 409.
+      const noSnapshot = await server.inject({
+        method: "GET",
+        url: `/studies/${fx.emptyStudyId}/archive`,
+        headers: { authorization: `Bearer ${fx.emptyDmToken}` },
+      });
+      expect(noSnapshot.statusCode).toBe(409);
+
+      const res = await server.inject({
+        method: "GET",
+        url: `/studies/${fx.studyId}/archive`,
+        headers: { authorization: `Bearer ${fx.dmToken}` },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["content-type"]).toBe("application/zip");
+      expect(res.headers["content-disposition"]).toContain(".zip");
+      // Zip magic bytes.
+      expect(res.rawPayload.subarray(0, 2).toString("ascii")).toBe("PK");
+
+      // The zip's central directory lists every expected entry.
+      const raw = res.rawPayload.toString("latin1");
+      for (const entry of [
+        "MANIFEST.json",
+        "metadata/odm-v1.xml",
+        "metadata/odm-v1.json",
+        "data/ig_demographics.dataset.json",
+        "data/ig_demographics.csv",
+        "data/subjects.csv",
+        "data/queries.csv",
+        "audit/audit-trail.csv",
+        "signatures/signatures.json",
+      ]) {
+        expect(raw, entry).toContain(entry);
+      }
+
+      // Archiving is itself audited.
+      const audit = await db.select().from(auditEvents).where(eq(auditEvents.studyId, fx.studyId));
+      expect(audit.some((e) => e.action === "study.archive_exported")).toBe(true);
+    },
+    LAKE_TIMEOUT,
+  );
 });
