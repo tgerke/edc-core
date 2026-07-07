@@ -132,6 +132,7 @@ export interface OpenQuery {
   id: string;
   origin: "manual" | "system";
   checkOid: string | null;
+  itemGroupRepeatKey: number | null;
   createdAt: string;
 }
 
@@ -217,7 +218,11 @@ export function useWriteItem(formInstanceId: string) {
       value: string | null;
       reasonForChange?: string;
     }) => api(`/forms/${formInstanceId}/items`, { method: "PUT", body: JSON.stringify(body) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
+      // Writes open/close system queries server-side.
+      queryClient.invalidateQueries({ queryKey: ["queries"] });
+    },
   });
 }
 
