@@ -1,0 +1,92 @@
+---
+title: "Installation"
+---
+
+edc-core ships as a small set of containers: a PostgreSQL system of record, a
+Node/TypeScript API, a browser SPA, and a sandboxed R engine. One compose file
+brings up the whole stack; rootless Podman is the recommended path, and Docker
+works identically.
+
+## Requirements
+
+- **Podman** (or Docker) with the compose plugin
+- **Node ≥ 22** and **pnpm ≥ 9** — for the one-time setup scripts and local development
+- ~2 GB free disk for images and volumes
+
+## Quick start
+
+```sh
+git clone https://github.com/tgerke/edc-core
+cd edc-core
+pnpm install
+
+# Postgres + API + web + R engine
+podman compose -f infra/compose.yaml up --build
+```
+
+The API applies database migrations automatically on startup. When the stack
+is up:
+
+- **Web UI** — <http://localhost:5173>
+- **API** — <http://localhost:3000/health>
+
+### Create the first admin
+
+```sh
+pnpm --filter @edc-core/api db:bootstrap-admin
+```
+
+This creates a root administrator account and prints its generated
+credentials. Sign in with them at <http://localhost:5173>.
+
+![](images/login.png){.screenshot fig-alt="The edc-core sign-in screen"}
+
+### Seed the demo study (optional, recommended)
+
+```sh
+pnpm --filter @edc-core/api db:seed-demo
+```
+
+This creates a complete, CDASH-aligned demo study (`ST.CDASH.DEMO`) with two
+sites, one user per clinical role, enrolled subjects, and an open data query —
+everything the [five-minute tour](tour.qmd) uses. The script prints the shared
+demo password (override it with the `EDC_DEMO_PASSWORD` environment variable)
+and is idempotent: it exits without changes if the demo study already exists.
+
+## Published images
+
+Tagged releases publish versioned images to GitHub Container Registry:
+
+```
+ghcr.io/tgerke/edc-core-api
+ghcr.io/tgerke/edc-core-web
+ghcr.io/tgerke/edc-core-r-engine
+```
+
+Each release also attaches a **validation pack** — the regulatory traceability
+matrix joined to that exact release's automated test results. See
+[Compliance](compliance.qmd).
+
+::: {.callout-warning}
+## Before you deploy anywhere real
+
+The compose file in `infra/` is a *local development* stack: it uses a
+hard-coded database password and no TLS. For any networked deployment, set
+your own secrets, terminate TLS in front of the API and web containers, and
+review your organization's requirements for encryption at rest and backups.
+:::
+
+## Local development
+
+The repo is a pnpm monorepo. Useful commands from the repository root:
+
+```sh
+pnpm check              # biome lint + typecheck + all tests
+pnpm --filter @edc-core/api dev    # API with hot reload on :3000
+pnpm --filter @edc-core/web dev    # Vite dev server on :5173
+pnpm validation-pack    # regenerate the validation pack locally
+```
+
+See [CONTRIBUTING.md](https://github.com/tgerke/edc-core/blob/main/CONTRIBUTING.md)
+for ground rules — most importantly, every clinical-data write path goes
+through the audit layer.

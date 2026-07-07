@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/coverage", "!validation-pack"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/coverage",
+      "!validation-pack",
+      "!site/_site",
+      "!site/.quarto"
+    ]
   },
   "formatter": {
     "enabled": true,

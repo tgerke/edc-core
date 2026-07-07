@@ -1,0 +1,51 @@
+---
+title: "Study builds"
+---
+
+A *study build* is a versioned, immutable snapshot of your study definition —
+events, forms, item groups, items, codelists, and edit checks — shaped as
+CDISC ODM v2.0. Everything else in edc-core renders from it: CRFs, the subject
+matrix, edit-check evaluation, and the analytics dataset layout.
+
+## Three ways to build, one API
+
+**Import an ODM file.** Open a study and click **Import ODM** (or `POST` the
+document to `/studies/:id/study-builds`). Both the XML and JSON serializations
+of ODM v2.0 are accepted and validated. The repository ships a complete
+CDASH-aligned example in
+[`examples/demo-study.xml`](https://github.com/tgerke/edc-core/blob/main/examples/demo-study.xml).
+
+![The study page lists every build; each exports back to ODM XML or
+JSON.](../images/study-overview.png){.screenshot}
+
+**Use the visual builder.** Every build can be opened in the study builder — a
+tree of events and forms with a live, interactive preview of each CRF exactly
+as data entry will render it.
+
+![](../images/study-builder.png){.screenshot fig-alt="Study builder with event/form tree and live form preview"}
+
+**Script it.** Because file-driven and point-and-click builds hit the same
+versioned-metadata API, builds are automatable: generate ODM from your
+protocol tooling, from code, or with an LLM, and import the result. There is
+no second, weaker representation to keep in sync.
+
+## Versioning
+
+Builds are numbered `v1, v2, …` and never modified in place. Each form
+instance records the build version it was captured under, so mid-study
+amendments don't disturb already-collected data. Every build can be exported
+back out as ODM XML or JSON at any time — round-tripping is a tested property.
+
+## Edit checks
+
+Edit checks are ODM `ConditionDef`s with JSONata formal expressions — pure,
+side-effect-free expressions over the form's item values. The demo study
+includes three:
+
+- systolic blood pressure outside a plausible range (70–250 mmHg)
+- diastolic ≥ systolic (inverted readings)
+- adverse event end date before start date
+
+A failing check warns instantly during entry and, on save, raises a **system
+query** attached to the item. When the data is corrected, the query closes
+automatically. See [Data capture](data-capture.qmd).

@@ -1,0 +1,54 @@
+---
+title: "edc-core"
+subtitle: "A modern, open-source Electronic Data Capture system for clinical research"
+toc: false
+---
+
+::: {.hero-lead}
+Commercial EDC platforms are expensive, closed, and dated. The open-source
+alternatives run on legacy stacks. **edc-core** is a from-scratch EDC built on
+modern web technology, an analytics-native data architecture, and CDISC
+standards — designed so that regulatory expectations (21 CFR Part 11,
+ICH E6(R3)) are structural properties of the system, not afterthoughts.
+:::
+
+![The analytics workbench: self-service SQL over an immutable, version-pinned
+study snapshot.](images/workbench-sql.png){.screenshot}
+
+## Why edc-core
+
+**No vendor lock-in.** AGPL-3.0 licensed: nobody can take this code and sell
+it back to you as a closed platform.
+
+**Programmable study builds.** First-class CDISC ODM v2.0 import/export means
+study builds can be file-driven, code-driven, and LLM-assisted — and the visual
+builder writes through exactly the same versioned-metadata API.
+
+**Self-service analytics, in the EDC.** Data managers query published study
+snapshots with real SQL and real R — not a bespoke, vendor-locked reporting
+layer. Every execution is read-only, sandboxed, version-pinned, and audited.
+
+**Compliance by construction.** Append-only audit trails enforced at the
+database level, Part 11 e-signatures bound to record versions, an audit-trail
+review UI, and a validation pack shipped with every release.
+
+**Standards as the interface.** ODM v2.0 (XML + JSON) for metadata,
+Dataset-JSON v1.1 for data exchange, CDASH-aligned demo CRFs, and a
+self-contained study archive that outlives the running system.
+
+## Where to start
+
+| | |
+|---|---|
+| [Installation](installation.qmd) | Run the full stack locally with Podman or Docker, or deploy the published container images. |
+| [Five-minute tour](tour.qmd) | Seed the demo study and walk the whole lifecycle: entry → query → verify → sign → snapshot → analyze. |
+| [User guide](guide/study-builds.qmd) | Study builds, data capture, review workflows, and the analytics workbench. |
+| [Compliance](compliance.qmd) | How edc-core maps to 21 CFR Part 11 and ICH E6(R3), and what the validation pack contains. |
+
+: {tbl-colwidths="[30,70]"}
+
+::: {.callout-note}
+**Status: alpha (v0.1.0).** The core capture workflow is complete end to end,
+but edc-core has not yet been used in a production study. Follow progress on
+[GitHub](https://github.com/tgerke/edc-core).
+:::
