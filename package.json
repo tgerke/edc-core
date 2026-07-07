@@ -14,7 +14,8 @@
     "typecheck": "pnpm -r --parallel typecheck",
     "test": "pnpm -r --parallel test",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "dev": "pnpm -r --parallel dev"
+    "dev": "pnpm -r --parallel dev",
+    "validation-pack": "node scripts/validation-pack.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
