@@ -1,4 +1,4 @@
-import { buildRuleContext, compileEditChecks, runChecks } from "@edc-core/rules";
+import { compileEditChecks, type ItemValueRow, runChecksOverRows } from "@edc-core/rules";
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, queries, studyMetadataVersions } from "../db/schema/index.js";
@@ -8,6 +8,8 @@ import type { StudyBuildDefinition } from "./study-builds.js";
 export interface CheckFinding {
   checkOid: string;
   message: string;
+  /** null = form-level; a number = a specific repeating-group occurrence. */
+  repeatKey: number | null;
 }
 
 /**
@@ -32,19 +34,30 @@ export async function evaluateFormChecks(
   const checks = compileEditChecks(mdv);
   if (checks.length === 0) return [];
 
-  // Latest value per item, flattened by item OID (repeat 1 semantics for now,
-  // matching the entry UI).
-  const valueRows = await db.execute<{ item_oid: string; value: string | null }>(
-    sql`SELECT item_oid, value FROM item_values_current
+  // Latest value per (item, occurrence); the rules engine attributes each
+  // finding either to the form or to a repeating-group occurrence.
+  const valueRows = await db.execute<{
+    item_group_oid: string;
+    item_group_repeat_key: number;
+    item_oid: string;
+    value: string | null;
+  }>(
+    sql`SELECT item_group_oid, item_group_repeat_key, item_oid, value
+        FROM item_values_current
         WHERE form_instance_id = ${context.formInstanceId}`,
   );
-  const values: Record<string, string | null> = {};
-  for (const row of valueRows) values[row.item_oid] = row.value;
+  const rows: ItemValueRow[] = valueRows.map((row) => ({
+    itemGroupOid: row.item_group_oid,
+    itemGroupRepeatKey: row.item_group_repeat_key,
+    itemOid: row.item_oid,
+    value: row.value,
+  }));
 
-  const results = await runChecks(checks, buildRuleContext(mdv, values));
+  const occurrenceFindings = await runChecksOverRows(checks, mdv, rows);
 
   // "Active" includes answered: a site's answer must not let a still-failing
-  // check open a duplicate query for the same problem.
+  // check open a duplicate query for the same problem. One query per
+  // (check, occurrence); form-level findings carry a null repeat key.
   const activeSystemQueries = await db
     .select()
     .from(queries)
@@ -56,55 +69,69 @@ export async function evaluateFormChecks(
         isNotNull(queries.checkOid),
       ),
     );
-  const openByCheck = new Map(activeSystemQueries.map((q) => [q.checkOid as string, q]));
+  const dedupeKey = (checkOid: string, repeatKey: number | null) =>
+    `${checkOid}:${repeatKey ?? ""}`;
+  const openByKey = new Map(
+    activeSystemQueries.map((q) => [dedupeKey(q.checkOid as string, q.itemGroupRepeatKey), q]),
+  );
 
   const findings: CheckFinding[] = [];
-  for (const check of checks) {
-    const result = results.get(check.oid);
-    if (!result) continue;
-    const open = openByCheck.get(check.oid);
-
-    if (result.fired) {
-      findings.push({ checkOid: check.oid, message: result.message });
-      if (!open) {
-        await db.transaction(async (tx) => {
-          const [query] = await tx
-            .insert(queries)
-            .values({
-              studyId: context.studyId,
-              formInstanceId: context.formInstanceId,
-              origin: "system",
-              checkOid: check.oid,
-              openedBy: actorId,
-            })
-            .returning();
-          if (!query) throw new Error("query insert returned no row");
-          await tx.insert(auditEvents).values({
-            actorId,
-            studyId: context.studyId,
-            action: "query.opened",
-            entityType: "query",
-            entityId: query.id,
-            newValue: { origin: "system", checkOid: check.oid, message: result.message },
-          });
-        });
-      }
-    } else if (open) {
+  const firedKeys = new Set<string>();
+  for (const finding of occurrenceFindings) {
+    findings.push({
+      checkOid: finding.checkOid,
+      message: finding.message,
+      repeatKey: finding.repeatKey,
+    });
+    const key = dedupeKey(finding.checkOid, finding.repeatKey);
+    firedKeys.add(key);
+    if (!openByKey.has(key)) {
       await db.transaction(async (tx) => {
-        await tx
-          .update(queries)
-          .set({ status: "closed", closedAt: new Date() })
-          .where(eq(queries.id, open.id));
+        const [query] = await tx
+          .insert(queries)
+          .values({
+            studyId: context.studyId,
+            formInstanceId: context.formInstanceId,
+            origin: "system",
+            checkOid: finding.checkOid,
+            itemGroupRepeatKey: finding.repeatKey,
+            openedBy: actorId,
+          })
+          .returning();
+        if (!query) throw new Error("query insert returned no row");
         await tx.insert(auditEvents).values({
           actorId,
           studyId: context.studyId,
-          action: "query.closed",
+          action: "query.opened",
           entityType: "query",
-          entityId: open.id,
-          newValue: { reason: "auto-resolved by data change", checkOid: check.oid },
+          entityId: query.id,
+          newValue: {
+            origin: "system",
+            checkOid: finding.checkOid,
+            repeatKey: finding.repeatKey,
+            message: finding.message,
+          },
         });
       });
     }
+  }
+
+  for (const [key, open] of openByKey) {
+    if (firedKeys.has(key)) continue;
+    await db.transaction(async (tx) => {
+      await tx
+        .update(queries)
+        .set({ status: "closed", closedAt: new Date() })
+        .where(eq(queries.id, open.id));
+      await tx.insert(auditEvents).values({
+        actorId,
+        studyId: context.studyId,
+        action: "query.closed",
+        entityType: "query",
+        entityId: open.id,
+        newValue: { reason: "auto-resolved by data change", checkOid: open.checkOid },
+      });
+    });
   }
   return findings;
 }
