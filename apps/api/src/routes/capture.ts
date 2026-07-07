@@ -5,6 +5,7 @@ import type { Permission } from "../auth/permissions.js";
 import { hasPermission, isStudyMember } from "../auth/rbac.js";
 import type { AuthenticatedUser } from "../auth/service.js";
 import {
+  auditEvents,
   formInstances,
   queries,
   sites,
@@ -23,7 +24,9 @@ import {
   transitionForm,
   writeItemValue,
 } from "../services/capture.js";
+import { generateSubjectCasebook } from "../services/casebook.js";
 import { evaluateFormChecks } from "../services/checks.js";
+import { ExportError } from "../services/exports.js";
 import { listFormSignatures, SignatureError, signForm } from "../services/signatures.js";
 import type { StudyBuildDefinition } from "../services/study-builds.js";
 
@@ -236,6 +239,44 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(201).send(form);
     } catch (err) {
       return sendCaptureError(reply, err);
+    }
+  });
+
+  // Inspection/retention copy of one subject's data (P11-06). Sits behind
+  // the same permission as the other export surfaces.
+  app.get("/subjects/:subjectId/casebook", async (request, reply) => {
+    const { subjectId } = request.params as { subjectId: string };
+    const [subject] = await app.db
+      .select()
+      .from(subjects)
+      .where(eq(subjects.id, subjectId))
+      .limit(1);
+    if (!subject) return reply.code(404).send({ error: "subject not found" });
+    const user = await guard(request, reply, "export.data", { studyId: subject.studyId });
+    if (!user) return;
+
+    try {
+      const casebook = await generateSubjectCasebook(app.db, {
+        studyId: subject.studyId,
+        subjectId,
+      });
+      await app.db.insert(auditEvents).values({
+        actorId: user.id,
+        studyId: subject.studyId,
+        action: "subject.casebook_exported",
+        entityType: "subject",
+        entityId: subjectId,
+        newValue: { subjectKey: casebook.subjectKey, bytes: casebook.body.length },
+      });
+      return reply
+        .header("content-type", "application/pdf")
+        .header("content-disposition", `attachment; filename="${casebook.filename}"`)
+        .send(casebook.body);
+    } catch (err) {
+      if (err instanceof ExportError) {
+        return reply.code(err.code === "not_found" ? 404 : 409).send({ error: err.message });
+      }
+      throw err;
     }
   });
 
