@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { hasPermission } from "../auth/rbac.js";
 import { auditEvents } from "../db/schema/index.js";
+import { buildStudyArchive } from "../services/archive.js";
 import { ExportError, exportSnapshotTable } from "../services/exports.js";
 import {
   getSnapshot,
@@ -102,6 +103,46 @@ export const snapshotRoutes: FastifyPluginAsync = async (app) => {
         .header("content-type", result.contentType)
         .header("content-disposition", `attachment; filename="${result.filename}"`)
         .send(result.body);
+    } catch (err) {
+      if (err instanceof ExportError) {
+        return reply.code(err.code === "not_found" ? 404 : 409).send({ error: err.message });
+      }
+      throw err;
+    }
+  });
+
+  // The complete inspection copy (P11-06, E6-10): one zip holding ODM
+  // metadata for every build, snapshot-pinned data in Dataset-JSON + CSV,
+  // the full audit trail, and the signature manifest.
+  app.get("/studies/:studyId/archive", async (request, reply) => {
+    const { studyId } = request.params as { studyId: string };
+    if (!request.user) return reply.code(401).send({ error: "authentication required" });
+    if (!(await hasPermission(app.db, request.user.id, "export.data", { studyId }))) {
+      return reply.code(403).send({ error: "missing permission: export.data" });
+    }
+    const query = z.object({ snapshotId: z.uuid().optional() }).safeParse(request.query ?? {});
+    if (!query.success) return reply.code(400).send({ error: query.error.message });
+    try {
+      const archive = await buildStudyArchive(app.db, {
+        studyId,
+        snapshotId: query.data.snapshotId,
+      });
+      await app.db.insert(auditEvents).values({
+        actorId: request.user.id,
+        studyId,
+        action: "study.archive_exported",
+        entityType: "study",
+        entityId: studyId,
+        newValue: {
+          snapshotId: archive.snapshotId,
+          lakeVersion: archive.lakeVersion,
+          bytes: archive.body.length,
+        },
+      });
+      return reply
+        .header("content-type", "application/zip")
+        .header("content-disposition", `attachment; filename="${archive.filename}"`)
+        .send(archive.body);
     } catch (err) {
       if (err instanceof ExportError) {
         return reply.code(err.code === "not_found" ? 404 : 409).send({ error: err.message });
