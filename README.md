@@ -88,12 +88,12 @@ joined to that release's automated test results (regenerate locally with
 - Append-only audit trail (database-enforced), threaded query management,
   Part 11 e-signatures, audit review UI
 - Per-study DuckLake snapshots; sandboxed SQL + R workbench; Dataset-JSON v1.1 /
-  CSV / Parquet exports; self-contained study archives
+  CSV / Parquet exports; per-subject PDF casebooks; self-contained study archives
 - Per-release validation pack; CDASH-aligned demo study with one-command seed
 
 ## Roadmap
 
-Python workbench sidecar, PDF casebooks, OIDC SSO.
+Python workbench sidecar, OIDC SSO.
 
 ## License
 

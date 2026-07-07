@@ -5,6 +5,7 @@ import {
   useEnrollSubject,
   useEnsureForm,
   useMatrix,
+  usePermissions,
   useSites,
   useStudies,
 } from "../api/hooks.js";
@@ -107,8 +108,10 @@ export function MatrixPage() {
   const { studyId } = useParams({ from: "/app/studies/$studyId/subjects" });
   const { data: studies } = useStudies();
   const { data: matrix, isPending, isError } = useMatrix(studyId);
+  const { data: permissions } = usePermissions(studyId);
   const [enrolling, setEnrolling] = useState(false);
   const study = studies?.find((s) => s.id === studyId);
+  const canExport = permissions?.includes("export.data") ?? false;
 
   if (isPending) return <Spinner />;
   if (isError || !matrix) return <ErrorNote>Failed to load the subject matrix.</ErrorNote>;
@@ -162,6 +165,7 @@ export function MatrixPage() {
                     <div className="font-normal normal-case text-zinc-400">{form.name}</div>
                   </th>
                 ))}
+                {canExport ? <th className="px-3 py-3" /> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -179,6 +183,18 @@ export function MatrixPage() {
                       />
                     </td>
                   ))}
+                  {canExport ? (
+                    <td className="px-3 py-2.5">
+                      <a
+                        href={`/api/subjects/${subject.id}/casebook`}
+                        download
+                        className="whitespace-nowrap text-xs text-zinc-500 underline hover:text-zinc-800"
+                        title={`Download the PDF casebook for ${subject.subjectKey}`}
+                      >
+                        casebook
+                      </a>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
