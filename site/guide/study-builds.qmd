@@ -24,6 +24,18 @@ as data entry will render it.
 
 ![](../images/study-builder.png){.screenshot fig-alt="Study builder with event/form tree and live form preview"}
 
+With the `study.manage` permission, **Edit build** switches the builder into a
+point-and-click editor: rename forms and sections, add or delete events, forms,
+sections, and items, reorder items, change questions, data types, and lengths,
+assign codelists, and toggle required/repeating flags. Nothing is persisted
+while you work — **Save as new build** validates the draft and writes it
+through the same import path as a file, creating the next immutable version.
+A study with no builds yet offers a **start from scratch** shortcut that
+creates a minimal first build to edit. (Item definitions are shared: editing a
+question changes every form that references that item.)
+
+![](../images/study-builder-edit.png){.screenshot fig-alt="Study builder in edit mode with an expanded item editor"}
+
 **Script it.** Because file-driven and point-and-click builds hit the same
 versioned-metadata API, builds are automatable: generate ODM from your
 protocol tooling, from code, or with an LLM, and import the result. There is
