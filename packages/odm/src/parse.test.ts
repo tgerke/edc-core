@@ -128,9 +128,14 @@ describe("validateMetaDataVersion failure modes", () => {
 });
 
 describe("parseOdm error handling", () => {
-  it("rejects non-2.0 documents", () => {
+  it("accepts 1.3.2 via the upconversion shim but rejects other versions", () => {
+    // 1.3.x is upconverted (see odm13.test.ts); anything else still rejects.
+    const file = parseOdm(
+      '<ODM ODMVersion="1.3.2" FileOID="X" FileType="Snapshot" CreationDateTime="now"/>',
+    );
+    expect(file.odmVersion).toBe("2.0");
     expect(() =>
-      parseOdm('<ODM ODMVersion="1.3.2" FileOID="X" FileType="Snapshot" CreationDateTime="now"/>'),
+      parseOdm('<ODM ODMVersion="1.2" FileOID="X" FileType="Snapshot" CreationDateTime="now"/>'),
     ).toThrow(/unsupported ODMVersion/);
   });
 
