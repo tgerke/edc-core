@@ -93,8 +93,8 @@ joined to that release's automated test results (regenerate locally with
 
 ## Roadmap
 
-Python workbench sidecar, point-and-click form editing, repeating
-item-group entry, ODM 1.3.2 import shim, PDF casebooks, OIDC SSO.
+Python workbench sidecar, repeating item-group entry, ODM 1.3.2 import shim,
+PDF casebooks, OIDC SSO.
 
 ## License
 

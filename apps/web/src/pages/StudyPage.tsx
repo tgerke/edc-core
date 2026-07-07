@@ -1,10 +1,12 @@
-import { Link, useParams } from "@tanstack/react-router";
+import { blankMetaDataVersion } from "@edc-core/odm";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useImportOdm, useMetadataVersions, useStudies } from "../api/hooks.js";
 import { Badge, Button, Card, ErrorNote, PageTitle, Spinner } from "../components/ui.js";
 
 export function StudyPage() {
   const { studyId } = useParams({ from: "/app/studies/$studyId" });
+  const navigate = useNavigate();
   const { data: studies } = useStudies();
   const { data: versions, isPending } = useMetadataVersions(studyId);
   const importOdm = useImportOdm(studyId);
@@ -27,6 +29,36 @@ export function StudyPage() {
       setImportIssues(issues ?? [{ message: (err as Error).message }]);
     }
     if (fileInput.current) fileInput.current.value = "";
+  }
+
+  async function startFromScratch() {
+    if (!study) return;
+    setImportIssues(null);
+    setWarnings([]);
+    const content = JSON.stringify({
+      fileOid: `${study.oid}.builder`,
+      fileType: "Snapshot",
+      odmVersion: "2.0",
+      creationDateTime: new Date().toISOString(),
+      granularity: "Metadata",
+      sourceSystem: "edc-core",
+      study: {
+        oid: study.oid,
+        studyName: study.name,
+        ...(study.protocolName ? { protocolName: study.protocolName } : {}),
+        metaDataVersions: [blankMetaDataVersion(study.name)],
+      },
+    });
+    try {
+      const result = await importOdm.mutateAsync({ content, note: "Started in study builder" });
+      navigate({
+        to: "/studies/$studyId/builds/$version",
+        params: { studyId, version: String(result.version) },
+      });
+    } catch (err) {
+      const issues = (err as { issues?: unknown[] }).issues;
+      setImportIssues(issues ?? [{ message: (err as Error).message }]);
+    }
   }
 
   return (
@@ -101,8 +133,15 @@ export function StudyPage() {
       {isPending ? <Spinner /> : null}
       {versions && versions.length === 0 ? (
         <Card className="p-10 text-center text-sm text-zinc-500">
-          No study builds yet. Import a CDISC ODM v2.0 file (XML or JSON) to create version 1 — or
-          build point-and-click in a future release.
+          <p>
+            No study builds yet. Import a CDISC ODM v2.0 file (XML or JSON) to create version 1,
+          </p>
+          <p className="mt-2">
+            or{" "}
+            <Button variant="secondary" onClick={startFromScratch} disabled={importOdm.isPending}>
+              start point-and-click in the builder
+            </Button>
+          </p>
         </Card>
       ) : null}
 
