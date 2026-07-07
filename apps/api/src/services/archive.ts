@@ -13,6 +13,7 @@ import {
   users,
 } from "../db/schema/index.js";
 import { API_VERSION } from "../server.js";
+import { generateSubjectCasebook } from "./casebook.js";
 import { ExportError, exportSnapshotTable } from "./exports.js";
 import type { SnapshotManifest } from "./snapshots.js";
 import { exportStudyBuild } from "./study-builds.js";
@@ -183,6 +184,20 @@ export async function buildStudyArchive(
     "signatures/signatures.json",
     JSON.stringify(await signatureManifest(db, input.studyId), null, 2),
   );
+
+  // Human-readable casebook per subject (P11-06 retention rendering).
+  const studySubjects = await db
+    .select({ id: subjects.id, subjectKey: subjects.subjectKey })
+    .from(subjects)
+    .where(eq(subjects.studyId, input.studyId))
+    .orderBy(subjects.subjectKey);
+  for (const subject of studySubjects) {
+    const casebook = await generateSubjectCasebook(db, {
+      studyId: input.studyId,
+      subjectId: subject.id,
+    });
+    add(`casebooks/${subject.subjectKey}.pdf`, casebook.body);
+  }
 
   add(
     "MANIFEST.json",
