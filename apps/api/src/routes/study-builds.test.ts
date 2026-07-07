@@ -127,6 +127,49 @@ describe.skipIf(!dbAvailable)("study build import/export (integration)", () => {
     expect(res.json().version).toBe(2);
   });
 
+  it("imports ODM 1.3.2 through the upconversion shim with warnings", async () => {
+    const legacy = `<?xml version="1.0" encoding="UTF-8"?>
+<ODM xmlns="http://www.cdisc.org/ns/odm/v1.3" FileOID="LEG" FileType="Snapshot"
+     ODMVersion="1.3.2" CreationDateTime="2016-05-01T12:00:00Z">
+  <Study OID="ST.LEG">
+    <GlobalVariables><StudyName>Legacy Study</StudyName></GlobalVariables>
+    <MetaDataVersion OID="MDV.1" Name="v1">
+      <StudyEventDef OID="SE.V1" Name="Visit 1" Repeating="No" Type="Scheduled">
+        <FormRef FormOID="FO.DM" Mandatory="Yes" OrderNumber="1"/>
+      </StudyEventDef>
+      <FormDef OID="FO.DM" Name="Demographics" Repeating="No">
+        <ItemGroupRef ItemGroupOID="IG.DM" Mandatory="Yes" OrderNumber="1"/>
+      </FormDef>
+      <ItemGroupDef OID="IG.DM" Name="Demographics" Repeating="No">
+        <ItemRef ItemOID="IT.SEX" Mandatory="Yes" OrderNumber="1"/>
+      </ItemGroupDef>
+      <ItemDef OID="IT.SEX" Name="Sex" DataType="text"/>
+    </MetaDataVersion>
+  </Study>
+</ODM>`;
+    const res = await importOdm(fx.managerToken, legacy, "legacy import");
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(
+      body.warnings.some((w: { message: string }) =>
+        w.message.includes("converted from ODM 1.3.2"),
+      ),
+    ).toBe(true);
+
+    // The stored build exports as native v2.0 with the FormDef upconverted.
+    const exported = await server.inject({
+      method: "GET",
+      url: `/studies/${fx.studyId}/metadata-versions/${body.version}/odm?serialization=xml`,
+      headers: { authorization: `Bearer ${fx.managerToken}` },
+    });
+    expect(exported.body).toContain('ODMVersion="2.0"');
+    const roundTripped = parseOdm(exported.body);
+    const forms = roundTripped.study?.metaDataVersions[0]?.itemGroupDefs.filter(
+      (g) => g.type === "Form",
+    );
+    expect(forms?.map((f) => f.oid)).toEqual(["FO.DM"]);
+  });
+
   it("requires study.manage to import", async () => {
     const res = await importOdm(fx.outsiderToken, demographicsOdm);
     expect(res.statusCode).toBe(403);
@@ -155,7 +198,7 @@ describe.skipIf(!dbAvailable)("study build import/export (integration)", () => {
       headers: { authorization: `Bearer ${fx.managerToken}` },
     });
     expect(asManager.statusCode).toBe(200);
-    expect(asManager.json().map((v: { version: number }) => v.version)).toEqual([2, 1]);
+    expect(asManager.json().map((v: { version: number }) => v.version)).toEqual([3, 2, 1]);
 
     const asOutsider = await server.inject({
       method: "GET",
@@ -182,7 +225,7 @@ describe.skipIf(!dbAvailable)("study build import/export (integration)", () => {
     // Full circle: the export is itself importable.
     const reimport = await importOdm(fx.managerToken, res.body);
     expect(reimport.statusCode).toBe(201);
-    expect(reimport.json().version).toBe(3);
+    expect(reimport.json().version).toBe(4);
   });
 
   it("exports JSON serialization too", async () => {

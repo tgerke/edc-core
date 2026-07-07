@@ -15,6 +15,13 @@ of ODM v2.0 are accepted and validated. The repository ships a complete
 CDASH-aligned example in
 [`examples/demo-study.xml`](https://github.com/tgerke/edc-core/blob/main/examples/demo-study.xml).
 
+Legacy **ODM 1.3.x** metadata imports through a built-in upconversion shim:
+`FormDef`s become `ItemGroupDef Type="Form"`, `GlobalVariables` become study
+attributes, and the protocol's event ordering is preserved. Constructs the
+v2.0 build model doesn't carry (measurement units, `RangeCheck`s, archive
+layouts, embedded clinical data) are dropped **with an explicit warning for
+each** — review the import warnings before using a converted build.
+
 ![The study page lists every build; each exports back to ODM XML or
 JSON.](../images/study-overview.png){.screenshot}
 

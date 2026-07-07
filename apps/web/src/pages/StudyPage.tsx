@@ -122,8 +122,17 @@ export function StudyPage() {
       ) : null}
       {warnings.length > 0 ? (
         <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
-          Imported with {warnings.length} warning{warnings.length === 1 ? "" : "s"} (unreferenced
-          definitions are kept but unused).
+          <div className="font-medium">
+            Imported with {warnings.length} warning{warnings.length === 1 ? "" : "s"}
+          </div>
+          <ul className="mt-1 list-inside list-disc">
+            {warnings.slice(0, 8).map((warning, i) => {
+              const w = warning as { path?: string; message?: string };
+              // biome-ignore lint/suspicious/noArrayIndexKey: static warning list
+              return <li key={i}>{w.path ? `${w.path}: ${w.message ?? ""}` : String(warning)}</li>;
+            })}
+            {warnings.length > 8 ? <li>…and {warnings.length - 8} more</li> : null}
+          </ul>
         </div>
       ) : null}
 
