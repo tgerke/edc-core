@@ -62,7 +62,7 @@ for (const pkg of PACKAGES) {
 
 // 2. Index results by test file basename.
 const byFile = new Map();
-let totals = { total: 0, passed: 0, failed: 0, skipped: 0 };
+const totals = { total: 0, passed: 0, failed: 0, skipped: 0 };
 const packageSummaries = [];
 for (const { pkg, results } of suites) {
   packageSummaries.push({
@@ -138,7 +138,14 @@ const meta = {
   node: process.version,
   platform: `${process.platform}-${process.arch}`,
 };
-const pack = { meta, success: problems.length === 0, problems, totals, packageSummaries, requirements };
+const pack = {
+  meta,
+  success: problems.length === 0,
+  problems,
+  totals,
+  packageSummaries,
+  requirements,
+};
 writeFileSync(path.join(outDir, "validation-pack.json"), JSON.stringify(pack, null, 2));
 
 const implemented = requirements.filter((r) => r.status === "implemented");
@@ -168,15 +175,20 @@ const md = [
   "",
 ];
 for (const req of requirements) {
-  const icon =
-    req.status === "implemented" ? "🟢" : req.status === "in progress" ? "🟡" : "⚪";
+  const icon = req.status === "implemented" ? "🟢" : req.status === "in progress" ? "🟡" : "⚪";
   md.push(`### ${icon} ${req.id} — ${req.requirement}`, "", `${req.mechanism}`, "");
   if (req.evidence.length === 0) {
-    md.push(req.status === "planned" ? "_Planned; no evidence cited yet._" : "_No test evidence cited._", "");
+    md.push(
+      req.status === "planned" ? "_Planned; no evidence cited yet._" : "_No test evidence cited._",
+      "",
+    );
     continue;
   }
   for (const ev of req.evidence) {
-    md.push(`**\`${ev.file}\`** (${ev.package ?? "not found"}): ${ev.passed} passed, ${ev.failed} failed`, "");
+    md.push(
+      `**\`${ev.file}\`** (${ev.package ?? "not found"}): ${ev.passed} passed, ${ev.failed} failed`,
+      "",
+    );
     for (const t of ev.tests) {
       const mark = t.status === "passed" ? "✅" : t.status === "failed" ? "❌" : "⏭";
       md.push(`- ${mark} ${t.title}`);
