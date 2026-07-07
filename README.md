@@ -4,7 +4,7 @@
 
 Commercial EDC platforms are expensive, closed, and dated. The open-source alternatives run on legacy stacks. `edc-core` is a from-scratch EDC built on modern web technology, an analytics-native data architecture, and CDISC standards — designed so that regulatory expectations (21 CFR Part 11, ICH E6(R3)) are structural properties of the system, not afterthoughts.
 
-> **Status: pre-alpha.** Phase 0 scaffold — architecture and foundations. Not yet usable for studies.
+> **Status: alpha (v0.1.0).** The core capture workflow is complete end to end — build a study from ODM, capture data against it, manage queries, sign, snapshot, analyze, and export — but it has not yet been used in a production study. See the [changelog](CHANGELOG.md) and the [user guide](https://tgerke.github.io/edc-core/).
 
 ## Why
 
@@ -80,16 +80,21 @@ pack** — the [regulatory traceability matrix](docs/regulatory-traceability.md)
 joined to that release's automated test results (regenerate locally with
 `pnpm validation-pack`).
 
+## What's here (v0.1.0)
+
+- Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned and immutable
+- Metadata-driven data capture with JSONata edit checks and a server-enforced
+  entry workflow (in progress → complete → verified → signed → locked)
+- Append-only audit trail (database-enforced), threaded query management,
+  Part 11 e-signatures, audit review UI
+- Per-study DuckLake snapshots; sandboxed SQL + R workbench; Dataset-JSON v1.1 /
+  CSV / Parquet exports; self-contained study archives
+- Per-release validation pack; CDASH-aligned demo study with one-command seed
+
 ## Roadmap
 
-- **Phase 1** — Data model + append-only audit core, auth/RBAC ✅
-- **Phase 2** — ODM v2.0 import + visual study builder ✅
-- **Phase 3** — Metadata-driven data capture, edit checks ✅
-- **Phase 4** — Query management, Part 11 e-signatures, audit review UI ✅
-- **Phase 5** — DuckLake snapshots, Dataset-JSON v1.1 exports, SQL + R workbench ✅
-- **Phase 6** — Validation pack, demo study, GHCR images, v0.1.0 release ✅
-- **Next** — Python workbench sidecar, point-and-click form editing, repeating
-  item-group entry, ODM 1.3.2 import shim, PDF casebooks, OIDC SSO
+Python workbench sidecar, point-and-click form editing, repeating
+item-group entry, ODM 1.3.2 import shim, PDF casebooks, OIDC SSO.
 
 ## License
 
