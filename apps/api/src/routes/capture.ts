@@ -265,6 +265,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
         id: queries.id,
         origin: queries.origin,
         checkOid: queries.checkOid,
+        itemGroupRepeatKey: queries.itemGroupRepeatKey,
         createdAt: queries.createdAt,
       })
       .from(queries)

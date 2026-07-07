@@ -27,6 +27,18 @@ database transaction as its audit event. **Changing a saved value requires a
 reason for change**, and the previous value is never overwritten — the full
 version history stays queryable and appears in the audit trail.
 
+## Repeating item groups
+
+Item groups marked `Repeating` in the study build (e.g. multiple blood-pressure
+readings in one visit) render as a stack of occurrences with an **add
+occurrence** button. Each occurrence's values are stored and versioned
+independently, edit checks are evaluated per occurrence, and a failing check
+opens a system query pinned to that occurrence — fixing occurrence 2 never
+touches occurrence 1. Analytics snapshots carry the occurrence as
+`item_group_repeat_key` in the dataset grain.
+
+![](../images/repeating-entry.png){.screenshot fig-alt="Repeating item group with two occurrences and a per-occurrence edit check"}
+
 ## Workflow states
 
 Every form instance moves through a server-enforced state machine:
