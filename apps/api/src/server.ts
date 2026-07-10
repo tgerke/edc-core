@@ -5,11 +5,13 @@ import { authPlugin } from "./auth/plugin.js";
 import { createDb, type Db } from "./db/client.js";
 import { auditRoutes } from "./routes/audit.js";
 import { captureRoutes } from "./routes/capture.js";
+import { notificationRoutes } from "./routes/notifications.js";
 import { queryRoutes } from "./routes/queries.js";
 import { snapshotRoutes } from "./routes/snapshots.js";
 import { studyRoutes } from "./routes/studies.js";
 import { studyBuildRoutes } from "./routes/study-builds.js";
 import { workbenchRoutes } from "./routes/workbench.js";
+import { registerScheduler } from "./worker/scheduler.js";
 
 export const API_VERSION = "0.1.0";
 
@@ -41,6 +43,8 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await server.register(auditRoutes);
   await server.register(snapshotRoutes);
   await server.register(workbenchRoutes);
+  await server.register(notificationRoutes);
+  registerScheduler(server);
 
   server.get("/health", async () => {
     return healthResponseSchema.parse({

@@ -9,6 +9,14 @@ import {
   subjects,
   users,
 } from "../db/schema/index.js";
+import { notifyPermissionHolders } from "./notifications.js";
+
+/** Form context the routes already hold; carried in for notification fan-out. */
+export interface QueryNotifyContext {
+  siteId: string;
+  subjectKey: string;
+  formOid: string;
+}
 
 export class QueryError extends Error {
   constructor(
@@ -38,6 +46,7 @@ export async function openManualQuery(
     itemOid?: string;
     body: string;
     actorId: string;
+    context?: QueryNotifyContext;
   },
 ) {
   return db.transaction(async (tx) => {
@@ -65,6 +74,27 @@ export async function openManualQuery(
       entityId: query.id,
       newValue: { origin: "manual", itemOid: input.itemOid ?? null, body: input.body },
     });
+    // Manual queries only: system queries churn with every edit-check run
+    // and would train users to ignore the bell.
+    if (input.context) {
+      await notifyPermissionHolders(tx as unknown as Db, {
+        permission: "query.answer",
+        scope: { studyId: input.studyId, siteId: input.context.siteId },
+        excludeUserId: input.actorId,
+        notification: {
+          studyId: input.studyId,
+          type: "query.opened",
+          title: `New query on ${input.context.subjectKey}`,
+          body: `${input.context.formOid}: ${input.body.slice(0, 140)}`,
+          payload: {
+            queryId: query.id,
+            formInstanceId: input.formInstanceId,
+            subjectKey: input.context.subjectKey,
+            formOid: input.context.formOid,
+          },
+        },
+      });
+    }
     return query;
   });
 }
@@ -77,7 +107,7 @@ async function loadQuery(db: Db, queryId: string) {
 
 export async function answerQuery(
   db: Db,
-  input: { queryId: string; body: string; actorId: string },
+  input: { queryId: string; body: string; actorId: string; context?: QueryNotifyContext },
 ) {
   const query = await loadQuery(db, input.queryId);
   if (query.status !== "open") {
@@ -101,6 +131,25 @@ export async function answerQuery(
       oldValue: { status: "open" },
       newValue: { status: "answered", body: input.body },
     });
+    if (input.context) {
+      await notifyPermissionHolders(tx as unknown as Db, {
+        permission: "query.manage",
+        scope: { studyId: query.studyId, siteId: input.context.siteId },
+        excludeUserId: input.actorId,
+        notification: {
+          studyId: query.studyId,
+          type: "query.answered",
+          title: `Query answered on ${input.context.subjectKey}`,
+          body: `${input.context.formOid}: ${input.body.slice(0, 140)}`,
+          payload: {
+            queryId: query.id,
+            formInstanceId: query.formInstanceId,
+            subjectKey: input.context.subjectKey,
+            formOid: input.context.formOid,
+          },
+        },
+      });
+    }
     return updated;
   });
 }
