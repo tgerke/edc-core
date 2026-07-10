@@ -1,7 +1,8 @@
 import { blankMetaDataVersion } from "@edc-core/odm";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { useImportOdm, useMetadataVersions, useStudies } from "../api/hooks.js";
+import { useImportOdm, useMetadataVersions, usePermissions, useStudies } from "../api/hooks.js";
+import { AmendmentsPanel } from "../components/AmendmentsPanel.js";
 import { Badge, Button, Card, ErrorNote, PageTitle, Spinner } from "../components/ui.js";
 
 export function StudyPage() {
@@ -9,6 +10,7 @@ export function StudyPage() {
   const navigate = useNavigate();
   const { data: studies } = useStudies();
   const { data: versions, isPending } = useMetadataVersions(studyId);
+  const { data: permissions } = usePermissions(studyId);
   const importOdm = useImportOdm(studyId);
   const fileInput = useRef<HTMLInputElement>(null);
   const [importIssues, setImportIssues] = useState<unknown[] | null>(null);
@@ -185,6 +187,15 @@ export function StudyPage() {
           </Card>
         ))}
       </div>
+
+      {versions && versions.length >= 2 ? (
+        <AmendmentsPanel
+          studyId={studyId}
+          studyName={study?.name ?? ""}
+          versions={versions}
+          canManage={(permissions ?? []).includes("study.manage")}
+        />
+      ) : null}
     </div>
   );
 }

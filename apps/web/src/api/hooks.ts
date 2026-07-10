@@ -360,6 +360,99 @@ export function useStudyQueries(studyId: string, status?: string) {
   });
 }
 
+// ── Amendment migration ────────────────────────────────────────────────
+
+export interface BuildDiffResponse {
+  fromVersion: number;
+  toVersion: number;
+  diff: {
+    events: { oid: string; name: string; kind: string; detail?: string }[];
+    forms: { oid: string; name: string; kind: string; detail?: string }[];
+    itemGroups: { oid: string; name: string; kind: string; detail?: string }[];
+    items: {
+      itemOid: string;
+      itemGroupOid: string;
+      name: string;
+      kind: string;
+      changes?: Record<string, unknown>;
+    }[];
+    codeLists: { oid: string; name: string; kind: string; detail?: string }[];
+    editChecks: { oid: string; name: string; kind: string; detail?: string }[];
+    hasChanges: boolean;
+  };
+}
+
+export interface MigrationImpact {
+  targetVersion: number;
+  eligible: {
+    total: number;
+    byStatus: Record<string, number>;
+    byFromVersion: Record<string, number>;
+  };
+  excluded: { signed: number; locked: number };
+  diffs: { fromVersion: number; diff: BuildDiffResponse["diff"] }[];
+  orphanedValues: { itemGroupOid: string; itemOid: string; valueCount: number }[];
+  typeConflicts: {
+    itemGroupOid: string;
+    itemOid: string;
+    from: string;
+    to: string;
+    nonCastableCount: number;
+  }[];
+  checksAddedOrChanged: string[];
+}
+
+export interface MigrationRun {
+  id: string;
+  status: "running" | "completed" | "completed_with_errors" | "failed";
+  totalForms: number;
+  processedForms: number;
+  skippedForms: number;
+  failedForms: number;
+  errors: { formInstanceId: string; message: string }[];
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+export function useBuildDiff(studyId: string, from: number | null, to: number | null) {
+  return useQuery<BuildDiffResponse>({
+    queryKey: ["build-diff", studyId, from, to],
+    enabled: from !== null && to !== null && from !== to,
+    queryFn: () => api<BuildDiffResponse>(`/studies/${studyId}/builds/diff?from=${from}&to=${to}`),
+  });
+}
+
+export function useAnalyzeMigration(studyId: string) {
+  return useMutation({
+    mutationFn: (targetVersion: number) =>
+      api<MigrationImpact>(`/studies/${studyId}/migrations/analyze`, {
+        method: "POST",
+        body: JSON.stringify({ targetVersion }),
+      }),
+  });
+}
+
+export function useStartMigration(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetVersion: number) =>
+      api<{ runId: string; totalForms: number }>(`/studies/${studyId}/migrations`, {
+        method: "POST",
+        body: JSON.stringify({ targetVersion }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["migrations", studyId] }),
+  });
+}
+
+export function useMigrationRun(studyId: string, runId: string | null) {
+  return useQuery<MigrationRun>({
+    queryKey: ["migrations", studyId, runId],
+    enabled: runId !== null,
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 2000 : false),
+    queryFn: () => api<MigrationRun>(`/studies/${studyId}/migrations/${runId}`),
+  });
+}
+
 export function usePermissions(studyId: string, siteId?: string) {
   return useQuery<string[]>({
     queryKey: ["permissions", studyId, siteId ?? ""],
