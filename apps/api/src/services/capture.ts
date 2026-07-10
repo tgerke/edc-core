@@ -10,6 +10,7 @@ import {
   studyMetadataVersions,
   subjects,
 } from "../db/schema/index.js";
+import { notifyPermissionHolders } from "./notifications.js";
 import { invalidateLiveSignatures } from "./signatures.js";
 
 export type FormStatus =
@@ -317,6 +318,26 @@ export async function transitionForm(
       oldValue: { status: context.status },
       newValue: { status: transition.to, action },
     });
+    // There is no signature-request object: "awaiting signature" is derived
+    // from the transition into a signable state, and signers hear about it.
+    if (transition.to === "complete" || transition.to === "verified") {
+      await notifyPermissionHolders(tx as unknown as Db, {
+        permission: "data.sign",
+        scope: { studyId: context.studyId, siteId: context.siteId },
+        excludeUserId: actorId,
+        notification: {
+          studyId: context.studyId,
+          type: "form.awaiting_signature",
+          title: `Form ready to sign: ${context.subjectKey}`,
+          body: `${context.formOid} marked ${transition.to}`,
+          payload: {
+            formInstanceId: context.formInstanceId,
+            subjectKey: context.subjectKey,
+            formOid: context.formOid,
+          },
+        },
+      });
+    }
     return updated;
   });
 }
