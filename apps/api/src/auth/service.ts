@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { auditEvents, sessions, users } from "../db/schema/index.js";
+import { auditEvents, reauthGrants, sessions, users } from "../db/schema/index.js";
 import type { AuthConfig } from "./config.js";
 import { verifyPassword } from "./password.js";
 
@@ -9,17 +9,33 @@ export type LoginResult =
   | { ok: true; token: string; userId: string }
   | { ok: false; reason: "invalid_credentials" | "locked" | "deactivated" };
 
+export type AuthMethod = "password" | "oidc";
+
+/**
+ * Part 11 re-auth at signing, by either credential mechanism: password
+ * re-entry, or a single-use grant minted by a fresh interactive IdP login.
+ */
+export type ReauthInput =
+  | { method: "password"; username: string; password: string }
+  | { method: "oidc"; reauthGrant: string };
+
 export interface AuthenticatedUser {
   id: string;
   username: string;
   fullName: string;
   isSystemAdmin: boolean;
+  /** False for OIDC-provisioned accounts with no local password. */
+  hasPassword: boolean;
   sessionId: string;
 }
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+// Constant-ish response for unknown users / passwordless accounts.
+const DUMMY_HASH =
+  "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 export class AuthService {
   constructor(
@@ -35,10 +51,7 @@ export class AuthService {
     const [user] = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
     if (!user) {
       // Unknown usernames can't be audited (actor FK); constant-ish response.
-      await verifyPassword(
-        "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-        password,
-      );
+      await verifyPassword(DUMMY_HASH, password);
       return { ok: false, reason: "invalid_credentials" };
     }
 
@@ -47,7 +60,7 @@ export class AuthService {
       return { ok: false, reason: "locked" };
     }
 
-    const valid = await verifyPassword(user.passwordHash, password);
+    const valid = await verifyPassword(user.passwordHash ?? DUMMY_HASH, password);
     if (!valid) {
       const failedCount = user.failedLoginCount + 1;
       const lock = failedCount >= this.config.maxFailedLogins;
@@ -68,48 +81,84 @@ export class AuthService {
       return { ok: false, reason: lock ? "locked" : "invalid_credentials" };
     }
 
+    const token = await this.createSession(user.id, "password", meta);
+    return { ok: true, token, userId: user.id };
+  }
+
+  /**
+   * Issues a session token after credentials have been verified by either
+   * mechanism. Resets lockout counters and audits the login.
+   */
+  async createSession(
+    userId: string,
+    authMethod: AuthMethod,
+    meta: { ip?: string; userAgent?: string } = {},
+  ): Promise<string> {
     const token = randomBytes(32).toString("base64url");
     await this.db.transaction(async (tx) => {
       await tx
         .update(users)
         .set({ failedLoginCount: 0, lockedUntil: null, updatedAt: new Date() })
-        .where(eq(users.id, user.id));
+        .where(eq(users.id, userId));
       await tx.insert(sessions).values({
-        userId: user.id,
+        userId,
         tokenHash: hashToken(token),
+        authMethod,
         expiresAt: new Date(Date.now() + this.config.sessionAbsoluteHours * 3_600_000),
         ip: meta.ip ?? null,
         userAgent: meta.userAgent ?? null,
       });
       await tx.insert(auditEvents).values({
-        actorId: user.id,
+        actorId: userId,
         action: "auth.login",
         entityType: "user",
-        entityId: user.id,
+        entityId: userId,
+        newValue: { authMethod },
       });
     });
-
-    return { ok: true, token, userId: user.id };
+    return token;
   }
 
   /**
-   * Part 11 §11.200(a) re-authentication at signing: the signer re-enters
-   * both credential components, which must belong to the session user —
-   * nobody signs as anyone else. Failures count toward lockout exactly like
-   * login failures (§11.300(d)) and are audited as signature attempts.
+   * Mints a single-use re-authentication grant after a fresh interactive IdP
+   * login (the OIDC counterpart of password re-entry at signing). The raw
+   * token goes back to the browser; only its hash is stored.
+   */
+  async mintReauthGrant(userId: string): Promise<string> {
+    const token = randomBytes(32).toString("base64url");
+    // Same freshness window as the auth_time check that gates minting.
+    const ttlSeconds = this.config.oidc?.reauthMaxAgeSeconds ?? 120;
+    await this.db.insert(reauthGrants).values({
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+    });
+    return token;
+  }
+
+  /**
+   * Part 11 §11.200(a) re-authentication at signing: the signer re-executes
+   * authentication, which must resolve to the session user — nobody signs as
+   * anyone else. Password re-entry, or a single-use grant from a fresh
+   * interactive IdP login (prompt=login, auth_time-checked). Password
+   * failures count toward lockout exactly like login failures (§11.300(d))
+   * and are audited as signature attempts.
    */
   async reauthenticate(
     actorId: string,
-    username: string,
-    password: string,
+    input: ReauthInput,
   ): Promise<{ ok: true } | { ok: false; reason: "invalid_credentials" | "locked" }> {
+    if (input.method === "oidc") return this.consumeReauthGrant(actorId, input.reauthGrant);
+
     const [user] = await this.db.select().from(users).where(eq(users.id, actorId)).limit(1);
     if (!user || user.status !== "active") return { ok: false, reason: "invalid_credentials" };
     if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
       return { ok: false, reason: "locked" };
     }
 
-    const valid = user.username === username && (await verifyPassword(user.passwordHash, password));
+    const valid =
+      user.username === input.username &&
+      (await verifyPassword(user.passwordHash ?? DUMMY_HASH, input.password));
     if (!valid) {
       const failedCount = user.failedLoginCount + 1;
       const lock = failedCount >= this.config.maxFailedLogins;
@@ -134,6 +183,40 @@ export class AuthService {
       .update(users)
       .set({ failedLoginCount: 0, lockedUntil: null, updatedAt: new Date() })
       .where(eq(users.id, user.id));
+    return { ok: true };
+  }
+
+  /**
+   * Atomically consumes a re-auth grant: the conditional UPDATE guarantees
+   * single use even under concurrent attempts. A grant burned by a signature
+   * that later conflicts simply forces a fresh IdP re-auth.
+   */
+  private async consumeReauthGrant(
+    actorId: string,
+    grant: string,
+  ): Promise<{ ok: true } | { ok: false; reason: "invalid_credentials" }> {
+    const [consumed] = await this.db
+      .update(reauthGrants)
+      .set({ consumedAt: new Date() })
+      .where(
+        and(
+          eq(reauthGrants.tokenHash, hashToken(grant)),
+          eq(reauthGrants.userId, actorId),
+          isNull(reauthGrants.consumedAt),
+          gt(reauthGrants.expiresAt, new Date()),
+        ),
+      )
+      .returning();
+    if (!consumed) {
+      await this.db.insert(auditEvents).values({
+        actorId,
+        action: "signature.reauth_failed",
+        entityType: "user",
+        entityId: actorId,
+        newValue: { method: "oidc" },
+      });
+      return { ok: false, reason: "invalid_credentials" };
+    }
     return { ok: true };
   }
 
@@ -162,6 +245,7 @@ export class AuthService {
       username: row.user.username,
       fullName: row.user.fullName,
       isSystemAdmin: row.user.isSystemAdmin,
+      hasPassword: row.user.passwordHash !== null,
       sessionId: row.session.id,
     };
   }

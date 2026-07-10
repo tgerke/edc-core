@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import type { AuthService } from "../auth/service.js";
+import type { AuthService, ReauthInput } from "../auth/service.js";
 import type { Db } from "../db/client.js";
 import { auditEvents, formInstances, signatures, users } from "../db/schema/index.js";
 import { CaptureError, type FormContext } from "./capture.js";
@@ -55,16 +55,17 @@ export async function computeRecordHash(db: Db, formInstanceId: string): Promise
 }
 
 /**
- * Part 11 e-signature: re-authenticates the signer (both components, must be
- * the session user), binds the signature to the current record content, and
- * moves the form to `signed` — all subsequent edits go through transitions
- * that invalidate live signatures.
+ * Part 11 e-signature: re-authenticates the signer (password re-entry or a
+ * fresh-IdP-login grant, either way resolving to the session user), binds the
+ * signature to the current record content, and moves the form to `signed` —
+ * all subsequent edits go through transitions that invalidate live
+ * signatures.
  */
 export async function signForm(
   db: Db,
   auth: AuthService,
   context: FormContext,
-  input: { actorId: string; username: string; password: string; meaning: string },
+  input: { actorId: string; reauth: ReauthInput; meaning: string },
 ) {
   if (!SIGNABLE_STATUSES.includes(context.status)) {
     throw new CaptureError(
@@ -73,7 +74,7 @@ export async function signForm(
     );
   }
 
-  const reauth = await auth.reauthenticate(input.actorId, input.username, input.password);
+  const reauth = await auth.reauthenticate(input.actorId, input.reauth);
   if (!reauth.ok) {
     if (reauth.reason === "locked") {
       throw new SignatureError("locked", "account locked after repeated failed attempts");
@@ -115,6 +116,7 @@ export async function signForm(
         meaning: input.meaning,
         recordHash,
         previousStatus: context.status,
+        reauthMethod: input.reauth.method,
       },
     });
     return signature;
