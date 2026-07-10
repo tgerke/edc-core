@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { hasPermission } from "../auth/rbac.js";
 import { auditEvents, users } from "../db/schema/index.js";
+import { canUnblind, maskBlindedAuditRows } from "../services/blinding.js";
 
 const filterSchema = z.object({
   action: z.string().min(1).optional(),
@@ -68,7 +69,11 @@ export const auditRoutes: FastifyPluginAsync = async (app) => {
       .limit(f.format === "csv" ? 10_000 : f.limit)
       .offset(f.format === "csv" ? 0 : f.offset);
 
-    const events = rows.map((row) => ({ ...row, id: String(row.id) }));
+    // Blinded audit review: reviewers without data.unblind see who/when/why
+    // for blinded items, but not the values themselves.
+    const unblinded = await canUnblind(app.db, request.user.id, { studyId });
+    const visible = unblinded ? rows : await maskBlindedAuditRows(app.db, studyId, rows);
+    const events = visible.map((row) => ({ ...row, id: String(row.id) }));
 
     if (f.format === "csv") {
       const header =

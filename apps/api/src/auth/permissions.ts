@@ -11,6 +11,7 @@ export const PERMISSIONS = [
   "audit.review",
   "export.data",
   "analytics.run",
+  "data.unblind",
   "roles.grant",
 ] as const;
 

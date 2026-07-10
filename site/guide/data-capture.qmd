@@ -53,6 +53,32 @@ Reopening a signed form for correction invalidates its signature and returns
 it to the editable state, leaving the signature record and its invalidation in
 the audit trail.
 
+## Blinded items
+
+Items flagged **Blinded** in the study build (the `edc:Blinded` attribute in
+ODM, or the Blinded checkbox in the builder) are visible only to roles holding
+the `data.unblind` permission — by default the site-facing roles
+(investigator, data entry, admin). Everyone else, monitors included, sees a
+locked field: the item's presence and entry status, but never its value. The
+same rule follows the data everywhere it goes:
+
+- **Casebooks** print `[BLINDED]` unless the requester can unblind; study
+  archives always use the blinded rendering.
+- **Audit review** shows blinded reviewers who changed the item, when, and
+  why — with the old and new values masked.
+- **Analytics snapshots never contain blinded columns at all**, so the SQL
+  workbench, the R engine, and every export are blinded by construction. The
+  snapshot manifest lists the excluded items.
+
+Blinded values are still captured, versioned, and audited normally — blinding
+scopes *visibility*, not collection. Entry roles hold `data.unblind` by
+default precisely so that entering a dose feels like entering anything else.
+One authoring caution (the importer warns about it): edit checks may reference
+blinded items, but their message text is shown to blinded roles too — never
+word a check message so it reveals the value. See
+[ADR-0009](https://github.com/tgerke/edc-core/blob/main/docs/adr/0009-item-level-blinding.md)
+for the full design.
+
 ## System queries from edit checks
 
 When a saved value fails an edit check, edc-core opens a **system query** on

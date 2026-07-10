@@ -13,6 +13,7 @@ import {
   users,
 } from "../db/schema/index.js";
 import { API_VERSION } from "../server.js";
+import { maskBlindedAuditRows } from "./blinding.js";
 import { generateSubjectCasebook } from "./casebook.js";
 import { ExportError, exportSnapshotTable } from "./exports.js";
 import type { SnapshotManifest } from "./snapshots.js";
@@ -29,7 +30,7 @@ function toCsv(header: string[], rows: unknown[][]): string {
 }
 
 async function auditCsv(db: Db, studyId: string): Promise<string> {
-  const rows = await db
+  const allRows = await db
     .select({
       occurredAt: auditEvents.occurredAt,
       actor: users.username,
@@ -45,6 +46,8 @@ async function auditCsv(db: Db, studyId: string): Promise<string> {
     .innerJoin(users, eq(auditEvents.actorId, users.id))
     .where(eq(auditEvents.studyId, studyId))
     .orderBy(auditEvents.occurredAt, auditEvents.id);
+  // Archives are shareable artifacts: always the blinded rendering (v1).
+  const rows = await maskBlindedAuditRows(db, studyId, allRows);
   return toCsv(
     [
       "occurred_at",
