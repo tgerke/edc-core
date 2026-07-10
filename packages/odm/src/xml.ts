@@ -16,6 +16,8 @@ import type {
 } from "./model.js";
 
 export const ODM_V2_NAMESPACE = "http://www.cdisc.org/ns/odm/v2.0";
+/** Namespace for edc-core vendor extension attributes (e.g. edc:Blinded). */
+export const EDC_EXT_NAMESPACE = "https://github.com/tgerke/edc-core/ns/odm-ext/v1";
 
 // Elements that may occur more than once must always parse as arrays.
 // Includes ODM 1.3-only elements so the same parser serves the 1.3 shim.
@@ -215,9 +217,10 @@ function parseItemDef(raw: unknown): ItemDef {
   const description = parseTranslatedTexts(n.Description);
   const question = parseTranslatedTexts(n.Question);
   const codeListRefNode = n.CodeListRef ? asNode(n.CodeListRef) : undefined;
+  const blinded = attr(n, "edc:Blinded");
   const extra = collectExtra(
     n,
-    ["OID", "Name", "DataType", "Length", "SignificantDigits"],
+    ["OID", "Name", "DataType", "Length", "SignificantDigits", "edc:Blinded"],
     ["Description", "Question", "CodeListRef"],
   );
   return {
@@ -231,6 +234,7 @@ function parseItemDef(raw: unknown): ItemDef {
     ...(codeListRefNode
       ? { codeListRef: { codeListOid: requireAttr(codeListRefNode, "CodeListOID", "CodeListRef") } }
       : {}),
+    ...(blinded === "Yes" ? { blinded: true } : {}),
     ...(extra ? { extra } : {}),
   };
 }
@@ -364,6 +368,7 @@ export function parseOdmXml(content: string): OdmFile {
       "xmlns",
       "xmlns:xs",
       "xmlns:xlink",
+      "xmlns:edc",
     ],
     ["Study"],
   );
@@ -453,6 +458,7 @@ export function serializeOdmXml(file: OdmFile): string {
     ODM: withExtra(
       {
         "@_xmlns": ODM_V2_NAMESPACE,
+        "@_xmlns:edc": EDC_EXT_NAMESPACE,
         "@_FileOID": file.fileOid,
         "@_FileType": file.fileType,
         "@_ODMVersion": file.odmVersion,
@@ -535,6 +541,7 @@ export function serializeOdmXml(file: OdmFile): string {
                               ...(item.question
                                 ? { Question: buildTranslatedTexts(item.question) }
                                 : {}),
+                              ...(item.blinded ? { "@_edc:Blinded": "Yes" } : {}),
                               ...(item.codeListRef
                                 ? { CodeListRef: { "@_CodeListOID": item.codeListRef.codeListOid } }
                                 : {}),

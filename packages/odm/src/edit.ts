@@ -75,6 +75,7 @@ export interface ItemDefPatch {
   length?: number | null;
   /** null clears the codelist assignment. */
   codeListOid?: string | null;
+  blinded?: boolean;
 }
 
 /** Item defs are shared: editing one changes every form that references it. */
@@ -102,6 +103,10 @@ export function updateItemDef(
       if (patch.codeListOid !== undefined) {
         if (patch.codeListOid === null) delete next.codeListRef;
         else next.codeListRef = { codeListOid: patch.codeListOid };
+      }
+      if (patch.blinded !== undefined) {
+        if (patch.blinded) next.blinded = true;
+        else delete next.blinded;
       }
       return next;
     }),

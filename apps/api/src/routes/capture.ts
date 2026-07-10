@@ -13,6 +13,7 @@ import {
   studyMetadataVersions,
   subjects,
 } from "../db/schema/index.js";
+import { blindedItemOids, canUnblind, maskItemValues } from "../services/blinding.js";
 import {
   CaptureError,
   enrollSubject,
@@ -266,9 +267,14 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
     if (!user) return;
 
     try {
+      const unblind = await canUnblind(app.db, user.id, {
+        studyId: subject.studyId,
+        siteId: subject.siteId,
+      });
       const casebook = await generateSubjectCasebook(app.db, {
         studyId: subject.studyId,
         subjectId,
+        unblind,
       });
       await app.db.insert(auditEvents).values({
         actorId: user.id,
@@ -276,7 +282,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
         action: "subject.casebook_exported",
         entityType: "subject",
         entityId: subjectId,
-        newValue: { subjectKey: casebook.subjectKey, bytes: casebook.body.length },
+        newValue: { subjectKey: casebook.subjectKey, bytes: casebook.body.length, unblind },
       });
       return reply
         .header("content-type", "application/pdf")
@@ -296,7 +302,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
     if (!context) return reply.code(404).send({ error: "form not found" });
     if (!(await member(request, reply, context.studyId))) return;
 
-    const values = await app.db.execute<{
+    const rawValues = await app.db.execute<{
       item_group_oid: string;
       item_group_repeat_key: number;
       item_oid: string;
@@ -307,10 +313,25 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
           FROM item_values_current WHERE form_instance_id = ${formInstanceId}`,
     );
     const [build] = await app.db
-      .select({ version: studyMetadataVersions.version })
+      .select({
+        version: studyMetadataVersions.version,
+        definition: studyMetadataVersions.definition,
+      })
       .from(studyMetadataVersions)
       .where(eq(studyMetadataVersions.id, context.metadataVersionId))
       .limit(1);
+
+    // Blinding: mask values of blinded items (per the pinned build) for
+    // viewers without data.unblind, and tell the UI which fields to lock.
+    const blinded = build
+      ? blindedItemOids((build.definition as unknown as StudyBuildDefinition).metaDataVersion)
+      : new Set<string>();
+    const user = request.user as AuthenticatedUser;
+    const unblinded =
+      blinded.size === 0 ||
+      (await canUnblind(app.db, user.id, { studyId: context.studyId, siteId: context.siteId }));
+    const values = unblinded ? rawValues : maskItemValues([...rawValues], blinded);
+
     const openQueries = await app.db
       .select({
         id: queries.id,
@@ -326,6 +347,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       context,
       buildVersion: build?.version ?? null,
       values,
+      blindedItems: unblinded ? [] : [...blinded],
       openQueries,
       signatures: formSignatures,
     };
@@ -381,6 +403,27 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       siteId: context.siteId,
     });
     if (!user) return;
+
+    // A blind role must not overwrite what it cannot see.
+    const [pinned] = await app.db
+      .select({ definition: studyMetadataVersions.definition })
+      .from(studyMetadataVersions)
+      .where(eq(studyMetadataVersions.id, context.metadataVersionId))
+      .limit(1);
+    if (pinned) {
+      const blinded = blindedItemOids(
+        (pinned.definition as unknown as StudyBuildDefinition).metaDataVersion,
+      );
+      if (
+        blinded.has(parsed.data.itemOid) &&
+        !(await canUnblind(app.db, user.id, {
+          studyId: context.studyId,
+          siteId: context.siteId,
+        }))
+      ) {
+        return reply.code(403).send({ error: "item is blinded: missing permission data.unblind" });
+      }
+    }
 
     try {
       const version = await writeItemValue(app.db, context, {
