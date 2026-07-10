@@ -78,6 +78,13 @@
       "when": 1783726000000,
       "tag": "0010_blinding_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783726100000,
+      "tag": "0011_notifications",
+      "breakpoints": true
     }
   ]
 }

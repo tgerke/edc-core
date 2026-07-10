@@ -11,7 +11,9 @@ export class ApiError extends Error {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, {
     credentials: "include",
-    headers: { "content-type": "application/json", ...init.headers },
+    // Only claim a JSON body when there is one: Fastify 400s on an empty
+    // body with a JSON content-type (bodyless POSTs like logout/mark-read).
+    headers: { ...(init.body ? { "content-type": "application/json" } : {}), ...init.headers },
     ...init,
   });
   if (!response.ok) {

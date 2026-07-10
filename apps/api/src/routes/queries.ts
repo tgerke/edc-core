@@ -93,6 +93,11 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
       formInstanceId: context.formInstanceId,
       body: parsed.data.body,
       actorId: user.id,
+      context: {
+        siteId: context.siteId,
+        subjectKey: context.subjectKey,
+        formOid: context.formOid,
+      },
       ...(parsed.data.itemGroupOid ? { itemGroupOid: parsed.data.itemGroupOid } : {}),
       ...(parsed.data.itemGroupRepeatKey
         ? { itemGroupRepeatKey: parsed.data.itemGroupRepeatKey }
@@ -106,7 +111,12 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
   // permission checks, run the transition, map QueryError to HTTP.
   function lifecycleAction(
     permission: Permission,
-    run: (queryId: string, body: string | undefined, actorId: string) => Promise<unknown>,
+    run: (
+      queryId: string,
+      body: string | undefined,
+      actorId: string,
+      context: FormContext,
+    ) => Promise<unknown>,
     bodySchema: z.ZodType<{ body?: string | undefined }>,
   ) {
     return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -127,7 +137,7 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
           siteId: context.siteId,
         });
         if (!user) return;
-        const updated = await run(queryId, parsed.data.body, user.id);
+        const updated = await run(queryId, parsed.data.body, user.id, context);
         return reply.send(updated);
       } catch (err) {
         return sendQueryError(reply, err);
@@ -139,7 +149,17 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
     "/queries/:queryId/answer",
     lifecycleAction(
       "query.answer",
-      (queryId, body, actorId) => answerQuery(app.db, { queryId, body: body as string, actorId }),
+      (queryId, body, actorId, context) =>
+        answerQuery(app.db, {
+          queryId,
+          body: body as string,
+          actorId,
+          context: {
+            siteId: context.siteId,
+            subjectKey: context.subjectKey,
+            formOid: context.formOid,
+          },
+        }),
       messageSchema,
     ),
   );

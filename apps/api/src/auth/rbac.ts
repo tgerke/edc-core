@@ -71,6 +71,34 @@ export async function effectivePermissions(
   return rows.map((r) => r.permission as Permission).sort();
 }
 
+/**
+ * The inverse of hasPermission: everyone whose unrevoked grants confer the
+ * permission in the scope. Serves notification fan-out — advisory recipients,
+ * never authorization.
+ */
+export async function usersWithPermission(
+  db: Db,
+  permission: Permission,
+  scope: PermissionScope,
+): Promise<string[]> {
+  const siteCondition = scope.siteId
+    ? or(isNull(userStudyRoles.siteId), eq(userStudyRoles.siteId, scope.siteId))
+    : isNull(userStudyRoles.siteId);
+  const rows = await db
+    .selectDistinct({ userId: userStudyRoles.userId })
+    .from(userStudyRoles)
+    .innerJoin(rolePermissions, eq(rolePermissions.roleId, userStudyRoles.roleId))
+    .where(
+      and(
+        eq(userStudyRoles.studyId, scope.studyId),
+        isNull(userStudyRoles.revokedAt),
+        eq(rolePermissions.permission, permission),
+        siteCondition,
+      ),
+    );
+  return rows.map((r) => r.userId);
+}
+
 /** Membership = any unrevoked role grant in the study (read visibility). */
 export async function isStudyMember(db: Db, userId: string, studyId: string): Promise<boolean> {
   const rows = await db

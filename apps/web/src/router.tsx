@@ -8,6 +8,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useLogout, useMe } from "./api/hooks.js";
+import { NotificationsBell } from "./components/NotificationsBell.js";
 import { Button, Spinner } from "./components/ui.js";
 import { AuditPage } from "./pages/AuditPage.js";
 import { BuilderPage } from "./pages/BuilderPage.js";
@@ -64,6 +65,7 @@ function AppShell() {
             </Link>
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            <NotificationsBell />
             <span className="text-sm text-zinc-500">{me.fullName}</span>
             <Button
               variant="ghost"

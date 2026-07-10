@@ -455,6 +455,53 @@ export function useMigrationRun(studyId: string, runId: string | null) {
   });
 }
 
+// ── Notifications ──────────────────────────────────────────────────────
+
+export interface NotificationRow {
+  id: string;
+  studyId: string;
+  type: "query.opened" | "query.answered" | "form.awaiting_signature" | "form.overdue";
+  title: string;
+  body: string;
+  payload: { formInstanceId?: string; queryId?: string; subjectKey?: string; formOid?: string };
+  readAt: string | null;
+  createdAt: string;
+}
+
+// Polling, not push: consistent with the rest of the app (TanStack Query
+// invalidation everywhere, no SSE/websocket channel exists).
+export function useNotifications(enabled: boolean) {
+  return useQuery<NotificationRow[]>({
+    queryKey: ["notifications"],
+    enabled,
+    queryFn: () => api<NotificationRow[]>("/notifications?limit=20"),
+  });
+}
+
+export function useUnreadCount() {
+  return useQuery<{ count: number }>({
+    queryKey: ["notifications", "unread-count"],
+    refetchInterval: 30_000,
+    queryFn: () => api<{ count: number }>("/notifications/unread-count"),
+  });
+}
+
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/notifications/${id}/read`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api("/notifications/read-all", { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
 export function usePermissions(studyId: string, siteId?: string) {
   return useQuery<string[]>({
     queryKey: ["permissions", studyId, siteId ?? ""],

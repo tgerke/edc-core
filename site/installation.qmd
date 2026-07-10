@@ -85,6 +85,25 @@ the identity provider (`prompt=login`), verified against the token's
 If `EDC_OIDC_ONLY` is set and the identity provider is misconfigured, recovery
 is to unset the variable and restart the API — password login resumes.
 
+## Notifications and email
+
+Query activity and forms awaiting signature raise **in-app notifications**
+(the bell in the header) out of the box. Two optional extras are env-driven
+on the API container:
+
+| Variable | Meaning |
+|---|---|
+| `EDC_NOTIFY_SCAN_MINUTES` | Minutes between background scans (default 15; `0` disables the scheduler). |
+| `EDC_FORM_OVERDUE_DAYS` | Days after a visit is created before an unfinished form counts as overdue (default `0` = off). A deliberately crude signal — enable it once the cadence suits your protocol. |
+| `EDC_SMTP_HOST` / `EDC_SMTP_PORT` / `EDC_SMTP_SECURE` | SMTP relay; setting the host enables email delivery of notifications. |
+| `EDC_SMTP_USER` / `EDC_SMTP_PASS` | SMTP credentials, if the relay needs them. |
+| `EDC_SMTP_FROM` | From address, e.g. `edc-core <no-reply@example.org>`. |
+| `EDC_BASE_URL` | Web origin used in email deep links. |
+
+The scheduler runs inside the API process and assumes the single-instance
+deployment the compose file provides; email failures are retried a few times
+and never block the in-app notification.
+
 ## Published images
 
 Tagged releases publish versioned images to GitHub Container Registry:

@@ -20,6 +20,21 @@ subject, and the latest message:
 The full lifecycle (`open → answered → closed`, with reopen) is audited, and
 open queries are surfaced prominently on the affected form during entry.
 
+## Notifications
+
+The bell in the header keeps review work moving without polling dashboards:
+
+- opening a **manual query** notifies site staff who can answer it;
+- an **answer** notifies the reviewers who manage queries;
+- a form reaching **complete** or **verified** notifies its potential signers;
+- optionally, forms left unfinished too long raise **overdue** reminders.
+
+Notifications are per-site where the event is site-scoped, never sent to the
+person who caused them, and (system) edit-check queries deliberately raise
+none — those open and close with the data. With SMTP configured
+([installation](../installation.qmd#notifications-and-email)), each
+notification is also delivered by email with a deep link.
+
 ## Source data verification
 
 Monitors mark completed forms **verified** — a distinct workflow state between
