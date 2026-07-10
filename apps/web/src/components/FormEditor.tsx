@@ -191,6 +191,17 @@ function ItemEditor({
             />
             Required
           </label>
+          <label
+            className="flex items-center gap-2 self-end pb-2 text-sm text-zinc-700"
+            title="Values are masked for roles without the data.unblind permission and excluded from analytics snapshots"
+          >
+            <input
+              type="checkbox"
+              checked={def.blinded === true}
+              onChange={(e) => onChange(updateItemDef(mdv, def.oid, { blinded: e.target.checked }))}
+            />
+            Blinded
+          </label>
         </div>
       ) : null}
     </div>

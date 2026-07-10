@@ -157,5 +157,25 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
     }
   }
 
+  // Edit checks referencing blinded items run for everyone; their message
+  // text is shown to blinded roles too. Legal, but easy to leak through:
+  // check-message wording must not reveal expected values, and non-blinded
+  // items derived from blinded ones leak by construction.
+  const blindedOids = new Set(mdv.itemDefs.filter((i) => i.blinded).map((i) => i.oid));
+  if (blindedOids.size > 0) {
+    for (const condition of mdv.conditionDefs) {
+      const referenced = [...blindedOids].filter((oid) =>
+        condition.formalExpressions.some((e) => e.code.includes(oid)),
+      );
+      if (referenced.length > 0) {
+        issues.push({
+          severity: "warning",
+          path: `ConditionDef[${condition.oid}]`,
+          message: `references blinded item${referenced.length === 1 ? "" : "s"} ${referenced.join(", ")}: ensure the check message does not reveal blinded values`,
+        });
+      }
+    }
+  }
+
   return issues;
 }

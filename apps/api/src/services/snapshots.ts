@@ -9,6 +9,7 @@ import {
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, snapshots, studies, users } from "../db/schema/index.js";
+import { blindedItemOids } from "./blinding.js";
 import { latestMetadataVersion } from "./capture.js";
 import { ident, lakeRef, lit, sqlName, withLakeWriter } from "./lake.js";
 
@@ -41,6 +42,8 @@ export interface SnapshotManifest {
   schema: string;
   metadataVersion: number;
   tables: SnapshotTable[];
+  /** Blinded items (edc:Blinded) structurally excluded from every table. */
+  excludedBlindedItems?: string[];
 }
 
 // ODM dataType → DuckDB column type. Values are stored as text in Postgres;
@@ -80,6 +83,10 @@ interface DatasetSpec {
  * grain (item groups ≈ domains), which also matches how item values are keyed
  * in Postgres and how Dataset-JSON exports are shaped. A group referenced by
  * several forms yields a single dataset; form_oid is a key column.
+ *
+ * Blinded items are excluded here, at the source: their columns never exist
+ * in the lake, so the SQL workbench, the R engine, exports, and archives are
+ * blinded by construction (ADR-0009).
  */
 export function collectDatasets(mdv: MetaDataVersion): DatasetSpec[] {
   const byGroup = new Map<string, ItemDef[]>();
@@ -87,7 +94,8 @@ export function collectDatasets(mdv: MetaDataVersion): DatasetSpec[] {
   const walk = (group: ResolvedGroup) => {
     const items = group.children
       .filter((c): c is ResolvedItem => c.kind === "item")
-      .map((c) => c.def);
+      .map((c) => c.def)
+      .filter((def) => !def.blinded);
     if (items.length > 0 && !byGroup.has(group.def.oid)) {
       byGroup.set(group.def.oid, items);
       labels.set(group.def.oid, group.def.name);
@@ -239,10 +247,12 @@ export async function publishSnapshot(db: Db, input: PublishInput) {
           columns: ds.columns,
         });
       }
+      const excludedBlindedItems = [...blindedItemOids(definition.metaDataVersion)].sort();
       const manifest: SnapshotManifest = {
         schema: schemaName,
         metadataVersion: mdv.version,
         tables,
+        ...(excludedBlindedItems.length > 0 ? { excludedBlindedItems } : {}),
       };
       return { lakeVersion, manifest };
     });
