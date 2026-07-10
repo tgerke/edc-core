@@ -15,6 +15,7 @@ import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { MatrixPage } from "./pages/MatrixPage.js";
 import { QueriesPage } from "./pages/QueriesPage.js";
+import { ReauthCompletePage } from "./pages/ReauthCompletePage.js";
 import { StudiesPage } from "./pages/StudiesPage.js";
 import { StudyPage } from "./pages/StudyPage.js";
 import { WorkbenchPage } from "./pages/WorkbenchPage.js";
@@ -25,6 +26,12 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   component: LoginPage,
+});
+
+const reauthCompleteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reauth-complete",
+  component: ReauthCompletePage,
 });
 
 function AppShell() {
@@ -139,6 +146,7 @@ const formEntryRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  reauthCompleteRoute,
   appRoute.addChildren([
     indexRoute,
     studiesRoute,

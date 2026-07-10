@@ -8,7 +8,11 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
-  passwordHash: text("password_hash").notNull(),
+  // Null for OIDC-provisioned accounts that never set a local password.
+  passwordHash: text("password_hash"),
+  // Subject claim from the configured identity provider. Unique per user under
+  // the single-issuer assumption (one IdP per deployment).
+  oidcSubject: text("oidc_subject").unique(),
   status: text("status", { enum: ["active", "locked", "deactivated"] })
     .notNull()
     .default("active"),

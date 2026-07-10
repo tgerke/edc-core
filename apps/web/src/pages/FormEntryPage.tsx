@@ -11,7 +11,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type FormData,
+  useAuthConfig,
   useFormData,
+  useMe,
   usePermissions,
   useSignForm,
   useStudyBuild,
@@ -290,10 +292,15 @@ function EntryForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const signForm = useSignForm(data.context.formInstanceId);
+  const { data: me } = useMe();
+  const { data: authConfig } = useAuthConfig();
   const [signing, setSigning] = useState(false);
   const [signUsername, setSignUsername] = useState("");
   const [signPassword, setSignPassword] = useState("");
   const [signMeaning, setSignMeaning] = useState(SIGNATURE_MEANINGS[0] ?? "");
+  const [reauthPending, setReauthPending] = useState(false);
+  // Accounts without a local password re-authenticate through the IdP.
+  const oidcSigner = me != null && !me.hasPassword;
 
   // Refetches land while the user may hold unsaved edits (each write's
   // onSuccess refetches the form). Adopt the fresh server values but keep
@@ -392,6 +399,48 @@ function EntryForm({
     }
   }
 
+  // OIDC re-auth: a popup runs a fresh interactive IdP login and posts back
+  // a single-use grant, which stands in for password re-entry at signing.
+  async function signWithSso() {
+    setError(null);
+    setReauthPending(true);
+    try {
+      const popup = window.open(
+        "/api/auth/oidc/login?purpose=reauth",
+        "edc-reauth",
+        "width=480,height=640",
+      );
+      if (!popup) throw new Error("Popup blocked — allow popups for this site to sign.");
+      const grant = await new Promise<string>((resolve, reject) => {
+        const closedPoll = window.setInterval(() => {
+          if (popup.closed) {
+            cleanup();
+            reject(new Error("Re-authentication was cancelled."));
+          }
+        }, 500);
+        function cleanup() {
+          window.clearInterval(closedPoll);
+          window.removeEventListener("message", onMessage);
+        }
+        function onMessage(event: MessageEvent) {
+          if (event.origin !== window.location.origin) return;
+          const message = event.data as { type?: string; grant?: string; error?: string };
+          if (message?.type !== "edc-reauth") return;
+          cleanup();
+          if (message.grant) resolve(message.grant);
+          else reject(new Error("Re-authentication failed. Please try again."));
+        }
+        window.addEventListener("message", onMessage);
+      });
+      await signForm.mutateAsync({ reauthGrant: grant, meaning: signMeaning });
+      setSigning(false);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setReauthPending(false);
+    }
+  }
+
   const canSign =
     SIGNABLE.has(data.context.status) && (permissions.data ?? []).includes("data.sign");
 
@@ -428,26 +477,31 @@ function EntryForm({
           <div>
             <h3 className="text-sm font-semibold text-zinc-900">Electronic signature</h3>
             <p className="mt-1 text-xs text-zinc-500">
-              21 CFR Part 11: re-enter your own username and password to sign. Your signature is
-              bound to the data as it stands now; later corrections will invalidate it.
+              {oidcSigner
+                ? "21 CFR Part 11: re-authenticate with your identity provider to sign. Your signature is bound to the data as it stands now; later corrections will invalidate it."
+                : "21 CFR Part 11: re-enter your own username and password to sign. Your signature is bound to the data as it stands now; later corrections will invalidate it."}
             </p>
           </div>
           <div className="grid max-w-md gap-2">
-            <input
-              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
-              placeholder="Username"
-              autoComplete="off"
-              value={signUsername}
-              onChange={(e) => setSignUsername(e.target.value)}
-            />
-            <input
-              type="password"
-              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
-              placeholder="Password"
-              autoComplete="new-password"
-              value={signPassword}
-              onChange={(e) => setSignPassword(e.target.value)}
-            />
+            {oidcSigner ? null : (
+              <>
+                <input
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Username"
+                  autoComplete="off"
+                  value={signUsername}
+                  onChange={(e) => setSignUsername(e.target.value)}
+                />
+                <input
+                  type="password"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Password"
+                  autoComplete="new-password"
+                  value={signPassword}
+                  onChange={(e) => setSignPassword(e.target.value)}
+                />
+              </>
+            )}
             <select
               className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
               value={signMeaning}
@@ -460,9 +514,17 @@ function EntryForm({
               ))}
             </select>
           </div>
-          <Button onClick={sign} disabled={signForm.isPending || !signUsername || !signPassword}>
-            {signForm.isPending ? "Signing…" : "Sign form"}
-          </Button>
+          {oidcSigner ? (
+            <Button onClick={signWithSso} disabled={signForm.isPending || reauthPending}>
+              {reauthPending
+                ? "Waiting for re-authentication…"
+                : `Re-authenticate with ${authConfig?.providerLabel ?? "SSO"} and sign`}
+            </Button>
+          ) : (
+            <Button onClick={sign} disabled={signForm.isPending || !signUsername || !signPassword}>
+              {signForm.isPending ? "Signing…" : "Sign form"}
+            </Button>
+          )}
         </Card>
       ) : null}
 

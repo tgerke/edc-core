@@ -47,11 +47,19 @@ const writeItemSchema = z.object({
 const transitionSchema = z.object({
   action: z.enum(Object.keys(FORM_TRANSITIONS) as [FormTransitionAction]),
 });
-const signSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
-  meaning: z.string().min(1),
-});
+// Two re-auth mechanisms (P11 §11.200(a)): password re-entry, or a
+// single-use grant minted by a fresh interactive IdP login.
+const signSchema = z.union([
+  z.object({
+    username: z.string().min(1),
+    password: z.string().min(1),
+    meaning: z.string().min(1),
+  }),
+  z.object({
+    reauthGrant: z.string().min(1),
+    meaning: z.string().min(1),
+  }),
+]);
 
 function sendCaptureError(reply: FastifyReply, err: unknown) {
   if (err instanceof CaptureError) {
@@ -339,8 +347,14 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
     try {
       const signature = await signForm(app.db, app.authService, context, {
         actorId: user.id,
-        username: parsed.data.username,
-        password: parsed.data.password,
+        reauth:
+          "reauthGrant" in parsed.data
+            ? { method: "oidc", reauthGrant: parsed.data.reauthGrant }
+            : {
+                method: "password",
+                username: parsed.data.username,
+                password: parsed.data.password,
+              },
         meaning: parsed.data.meaning,
       });
       return reply.code(201).send({ id: signature.id, signedAt: signature.signedAt });

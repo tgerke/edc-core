@@ -93,7 +93,23 @@ joined to that release's automated test results (regenerate locally with
 
 ## Roadmap
 
-Python workbench sidecar, OIDC SSO.
+edc-core v0.1 covers build → capture → clean → export. The roadmap to a
+**minimum credible set** for running a real study:
+
+1. **OIDC SSO** — authorization-code flow against Entra/Okta/Keycloak, JIT
+   provisioning, SSO-only mode (this release)
+2. **Mid-study amendment migration** — build diff, impact analysis, and batch
+   migration of unsigned forms to a new build version
+3. **Role-based blinding** — item-level blinding enforced in capture,
+   casebooks, and the analytics lake
+4. **Notifications** — in-app inbox plus optional SMTP email for queries,
+   signatures, and overdue forms
+
+Fast-follows: medical coding (MedDRA/WHODrug) and lab data import.
+Randomization/RTSM is deliberately an **integration point, not a build** —
+edc-core consumes randomization assignments from external RTSM systems rather
+than reimplementing one. A Python workbench sidecar is deferred; SQL and R
+cover the analytics surface for now.
 
 ## License
 
