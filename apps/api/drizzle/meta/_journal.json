@@ -57,6 +57,13 @@
       "when": 1783359206656,
       "tag": "0007_workbench",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783696148790,
+      "tag": "0008_oidc",
+      "breakpoints": true
     }
   ]
 }

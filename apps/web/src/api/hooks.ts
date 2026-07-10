@@ -7,6 +7,22 @@ export interface Me {
   username: string;
   fullName: string;
   isSystemAdmin: boolean;
+  hasPassword: boolean;
+}
+
+export interface AuthConfigInfo {
+  oidcEnabled: boolean;
+  oidcOnly: boolean;
+  providerLabel: string | null;
+  passwordLoginEnabled: boolean;
+}
+
+export function useAuthConfig() {
+  return useQuery<AuthConfigInfo>({
+    queryKey: ["auth-config"],
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: () => api<AuthConfigInfo>("/auth/config"),
+  });
 }
 
 export interface StudySummary {
@@ -289,8 +305,11 @@ export function useAudit(studyId: string, filters: AuditFilters) {
 export function useSignForm(formInstanceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { username: string; password: string; meaning: string }) =>
-      api(`/forms/${formInstanceId}/sign`, { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (
+      body:
+        | { username: string; password: string; meaning: string }
+        | { reauthGrant: string; meaning: string },
+    ) => api(`/forms/${formInstanceId}/sign`, { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
       queryClient.invalidateQueries({ queryKey: ["matrix"] });

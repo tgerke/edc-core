@@ -53,6 +53,38 @@ everything the [five-minute tour](tour.qmd) uses. The script prints the shared
 demo password (override it with the `EDC_DEMO_PASSWORD` environment variable)
 and is idempotent: it exits without changes if the demo study already exists.
 
+## Single sign-on (OIDC)
+
+edc-core signs users in with a local username and password by default, and can
+additionally (or exclusively) use your organization's identity provider via
+OpenID Connect — Microsoft Entra ID, Okta, and Keycloak all work with the
+standard authorization-code flow. Configure it with environment variables on
+the API container:
+
+| Variable | Meaning |
+|---|---|
+| `EDC_OIDC_ISSUER_URL` | The provider's issuer URL. Setting this enables SSO. |
+| `EDC_OIDC_CLIENT_ID` / `EDC_OIDC_CLIENT_SECRET` | The registered client. |
+| `EDC_OIDC_REDIRECT_URI` | Must match the registration, e.g. `https://edc.example.org/api/auth/oidc/callback`. |
+| `EDC_OIDC_SCOPES` | Default `openid profile email`. |
+| `EDC_OIDC_PROVIDER_LABEL` | Button label on the sign-in page, e.g. `MSK SSO`. |
+| `EDC_OIDC_ONLY` | Set to `1` to disable password login entirely. |
+| `EDC_OIDC_REAUTH_MAX_AGE_SECONDS` | Freshness window for signature re-authentication (default 120). |
+
+First-time SSO users are provisioned automatically — matched to an existing
+account by verified email when one exists, created otherwise — but arrive with
+**no study roles**: an administrator grants those in the app, exactly as for
+local accounts. SSO accounts never receive system administration from the
+identity provider.
+
+Part 11 e-signatures re-execute authentication at signing. Password users
+re-enter their credentials; SSO users complete a fresh interactive login with
+the identity provider (`prompt=login`), verified against the token's
+`auth_time`.
+
+If `EDC_OIDC_ONLY` is set and the identity provider is misconfigured, recovery
+is to unset the variable and restart the API — password login resumes.
+
 ## Published images
 
 Tagged releases publish versioned images to GitHub Container Registry:
