@@ -9,6 +9,7 @@ import { type OdmFile, odmFileSchema } from "./model.js";
 import { isOdm13Xml, upconvertOdm13Xml } from "./odm13.js";
 import { parseOdmXml, serializeOdmXml } from "./xml.js";
 
+export * from "./diff.js";
 export * from "./model.js";
 export { isOdm13Xml, type Odm13ConversionResult, upconvertOdm13Xml } from "./odm13.js";
 export * from "./validate.js";

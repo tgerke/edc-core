@@ -50,10 +50,38 @@ no second, weaker representation to keep in sync.
 
 ## Versioning
 
-Builds are numbered `v1, v2, …` and never modified in place. Each form
-instance records the build version it was captured under, so mid-study
-amendments don't disturb already-collected data. Every build can be exported
-back out as ODM XML or JSON at any time — round-tripping is a tested property.
+Builds are numbered `v1, v2, …` and never modified in place (append-only,
+enforced by a database trigger). Each form instance records the build version
+it was captured under, so mid-study amendments don't disturb already-collected
+data. Every build can be exported back out as ODM XML or JSON at any time —
+round-tripping is a tested property.
+
+## Mid-study amendments
+
+When a protocol amendment lands mid-study, import (or build) the new version,
+then use the **Amendments** panel on the study page:
+
+1. **Diff** — compare any two builds: items added/removed/changed (data type,
+   codelist, length, mandatory), edit checks, events, forms, and codelists.
+2. **Analyze impact** — how many in-flight forms would migrate (by status and
+   by current build), values orphaned by removed items, values that will not
+   cast to a changed data type, and which checks will re-run.
+3. **Execute** — each eligible form is re-pointed to the new build and its
+   edit checks re-run, one transaction per form: newly firing checks open
+   system queries, checks that no longer exist auto-close theirs, and every
+   re-point is audited (`form.migrated`).
+
+Two rules are deliberate:
+
+- **Signed and locked forms never migrate.** Their signature hashes bind to
+  the build they were signed under; re-signing after an amendment is an
+  explicit, separate act.
+- **Orphaned values are never deleted.** A value captured against an item the
+  amendment removed stays in the append-only history and the audit trail — it
+  just stops rendering and stops appearing in analytics snapshots.
+
+Executing again after a partial run is safe: already-migrated forms are no
+longer eligible.
 
 ## Edit checks
 

@@ -144,7 +144,9 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // Subject matrix: study design (events × forms from the latest build)
-  // crossed with per-subject form statuses.
+  // crossed with per-subject form statuses. Latest is deliberate here — the
+  // matrix is the skeleton for *creating* instances (which pin latest); an
+  // existing instance renders from its own pinned build on the form page.
   app.get("/studies/:studyId/matrix", async (request, reply) => {
     const { studyId } = request.params as { studyId: string };
     if (!(await member(request, reply, studyId))) return;
