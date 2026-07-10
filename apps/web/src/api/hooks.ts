@@ -177,6 +177,8 @@ export interface FormData {
   };
   buildVersion: number | null;
   values: FormValue[];
+  /** Item OIDs whose values are blinded for the current viewer. */
+  blindedItems: string[];
   openQueries: OpenQuery[];
   signatures: SignatureManifestEntry[];
 }

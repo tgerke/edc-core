@@ -12,6 +12,7 @@ import {
   subjects,
 } from "../db/schema/index.js";
 import { API_VERSION } from "../server.js";
+import { BLINDED_PLACEHOLDER } from "./blinding.js";
 import { ExportError } from "./exports.js";
 import { listFormSignatures } from "./signatures.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
@@ -101,7 +102,7 @@ function itemLabel(item: ResolvedItem): string {
 }
 
 /** Flatten a resolved form into casebook groups, expanding repeat occurrences. */
-function flattenForm(form: ResolvedGroup, values: ValueRow[]): CasebookGroup[] {
+function flattenForm(form: ResolvedGroup, values: ValueRow[], unblind: boolean): CasebookGroup[] {
   const byGroupItem = new Map<string, ValueRow>();
   const occurrencesByGroup = new Map<string, Set<number>>();
   for (const row of values) {
@@ -128,15 +129,16 @@ function flattenForm(form: ResolvedGroup, values: ValueRow[]): CasebookGroup[] {
           occurrence: isRepeating ? occurrence : null,
           items: items.map((item): CasebookItem => {
             const row = byGroupItem.get(`${group.def.oid}:${occurrence}:${item.def.oid}`);
-            const decode = row?.value != null ? item.codeList?.items : undefined;
+            const masked = item.def.blinded === true && !unblind && row?.value != null;
+            const decode = !masked && row?.value != null ? item.codeList?.items : undefined;
             const decoded = decode?.find((c) => c.codedValue === row?.value);
             return {
               label: itemLabel(item),
               itemOid: item.def.oid,
-              value: row?.value ?? null,
+              value: masked ? BLINDED_PLACEHOLDER : (row?.value ?? null),
               decode: decoded ? (displayText(decoded.decode) ?? null) : null,
               version: row?.version ?? 0,
-              reasonForChange: row?.reason_for_change ?? null,
+              reasonForChange: masked ? null : (row?.reason_for_change ?? null),
             };
           }),
         });
@@ -152,8 +154,9 @@ function flattenForm(form: ResolvedGroup, values: ValueRow[]): CasebookGroup[] {
 
 export async function collectCasebookData(
   db: Db,
-  input: { studyId: string; subjectId: string },
+  input: { studyId: string; subjectId: string; unblind?: boolean },
 ): Promise<CasebookData> {
+  const unblind = input.unblind ?? false;
   const [subject] = await db
     .select({
       id: subjects.id,
@@ -255,7 +258,7 @@ export async function collectCasebookData(
         name: resolved.def.name,
         status: formRow.status,
         buildVersion: build.version,
-        groups: flattenForm(resolved, [...valueRows]),
+        groups: flattenForm(resolved, [...valueRows], unblind),
         queries: formQueries.map((q) => ({
           origin: q.origin,
           status: q.status,
@@ -499,7 +502,7 @@ export interface CasebookResult {
 
 export async function generateSubjectCasebook(
   db: Db,
-  input: { studyId: string; subjectId: string },
+  input: { studyId: string; subjectId: string; unblind?: boolean },
 ): Promise<CasebookResult> {
   const data = await collectCasebookData(db, input);
   const body = await renderCasebookPdf(data);

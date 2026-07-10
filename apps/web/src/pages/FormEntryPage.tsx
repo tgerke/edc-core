@@ -161,6 +161,7 @@ function EntryGroup({
   repeatKey = 1,
   values,
   editable,
+  blinded,
   added,
   onChange,
   onAddOccurrence,
@@ -170,6 +171,7 @@ function EntryGroup({
   repeatKey?: number;
   values: Record<string, string>;
   editable: boolean;
+  blinded: Set<string>;
   added: Record<string, number>;
   onChange: (key: string, value: string) => void;
   onAddOccurrence: (groupOid: string) => void;
@@ -187,6 +189,7 @@ function EntryGroup({
         {group.children.map((child, index) => {
           if (child.kind === "item") {
             const key = fieldKey(group.def.oid, repeatKey, child.def.oid);
+            const isBlinded = blinded.has(child.def.oid);
             const label =
               displayText(child.def.question) ??
               displayText(child.def.description) ??
@@ -198,18 +201,27 @@ function EntryGroup({
                     {label}
                   </label>
                   {child.ref.mandatory === "Yes" ? <span className="text-rose-500">*</span> : null}
+                  {isBlinded ? <Badge tone="amber">blinded</Badge> : null}
                   <span className="ml-auto font-mono text-[11px] text-zinc-400">
                     {child.def.oid}
                   </span>
                 </div>
                 <div id={key}>
-                  <EntryControl
-                    def={child.def}
-                    codeList={child.codeList}
-                    value={values[key] ?? ""}
-                    disabled={!editable}
-                    onChange={(value) => onChange(key, value)}
-                  />
+                  {isBlinded ? (
+                    <input
+                      className="w-full max-w-sm rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-400"
+                      value="Blinded for your role"
+                      disabled
+                    />
+                  ) : (
+                    <EntryControl
+                      def={child.def}
+                      codeList={child.codeList}
+                      value={values[key] ?? ""}
+                      disabled={!editable}
+                      onChange={(value) => onChange(key, value)}
+                    />
+                  )}
                 </div>
               </div>
             );
@@ -224,6 +236,7 @@ function EntryGroup({
                   depth={depth + 1}
                   values={values}
                   editable={editable}
+                  blinded={blinded}
                   added={added}
                   onChange={onChange}
                   onAddOccurrence={onAddOccurrence}
@@ -243,6 +256,7 @@ function EntryGroup({
                   repeatKey={occurrence}
                   values={values}
                   editable={editable}
+                  blinded={blinded}
                   added={added}
                   onChange={onChange}
                   onAddOccurrence={onAddOccurrence}
@@ -601,6 +615,7 @@ function EntryForm({
           depth={0}
           values={values}
           editable={editable}
+          blinded={new Set(data.blindedItems ?? [])}
           added={added}
           onChange={(key, value) => {
             setSaved(false);

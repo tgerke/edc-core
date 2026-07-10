@@ -79,6 +79,10 @@ export const itemDefSchema = z.object({
   description: z.array(translatedTextSchema).optional(),
   question: z.array(translatedTextSchema).optional(),
   codeListRef: codeListRefSchema.optional(),
+  // Vendor extension (edc:Blinded in XML): values of this item are masked
+  // for roles without data.unblind and excluded from analytics snapshots.
+  // Protocol metadata, so it versions with the build like everything else.
+  blinded: z.boolean().optional(),
   extra,
 });
 export type ItemDef = z.infer<typeof itemDefSchema>;
