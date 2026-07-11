@@ -999,3 +999,101 @@ export function useExecutions(studyId: string) {
         .executions,
   });
 }
+
+// ── RTSM integration ───────────────────────────────────────────────────
+
+export interface RtsmConfig {
+  id: string;
+  eventOid: string;
+  formOid: string;
+  itemGroupOid: string;
+  itemOid: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export interface RtsmKey {
+  id: string;
+  label: string;
+  tokenPrefix: string;
+  createdAt: string;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface MintedRtsmKey extends RtsmKey {
+  /** The raw bearer token; shown exactly once, never retrievable again. */
+  token: string;
+}
+
+export interface RtsmEvent {
+  id: string;
+  subjectKey: string;
+  randomizationId: string;
+  payload: Record<string, unknown>;
+  outcome: "applied" | "duplicate" | "conflict" | "rejected";
+  reason: string | null;
+  blinded: boolean;
+  createdAt: string;
+}
+
+export function useRtsmConfig(studyId: string) {
+  return useQuery<RtsmConfig | null>({
+    queryKey: ["rtsm-config", studyId],
+    queryFn: () => api<RtsmConfig | null>(`/studies/${studyId}/rtsm/config`),
+  });
+}
+
+export function useSaveRtsmConfig(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      eventOid: string;
+      formOid: string;
+      itemGroupOid: string;
+      itemOid: string;
+      enabled: boolean;
+    }) =>
+      api<RtsmConfig>(`/studies/${studyId}/rtsm/config`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rtsm-config", studyId] }),
+  });
+}
+
+export function useRtsmKeys(studyId: string) {
+  return useQuery<RtsmKey[]>({
+    queryKey: ["rtsm-keys", studyId],
+    queryFn: () => api<RtsmKey[]>(`/studies/${studyId}/rtsm/keys`),
+  });
+}
+
+export function useMintRtsmKey(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { label: string; expiresAt?: string }) =>
+      api<MintedRtsmKey>(`/studies/${studyId}/rtsm/keys`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rtsm-keys", studyId] }),
+  });
+}
+
+export function useRevokeRtsmKey(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (keyId: string) =>
+      api<{ ok: boolean }>(`/studies/${studyId}/rtsm/keys/${keyId}/revoke`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rtsm-keys", studyId] }),
+  });
+}
+
+export function useRtsmEvents(studyId: string) {
+  return useQuery<RtsmEvent[]>({
+    queryKey: ["rtsm-events", studyId],
+    queryFn: () => api<RtsmEvent[]>(`/studies/${studyId}/rtsm/events`),
+  });
+}

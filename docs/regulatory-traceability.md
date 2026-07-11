@@ -43,6 +43,8 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 | E6-08 | Query management supporting data review | Threaded query lifecycle (open → answered → closed, monitor reopen), manual + system-raised, fully audited; study-wide query dashboard | 🟢 `queries.test.ts`, `checks.test.ts` |
 | E6-09 | Investigator control over their data and signatures | Site-scoped roles; investigator signature workflow; signature invalidation on change | 🟢 `signatures.test.ts`, `capture.test.ts` |
 | E6-10 | Retention and retrievability of essential records | Standards-based study archive zip (open formats only) | 🟢 `snapshots.test.ts` |
+| E6-11 | Data transfer, exchange and migration: integrity, documented traceability, reconciliation to avoid loss and unintended modification (§4.2.5) | External data (lab CSV, RTSM assignments) lands through the standard audited write path with origin-tagged audit actions (`item_value.imported` / `item_value.integrated`); transfers never overwrite (identical replays idempotent, differing values reported as conflicts, nothing written); append-only `rtsm_events` records every RTSM POST including rejects as the reconciliation basis | 🟢 `lab-imports.test.ts`, `rtsm-intake.test.ts` |
+| E6-12 | Safeguard blinding in data governance: systems design, user accounts, data access, data transfers (§4.1.1) | Item-level blinding (ADR-0009) enforced at form reads, casebooks, audit, and structurally at lake publish; RTSM arm lands on a blinded item via write-only API-key principals; intake events listing masks arm/strata for viewers without study-wide `data.unblind` | 🟢 `blinding.test.ts`, `rtsm.test.ts`, `rtsm-intake.test.ts` |
 
 ## Data protection
 
