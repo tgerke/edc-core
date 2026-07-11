@@ -57,9 +57,15 @@ export function loadSchedulerConfig(): SchedulerConfig {
  * Notifies site data-entry holders about forms still not_started/in_progress
  * `overdueDays` after their event instance was created. The dedupe key
  * (formInstanceId) makes every re-scan a no-op for already-notified pairs —
- * one overdue notification per form per user, ever.
+ * one overdue notification per form per user, ever. The scheduler scans every
+ * study; `scope` exists so tests against a shared database can confine the
+ * scan to their own fixtures.
  */
-export async function scanOverdueForms(db: Db, overdueDays: number): Promise<number> {
+export async function scanOverdueForms(
+  db: Db,
+  overdueDays: number,
+  scope?: { studyId: string },
+): Promise<number> {
   if (overdueDays <= 0) return 0;
   const cutoff = new Date(Date.now() - overdueDays * 86_400_000);
   const rows = await db
@@ -77,6 +83,7 @@ export async function scanOverdueForms(db: Db, overdueDays: number): Promise<num
       and(
         inArray(formInstances.status, ["not_started", "in_progress"]),
         lt(studyEventInstances.createdAt, cutoff),
+        ...(scope ? [eq(subjects.studyId, scope.studyId)] : []),
       ),
     );
 
