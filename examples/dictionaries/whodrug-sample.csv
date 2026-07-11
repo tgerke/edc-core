@@ -1,0 +1,11 @@
+code,name,atc_code,atc_text
+WD00000001,Aspirin,N02BA01,Acetylsalicylic acid
+WD00000002,Ibuprofen,M01AE01,Ibuprofen
+WD00000003,Paracetamol,N02BE01,Paracetamol
+WD00000004,Metformin,A10BA02,Metformin
+WD00000005,Lisinopril,C09AA03,Lisinopril
+WD00000006,Atorvastatin,C10AA05,Atorvastatin
+WD00000007,Omeprazole,A02BC01,Omeprazole
+WD00000008,Amoxicillin,J01CA04,Amoxicillin
+WD00000009,Levothyroxine,H03AA01,Levothyroxine sodium
+WD00000010,Amlodipine,C08CA01,Amlodipine

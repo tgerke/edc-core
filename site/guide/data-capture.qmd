@@ -28,7 +28,9 @@ reason for change**, and the previous value is never overwritten — the full
 version history stays queryable and appears in the audit trail.
 
 Values can also arrive in bulk from a central lab's batch file, through the
-same audited write path — see [Lab data import](lab-import.qmd).
+same audited write path — see [Lab data import](lab-import.qmd). Verbatim
+AE and medication terms entered here are standardized later by data
+management — see [Medical coding](medical-coding.qmd).
 
 ## Repeating item groups
 

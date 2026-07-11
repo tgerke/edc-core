@@ -1,5 +1,5 @@
 // Must stay in sync with the role seeds in drizzle/ (0003, plus the
-// per-permission additions in 0006, 0010, 0012).
+// per-permission additions in 0006, 0010, 0012, 0013).
 export const PERMISSIONS = [
   "study.manage",
   "subject.enroll",
@@ -12,6 +12,7 @@ export const PERMISSIONS = [
   "audit.review",
   "export.data",
   "data.import",
+  "data.code",
   "analytics.run",
   "data.unblind",
   "roles.grant",

@@ -10,8 +10,10 @@ import {
 import { useLogout, useMe } from "./api/hooks.js";
 import { NotificationsBell } from "./components/NotificationsBell.js";
 import { Button, Spinner } from "./components/ui.js";
+import { AdminDictionariesPage } from "./pages/AdminDictionariesPage.js";
 import { AuditPage } from "./pages/AuditPage.js";
 import { BuilderPage } from "./pages/BuilderPage.js";
+import { CodingPage } from "./pages/CodingPage.js";
 import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { MatrixPage } from "./pages/MatrixPage.js";
@@ -128,10 +130,22 @@ const queriesRoute = createRoute({
   component: QueriesPage,
 });
 
+const codingRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/coding",
+  component: CodingPage,
+});
+
 const auditRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/studies/$studyId/audit",
   component: AuditPage,
+});
+
+const adminDictionariesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/admin/dictionaries",
+  component: AdminDictionariesPage,
 });
 
 const workbenchRoute = createRoute({
@@ -156,7 +170,9 @@ const routeTree = rootRoute.addChildren([
     builderRoute,
     matrixRoute,
     queriesRoute,
+    codingRoute,
     auditRoute,
+    adminDictionariesRoute,
     workbenchRoute,
     formEntryRoute,
   ]),

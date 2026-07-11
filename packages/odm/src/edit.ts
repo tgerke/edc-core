@@ -76,6 +76,8 @@ export interface ItemDefPatch {
   /** null clears the codelist assignment. */
   codeListOid?: string | null;
   blinded?: boolean;
+  /** null clears the coding-dictionary assignment. */
+  codingDictionary?: "MedDRA" | "WHODrug" | null;
 }
 
 /** Item defs are shared: editing one changes every form that references it. */
@@ -107,6 +109,10 @@ export function updateItemDef(
       if (patch.blinded !== undefined) {
         if (patch.blinded) next.blinded = true;
         else delete next.blinded;
+      }
+      if (patch.codingDictionary !== undefined) {
+        if (patch.codingDictionary === null) delete next.codingDictionary;
+        else next.codingDictionary = patch.codingDictionary;
       }
       return next;
     }),

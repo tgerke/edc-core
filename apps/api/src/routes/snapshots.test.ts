@@ -193,6 +193,7 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
       const names = manifest.tables.map((t: SnapshotTable) => t.table);
       expect(names).toContain("subjects");
       expect(names).toContain("queries");
+      expect(names).toContain("codings");
       const demographics = manifest.tables.find((t) => t.itemGroupOid === "IG.DEMOGRAPHICS");
       expect(demographics).toBeDefined();
       expect(demographics?.rows).toBe(1);
