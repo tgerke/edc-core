@@ -16,7 +16,7 @@ import { studyBuildRoutes } from "./routes/study-builds.js";
 import { workbenchRoutes } from "./routes/workbench.js";
 import { registerScheduler } from "./worker/scheduler.js";
 
-export const API_VERSION = "0.1.0";
+export const API_VERSION = "0.2.0";
 
 export interface BuildServerOptions {
   db?: Db;
