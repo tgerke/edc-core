@@ -12,7 +12,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:generate": "drizzle-kit generate",
     "db:bootstrap-admin": "tsx src/scripts/bootstrap-admin.ts",
-    "db:seed-demo": "tsx src/scripts/seed-demo.ts"
+    "db:seed-demo": "tsx src/scripts/seed-demo.ts",
+    "db:load-dictionary": "tsx src/scripts/load-dictionary.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.4.5-r.1",
