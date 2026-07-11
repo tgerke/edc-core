@@ -177,5 +177,26 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
     }
   }
 
+  // Coding surfaces show verbatim values to any data.code holder, so a
+  // blinded coding target would bypass blinding; the coding service skips
+  // such items entirely.
+  for (const item of mdv.itemDefs) {
+    if (!item.codingDictionary) continue;
+    if (item.blinded) {
+      issues.push({
+        severity: "warning",
+        path: `ItemDef[${item.oid}]`,
+        message: "is both blinded and a coding target: blinded items are never codable",
+      });
+    }
+    if (item.dataType !== "text") {
+      issues.push({
+        severity: "warning",
+        path: `ItemDef[${item.oid}]`,
+        message: `has CodingDictionary but DataType "${item.dataType}": verbatim coding targets are expected to be text`,
+      });
+    }
+  }
+
   return issues;
 }
