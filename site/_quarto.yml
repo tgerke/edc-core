@@ -32,6 +32,7 @@ website:
       contents:
         - guide/study-builds.qmd
         - guide/data-capture.qmd
+        - guide/lab-import.qmd
         - guide/review.qmd
         - guide/analytics.qmd
   page-footer:
