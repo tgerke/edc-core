@@ -106,12 +106,14 @@ set** for running a real study is on main:
    signatures, and overdue forms
 5. **Lab data import** — central-lab CSV batches mapped onto eCRF forms, with
    dry-run validation, idempotent re-imports, and conflict reporting
+6. **Medical coding** — MedDRA/WHODrug coding of verbatim terms with
+   exact-match auto-coding and a manual workbench; bring your own licensed
+   dictionaries
 
-Fast-follows: medical coding (MedDRA/WHODrug). Randomization/RTSM is
-deliberately an **integration point, not a build** — edc-core consumes
-randomization assignments from external RTSM systems rather than
-reimplementing one. A Python workbench sidecar is deferred; SQL and R cover
-the analytics surface for now.
+Randomization/RTSM is deliberately an **integration point, not a build** —
+edc-core consumes randomization assignments from external RTSM systems
+rather than reimplementing one. A Python workbench sidecar is deferred; SQL
+and R cover the analytics surface for now.
 
 ## License
 
