@@ -1,5 +1,5 @@
 // Must stay in sync with the role seeds in drizzle/ (0003, plus the
-// per-permission additions in 0006, 0010, 0012, 0013).
+// per-permission additions in 0006, 0010, 0012, 0013, 0014).
 export const PERMISSIONS = [
   "study.manage",
   "subject.enroll",
@@ -16,6 +16,7 @@ export const PERMISSIONS = [
   "analytics.run",
   "data.unblind",
   "roles.grant",
+  "integration.rtsm",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
