@@ -5,6 +5,7 @@ import { authPlugin } from "./auth/plugin.js";
 import { createDb, type Db } from "./db/client.js";
 import { auditRoutes } from "./routes/audit.js";
 import { captureRoutes } from "./routes/capture.js";
+import { labImportRoutes } from "./routes/lab-imports.js";
 import { notificationRoutes } from "./routes/notifications.js";
 import { queryRoutes } from "./routes/queries.js";
 import { snapshotRoutes } from "./routes/snapshots.js";
@@ -38,6 +39,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   });
   await server.register(studyRoutes);
   await server.register(studyBuildRoutes);
+  await server.register(labImportRoutes);
   await server.register(captureRoutes);
   await server.register(queryRoutes);
   await server.register(auditRoutes);
