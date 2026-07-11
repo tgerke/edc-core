@@ -218,9 +218,21 @@ function parseItemDef(raw: unknown): ItemDef {
   const question = parseTranslatedTexts(n.Question);
   const codeListRefNode = n.CodeListRef ? asNode(n.CodeListRef) : undefined;
   const blinded = attr(n, "edc:Blinded");
+  const coding = attr(n, "edc:CodingDictionary");
+  // Only a valid dictionary name is lifted onto the model; anything else
+  // stays in `extra` so a typo round-trips visibly instead of vanishing.
+  const codingDictionary = coding === "MedDRA" || coding === "WHODrug" ? coding : undefined;
   const extra = collectExtra(
     n,
-    ["OID", "Name", "DataType", "Length", "SignificantDigits", "edc:Blinded"],
+    [
+      "OID",
+      "Name",
+      "DataType",
+      "Length",
+      "SignificantDigits",
+      "edc:Blinded",
+      ...(codingDictionary ? ["edc:CodingDictionary"] : []),
+    ],
     ["Description", "Question", "CodeListRef"],
   );
   return {
@@ -235,6 +247,7 @@ function parseItemDef(raw: unknown): ItemDef {
       ? { codeListRef: { codeListOid: requireAttr(codeListRefNode, "CodeListOID", "CodeListRef") } }
       : {}),
     ...(blinded === "Yes" ? { blinded: true } : {}),
+    ...(codingDictionary ? { codingDictionary } : {}),
     ...(extra ? { extra } : {}),
   };
 }
@@ -542,6 +555,9 @@ export function serializeOdmXml(file: OdmFile): string {
                                 ? { Question: buildTranslatedTexts(item.question) }
                                 : {}),
                               ...(item.blinded ? { "@_edc:Blinded": "Yes" } : {}),
+                              ...(item.codingDictionary
+                                ? { "@_edc:CodingDictionary": item.codingDictionary }
+                                : {}),
                               ...(item.codeListRef
                                 ? { CodeListRef: { "@_CodeListOID": item.codeListRef.codeListOid } }
                                 : {}),

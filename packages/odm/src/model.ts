@@ -83,6 +83,10 @@ export const itemDefSchema = z.object({
   // for roles without data.unblind and excluded from analytics snapshots.
   // Protocol metadata, so it versions with the build like everything else.
   blinded: z.boolean().optional(),
+  // Vendor extension (edc:CodingDictionary in XML): values of this item are
+  // verbatim terms to be coded against the named dictionary. Protocol
+  // metadata, so it versions with the build like everything else.
+  codingDictionary: z.enum(["MedDRA", "WHODrug"]).optional(),
   extra,
 });
 export type ItemDef = z.infer<typeof itemDefSchema>;
