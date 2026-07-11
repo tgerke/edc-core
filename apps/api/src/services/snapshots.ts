@@ -111,7 +111,11 @@ export function collectDatasets(mdv: MetaDataVersion): DatasetSpec[] {
   const specs: DatasetSpec[] = [];
   for (const [groupOid, items] of byGroup) {
     let table = sqlName(groupOid);
-    for (let n = 2; usedTables.has(table) || table === "subjects" || table === "queries"; n++) {
+    for (
+      let n = 2;
+      usedTables.has(table) || table === "subjects" || table === "queries" || table === "codings";
+      n++
+    ) {
       table = `${sqlName(groupOid)}_${n}`;
     }
     usedTables.add(table);
@@ -149,6 +153,37 @@ function queriesSql(studyId: string): string {
     JOIN src.public.subjects sub ON sub.id = sei.subject_id
     WHERE q.study_id = ${lit(studyId)}
     ORDER BY q.created_at`;
+}
+
+/**
+ * Latest coding per verbatim occurrence, with the full stamped dictionary
+ * path — a core table like queries rather than extra dataset columns, so
+ * codings keep their own provenance (dictionary version, origin, coded-at)
+ * and join to any dataset on the shared occurrence keys. Cleared-latest
+ * occurrences are simply uncoded and excluded.
+ */
+function codingsSql(studyId: string): string {
+  return `CREATE OR REPLACE TABLE lake.codings AS
+    SELECT sub.subject_key, sei.event_oid, sei.repeat_key AS event_repeat_key,
+           fi.form_oid, fi.repeat_key AS form_repeat_key,
+           c.item_group_oid, c.item_group_repeat_key, c.item_oid,
+           c.verbatim, d.type AS dictionary_type, c.dictionary_version,
+           c.code, c.term, c.pt_code, c.pt_term, c.hlt_code, c.hlt_term,
+           c.hlgt_code, c.hlgt_term, c.soc_code, c.soc_term,
+           c.atc_code, c.atc_text, c.origin, c.created_at AS coded_at
+    FROM (
+      SELECT cd.*, row_number() OVER (
+        PARTITION BY form_instance_id, item_group_oid, item_group_repeat_key, item_oid
+        ORDER BY version DESC
+      ) AS rn
+      FROM src.public.codings cd
+    ) c
+    JOIN src.public.dictionaries d ON d.id = c.dictionary_id
+    JOIN src.public.form_instances fi ON fi.id = c.form_instance_id
+    JOIN src.public.study_event_instances sei ON sei.id = fi.study_event_instance_id
+    JOIN src.public.subjects sub ON sub.id = sei.subject_id
+    WHERE c.rn = 1 AND c.study_id = ${lit(studyId)} AND c.code IS NOT NULL
+    ORDER BY sub.subject_key, sei.event_oid, c.item_oid`;
 }
 
 function datasetSql(studyId: string, ds: DatasetSpec): string {
@@ -222,6 +257,7 @@ export async function publishSnapshot(db: Db, input: PublishInput) {
       await conn.run("BEGIN");
       await conn.run(subjectsSql(input.studyId));
       await conn.run(queriesSql(input.studyId));
+      await conn.run(codingsSql(input.studyId));
       for (const ds of datasets) await conn.run(datasetSql(input.studyId, ds));
       await conn.run("COMMIT");
 
@@ -237,6 +273,7 @@ export async function publishSnapshot(db: Db, input: PublishInput) {
       };
       tables.push({ table: "subjects", kind: "core", rows: await countRows("subjects") });
       tables.push({ table: "queries", kind: "core", rows: await countRows("queries") });
+      tables.push({ table: "codings", kind: "core", rows: await countRows("codings") });
       for (const ds of datasets) {
         tables.push({
           table: ds.table,
