@@ -593,7 +593,10 @@ export async function analyzeLabImport(db: Db, input: LabImportInput): Promise<L
     }>(sql`
       SELECT form_instance_id, item_group_oid, item_group_repeat_key, item_oid, value
       FROM item_values_current
-      WHERE form_instance_id = ANY(${existingIds})
+      WHERE form_instance_id IN (${sql.join(
+        existingIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})
     `);
     for (const row of valueRows) {
       if (row.item_group_repeat_key !== 1) continue;
