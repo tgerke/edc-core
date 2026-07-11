@@ -1,4 +1,5 @@
-// Must stay in sync with the role seed in drizzle/0003_seed_roles.sql.
+// Must stay in sync with the role seeds in drizzle/ (0003, plus the
+// per-permission additions in 0006, 0010, 0012).
 export const PERMISSIONS = [
   "study.manage",
   "subject.enroll",
@@ -10,6 +11,7 @@ export const PERMISSIONS = [
   "query.answer",
   "audit.review",
   "export.data",
+  "data.import",
   "analytics.run",
   "data.unblind",
   "roles.grant",

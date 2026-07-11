@@ -455,6 +455,107 @@ export function useMigrationRun(studyId: string, runId: string | null) {
   });
 }
 
+// ── Lab data import ────────────────────────────────────────────────────
+
+export interface LabImportMapping {
+  id: string;
+  name: string;
+  config: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LabImportIssueRow {
+  line: number;
+  subjectKey: string;
+  testCode: string;
+  outcome: string;
+  message: string;
+}
+
+export interface LabImportPreview {
+  totalRows: number;
+  counts: Record<string, number>;
+  issues: LabImportIssueRow[];
+  issuesTruncated: boolean;
+  formsTouched: number;
+  formInstancesToCreate: number;
+}
+
+export interface LabImportRun {
+  id: string;
+  fileName: string | null;
+  status: "running" | "completed" | "completed_with_errors" | "failed";
+  totalRows: number;
+  processedRows: number;
+  counts: Record<string, number>;
+  issues: LabImportIssueRow[];
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+export function useLabImportMappings(studyId: string) {
+  return useQuery<LabImportMapping[]>({
+    queryKey: ["lab-import-mappings", studyId],
+    queryFn: () => api<LabImportMapping[]>(`/studies/${studyId}/lab-import/mappings`),
+  });
+}
+
+export function useSaveLabImportMapping(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id?: string; name: string; config: Record<string, unknown> }) =>
+      input.id
+        ? api<LabImportMapping>(`/studies/${studyId}/lab-import/mappings/${input.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ name: input.name, config: input.config }),
+          })
+        : api<LabImportMapping>(`/studies/${studyId}/lab-import/mappings`, {
+            method: "POST",
+            body: JSON.stringify({ name: input.name, config: input.config }),
+          }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lab-import-mappings", studyId] }),
+  });
+}
+
+export function useValidateLabImport(studyId: string) {
+  return useMutation({
+    mutationFn: (input: { mappingId: string; content: string }) =>
+      api<LabImportPreview>(`/studies/${studyId}/lab-import/validate`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+  });
+}
+
+export function useStartLabImport(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { mappingId: string; content: string; fileName?: string }) =>
+      api<{ runId: string; totalRows: number }>(`/studies/${studyId}/lab-import/runs`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lab-import-runs", studyId] }),
+  });
+}
+
+export function useLabImportRuns(studyId: string) {
+  return useQuery<LabImportRun[]>({
+    queryKey: ["lab-import-runs", studyId],
+    queryFn: () => api<LabImportRun[]>(`/studies/${studyId}/lab-import/runs`),
+  });
+}
+
+export function useLabImportRun(studyId: string, runId: string | null) {
+  return useQuery<LabImportRun>({
+    queryKey: ["lab-import-runs", studyId, runId],
+    enabled: runId !== null,
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 2000 : false),
+    queryFn: () => api<LabImportRun>(`/studies/${studyId}/lab-import/runs/${runId}`),
+  });
+}
+
 // ── Notifications ──────────────────────────────────────────────────────
 
 export interface NotificationRow {

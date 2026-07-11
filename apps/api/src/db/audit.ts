@@ -12,6 +12,9 @@ export interface ItemValueWrite {
   studyId: string;
   /** Required when changing an existing value (clinical correction convention). */
   reasonForChange?: string;
+  /** Set by the lab-import path: the audit trail records the value as
+   * item_value.imported so data origin is permanently distinguishable. */
+  origin?: "import";
 }
 
 /**
@@ -65,7 +68,11 @@ export async function appendItemValue(db: Db, write: ItemValueWrite) {
     await tx.insert(auditEvents).values({
       actorId: write.actorId,
       studyId: write.studyId,
-      action: latest ? "item_value.changed" : "item_value.entered",
+      action: latest
+        ? "item_value.changed"
+        : write.origin === "import"
+          ? "item_value.imported"
+          : "item_value.entered",
       entityType: "item_value",
       entityId: inserted.id,
       oldValue: latest ? { value: latest.value } : null,

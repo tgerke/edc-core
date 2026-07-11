@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useImportOdm, useMetadataVersions, usePermissions, useStudies } from "../api/hooks.js";
 import { AmendmentsPanel } from "../components/AmendmentsPanel.js";
+import { LabImportPanel } from "../components/LabImportPanel.js";
 import { Badge, Button, Card, ErrorNote, PageTitle, Spinner } from "../components/ui.js";
 
 export function StudyPage() {
@@ -195,6 +196,10 @@ export function StudyPage() {
           versions={versions}
           canManage={(permissions ?? []).includes("study.manage")}
         />
+      ) : null}
+
+      {versions && versions.length >= 1 && (permissions ?? []).includes("data.import") ? (
+        <LabImportPanel studyId={studyId} studyName={study?.name ?? ""} />
       ) : null}
     </div>
   );

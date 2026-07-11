@@ -59,7 +59,7 @@ function placementSet(mdv: MetaDataVersion): Set<string> {
   return set;
 }
 
-function castable(value: string, dataType: string): boolean {
+export function castable(value: string, dataType: string): boolean {
   switch (dataType) {
     case "integer":
       return /^[+-]?\d+$/.test(value.trim());

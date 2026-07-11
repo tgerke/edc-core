@@ -27,6 +27,9 @@ database transaction as its audit event. **Changing a saved value requires a
 reason for change**, and the previous value is never overwritten — the full
 version history stays queryable and appears in the audit trail.
 
+Values can also arrive in bulk from a central lab's batch file, through the
+same audited write path — see [Lab data import](lab-import.qmd).
+
 ## Repeating item groups
 
 Item groups marked `Repeating` in the study build (e.g. multiple blood-pressure
