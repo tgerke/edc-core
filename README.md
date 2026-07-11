@@ -4,7 +4,7 @@
 
 Commercial EDC platforms are expensive, closed, and dated. The open-source alternatives run on legacy stacks. `edc-core` is a from-scratch EDC built on modern web technology, an analytics-native data architecture, and CDISC standards — designed so that regulatory expectations (21 CFR Part 11, ICH E6(R3)) are structural properties of the system, not afterthoughts.
 
-> **Status: alpha (v0.1.0).** The core capture workflow is complete end to end — build a study from ODM, capture data against it, manage queries, sign, snapshot, analyze, and export — but it has not yet been used in a production study. See the [changelog](CHANGELOG.md) and the [user guide](https://tgerke.github.io/edc-core/).
+> **Status: alpha (v0.2.0-dev).** The full feature set below is released as [v0.1.0](https://github.com/tgerke/edc-core/releases/tag/v0.1.0), but edc-core has not yet been used in a production study. See the [changelog](CHANGELOG.md) and the [user guide](https://tgerke.github.io/edc-core/).
 
 ## Why
 
@@ -80,7 +80,7 @@ pack** — the [regulatory traceability matrix](docs/regulatory-traceability.md)
 joined to that release's automated test results (regenerate locally with
 `pnpm validation-pack`).
 
-## What's here (v0.1.0)
+## What's here
 
 - Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned and immutable
 - Metadata-driven data capture with JSONata edit checks and a server-enforced

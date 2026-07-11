@@ -48,7 +48,9 @@ self-contained study archive that outlives the running system.
 : {tbl-colwidths="[30,70]"}
 
 ::: {.callout-note}
-**Status: alpha (v0.1.0).** The core capture workflow is complete end to end,
-but edc-core has not yet been used in a production study. Follow progress on
+**Status: alpha.** The full workflow — build, capture, clean, code, sign,
+snapshot, analyze, export — is released as
+[v0.1.0](https://github.com/tgerke/edc-core/releases/tag/v0.1.0), but
+edc-core has not yet been used in a production study. Follow progress on
 [GitHub](https://github.com/tgerke/edc-core).
 :::
