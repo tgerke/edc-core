@@ -5,6 +5,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import type { Db } from "../db/client.js";
 import { users } from "../db/schema/index.js";
+import { API_KEY_PREFIX } from "./api-keys.js";
 import { type AuthConfig, loadAuthConfig } from "./config.js";
 import {
   decodeFlowState,
@@ -57,10 +58,14 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
   app.decorate("db", opts.db);
   app.decorate("authService", service);
   app.decorateRequest("user", null);
+  app.decorateRequest("servicePrincipal", null);
 
   app.addHook("onRequest", async (request) => {
     const token = extractToken(request);
-    request.user = token ? await service.validateSession(token) : null;
+    // API keys (machine auth) never resolve to a session or a user; routes
+    // that accept them opt in via requireRtsmKey.
+    request.user =
+      token && !token.startsWith(API_KEY_PREFIX) ? await service.validateSession(token) : null;
   });
 
   app.get("/auth/config", async () => ({

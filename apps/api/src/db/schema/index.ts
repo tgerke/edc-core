@@ -4,6 +4,7 @@ export * from "./audit.js";
 export * from "./auth.js";
 export * from "./capture.js";
 export * from "./coding.js";
+export * from "./integrations.js";
 export * from "./lab-imports.js";
 export * from "./notifications.js";
 export * from "./review.js";
