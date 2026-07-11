@@ -919,7 +919,7 @@ export async function sweepInterruptedLabImports(db: Db): Promise<number> {
 
 // ── Mappings ───────────────────────────────────────────────────────────────
 
-function isUniqueViolation(err: unknown): boolean {
+export function isUniqueViolation(err: unknown): boolean {
   let current = err;
   while (current instanceof Error) {
     if ((current as { code?: string }).code === "23505") return true;
