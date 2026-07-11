@@ -286,7 +286,9 @@ export async function analyzeLabImport(db: Db, input: LabImportInput): Promise<L
   const [mapping] = await db
     .select()
     .from(labImportMappings)
-    .where(and(eq(labImportMappings.id, input.mappingId), eq(labImportMappings.studyId, input.studyId)))
+    .where(
+      and(eq(labImportMappings.id, input.mappingId), eq(labImportMappings.studyId, input.studyId)),
+    )
     .limit(1);
   if (!mapping) throw new CaptureError("not_found", "lab import mapping not found");
 
@@ -396,7 +398,8 @@ export async function analyzeLabImport(db: Db, input: LabImportInput): Promise<L
     if (!subject) {
       staticOutcomes.add("error_no_subject", {
         ...issueBase,
-        message: subjectKey === "" ? "subject key is empty" : `subject "${subjectKey}" is not enrolled`,
+        message:
+          subjectKey === "" ? "subject key is empty" : `subject "${subjectKey}" is not enrolled`,
       });
       continue;
     }
