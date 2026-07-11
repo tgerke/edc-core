@@ -64,9 +64,14 @@ export function StudiesPage() {
       <div className="flex items-start justify-between">
         <PageTitle sub="Studies you are a member of">Studies</PageTitle>
         {me?.isSystemAdmin ? (
-          <Button variant="secondary" onClick={() => setCreating((v) => !v)}>
-            {creating ? "Cancel" : "New study"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/dictionaries">
+              <Button variant="ghost">Dictionaries</Button>
+            </Link>
+            <Button variant="secondary" onClick={() => setCreating((v) => !v)}>
+              {creating ? "Cancel" : "New study"}
+            </Button>
+          </div>
         ) : null}
       </div>
 
