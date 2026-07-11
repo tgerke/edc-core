@@ -34,6 +34,7 @@ website:
         - guide/data-capture.qmd
         - guide/lab-import.qmd
         - guide/review.qmd
+        - guide/medical-coding.qmd
         - guide/analytics.qmd
   page-footer:
     left: "edc-core is AGPL-3.0 · clinical research infrastructure should stay open"
