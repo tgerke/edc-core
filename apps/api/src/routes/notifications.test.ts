@@ -58,6 +58,7 @@ describe.skipIf(!dbAvailable)("notifications (integration)", () => {
   const suffix = randomUUID().slice(0, 8);
   const fx = {
     studyId: "",
+    subjectId: "",
     formId: "",
     dm: { id: "", token: "" },
     inv: { id: "", token: "" },
@@ -143,6 +144,7 @@ describe.skipIf(!dbAvailable)("notifications (integration)", () => {
         headers: { authorization: `Bearer ${fx.inv.token}` },
       })
     ).json();
+    fx.subjectId = subject.id;
     fx.formId = (
       await server.inject({
         method: "POST",
@@ -284,13 +286,15 @@ describe.skipIf(!dbAvailable)("notifications (integration)", () => {
   });
 
   it("overdue scan notifies once per form per user, and 0 days disables it", async () => {
-    // The scan is study-agnostic and the dev database is shared across test
-    // files, so every assertion here is scoped to this study's users.
+    // The dev database is shared across concurrently-running test files and
+    // accumulates their debris, so both the scan and the backdate below are
+    // confined to this study — an unscoped scan walks every leftover form.
+    const scanScope = { studyId: fx.studyId };
     const myOverdue = async (userId: string) =>
       (await myNotifications(userId)).filter((n) => n.type === "form.overdue");
 
-    expect(await scanOverdueForms(db, 0)).toBe(0);
-    await scanOverdueForms(db, 1);
+    expect(await scanOverdueForms(db, 0, scanScope)).toBe(0);
+    await scanOverdueForms(db, 1, scanScope);
     // Nothing in this study is a day old yet.
     expect(await myOverdue(fx.inv.id)).toHaveLength(0);
 
@@ -298,7 +302,12 @@ describe.skipIf(!dbAvailable)("notifications (integration)", () => {
     await db
       .update(studyEventInstances)
       .set({ createdAt: new Date(Date.now() - 3 * 86_400_000) })
-      .where(eq(studyEventInstances.eventOid, "SE.V1"));
+      .where(
+        and(
+          eq(studyEventInstances.subjectId, fx.subjectId),
+          eq(studyEventInstances.eventOid, "SE.V1"),
+        ),
+      );
     // Reopen so the form counts as in_progress again.
     await server.inject({
       method: "POST",
@@ -307,12 +316,12 @@ describe.skipIf(!dbAvailable)("notifications (integration)", () => {
       headers: { authorization: `Bearer ${fx.inv.token}` },
     });
 
-    await scanOverdueForms(db, 1);
+    await scanOverdueForms(db, 1, scanScope);
     const invOverdue = await myOverdue(fx.inv.id);
     expect(invOverdue).toHaveLength(1);
     expect(invOverdue[0]?.dedupeKey).toBe(fx.formId);
 
-    await scanOverdueForms(db, 1); // dedupe: re-scan is a no-op
+    await scanOverdueForms(db, 1, scanScope); // dedupe: re-scan is a no-op
     expect(await myOverdue(fx.inv.id)).toHaveLength(1);
 
     // Cross-site isolation for the scan too.
@@ -329,7 +338,12 @@ describe.skipIf(!dbAvailable)("notifications (integration)", () => {
     };
     const config = { from: "edc <no-reply@test>", baseUrl: "http://localhost:5173" };
 
-    await dispatchEmails(db, transport, config);
+    // The outbox pool is shared with concurrently-running test files and
+    // dispatch reads it in LIMIT-200 windows, so drain it rather than assume
+    // one pass covers this study's rows.
+    for (let i = 0; i < 20; i++) {
+      if ((await dispatchEmails(db, transport, config)) === 0) break;
+    }
     const invRows = await myNotifications(fx.inv.id);
     expect(invRows.every((n) => n.emailedAt !== null)).toBe(true);
     expect(sentTo).toContain(`nt-inv-${suffix}@example.com`);
