@@ -33,6 +33,7 @@ website:
         - guide/study-builds.qmd
         - guide/data-capture.qmd
         - guide/lab-import.qmd
+        - guide/rtsm-integration.qmd
         - guide/review.qmd
         - guide/medical-coding.qmd
         - guide/analytics.qmd
