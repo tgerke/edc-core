@@ -1,17 +1,18 @@
 // Seeds a complete demo environment around examples/demo-study.xml (SC-03):
 // study + sites, one user per clinical role, an imported build, enrolled
 // subjects with entered vitals — including one out-of-range value so a
-// system query is open on first login. Idempotent: exits if the demo study
-// already exists.
+// system query is open on first login — plus the synthetic sample coding
+// dictionaries, bound to the study, with AE/CM verbatims so the coding page
+// shows every status. Idempotent: exits if the demo study already exists.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { hashPassword } from "../auth/password.js";
 import { grantRole } from "../auth/rbac.js";
 import { createDb } from "../db/client.js";
 import { runMigrations } from "../db/migrate.js";
-import { roles, sites, studies, users } from "../db/schema/index.js";
+import { dictionaries, roles, sites, studies, users } from "../db/schema/index.js";
 import {
   enrollSubject,
   ensureFormInstance,
@@ -20,6 +21,8 @@ import {
   writeItemValue,
 } from "../services/capture.js";
 import { evaluateFormChecks } from "../services/checks.js";
+import { setDictionaryBinding } from "../services/coding.js";
+import { type DictionaryType, loadDictionary } from "../services/dictionaries.js";
 import { importStudyBuild } from "../services/study-builds.js";
 
 const STUDY_OID = "ST.CDASH.DEMO";
@@ -119,12 +122,16 @@ try {
     formOid: "FO.VS",
     actorId: coordinator,
   });
-  const enter = async (formInstanceId: string, values: Record<string, string>) => {
+  const enter = async (
+    formInstanceId: string,
+    values: Record<string, string>,
+    itemGroupOid = "IG.VS",
+  ) => {
     for (const [itemOid, value] of Object.entries(values)) {
       const context = await resolveFormContext(db, formInstanceId);
       if (!context) throw new Error("form context missing");
       await writeItemValue(db, context, {
-        itemGroupOid: "IG.VS",
+        itemGroupOid,
         itemOid,
         value,
         actorId: coordinator,
@@ -164,8 +171,84 @@ try {
     "IT.VS.PULSE": "88",
   });
 
+  // Coding: load the synthetic sample dictionaries (global — skip any that
+  // survive from an earlier seed), bind them to the study, and enter AE/CM
+  // verbatims so the coding page shows both an auto-codable term and one
+  // that needs a human ("stomach ake").
+  const examplesDir = path.dirname(odmPath);
+  for (const [type, file] of [
+    ["MedDRA", "meddra-sample.csv"],
+    ["WHODrug", "whodrug-sample.csv"],
+  ] as [DictionaryType, string][]) {
+    const [dictionary] = await db
+      .select()
+      .from(dictionaries)
+      .where(and(eq(dictionaries.type, type), eq(dictionaries.version, "sample-1.0")));
+    const dictionaryId =
+      dictionary?.id ??
+      (
+        await loadDictionary(db, {
+          type,
+          version: "sample-1.0",
+          content: readFileSync(path.join(examplesDir, "dictionaries", file), "utf8"),
+          actorId: admin,
+        })
+      ).id;
+    await setDictionaryBinding(db, {
+      studyId: study.id,
+      dictionaryType: type,
+      dictionaryId,
+      actorId: admin,
+    });
+  }
+
+  const ae1 = await ensureFormInstance(db, {
+    subjectId: subject1.id,
+    eventOid: "SE.AE",
+    formOid: "FO.AE",
+    actorId: coordinator,
+  });
+  await enter(
+    ae1.id,
+    {
+      "IT.AE.AETERM": "Headache",
+      "IT.AE.AESTDTC": "2026-07-03",
+      "IT.AE.AESEV": "1",
+      "IT.AE.AESER": "false",
+      "IT.AE.AEREL": "2",
+    },
+    "IG.AE",
+  );
+  const ae2 = await ensureFormInstance(db, {
+    subjectId: subject2.id,
+    eventOid: "SE.AE",
+    formOid: "FO.AE",
+    actorId: coordinator,
+  });
+  await enter(
+    ae2.id,
+    {
+      "IT.AE.AETERM": "stomach ake",
+      "IT.AE.AESTDTC": "2026-07-04",
+      "IT.AE.AESEV": "2",
+      "IT.AE.AESER": "false",
+      "IT.AE.AEREL": "1",
+    },
+    "IG.AE",
+  );
+  const cm1 = await ensureFormInstance(db, {
+    subjectId: subject1.id,
+    eventOid: "SE.CM",
+    formOid: "FO.CM",
+    actorId: coordinator,
+  });
+  await enter(cm1.id, { "IT.CM.CMTRT": "Aspirin", "IT.CM.CMSTDTC": "2026-06-01" }, "IG.CM");
+
   console.log(`\n✅ demo study seeded: ${STUDY_OID} (${study.id})`);
   console.log(`   subjects: DEMO-001 (complete vitals), DEMO-002 (open system query)`);
+  console.log(
+    "   coding: sample dictionaries bound; AEs Headache / stomach ake and CM Aspirin await coding",
+  );
   console.log(`   users (password: ${PASSWORD}):`);
   for (const spec of DEMO_USERS) {
     console.log(

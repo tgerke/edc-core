@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- edc-core demo study (SC-03): a small CDASH-aligned protocol exercising
      every core capability — demographics and vitals capture, an adverse
-     event log, coded values, and JSONata edit checks that raise queries.
+     event log and concomitant medications with medical-coding targets,
+     coded values, and JSONata edit checks that raise queries.
      Import via the UI ("Import ODM" on a study) or seed a complete demo
      environment with the api package's db:seed-demo script (examples/README.md). -->
 <ODM xmlns="http://www.cdisc.org/ns/odm/v2.0"
+     xmlns:edc="https://github.com/tgerke/edc-core/ns/odm-ext/v1"
      CreationDateTime="2026-07-06T12:00:00Z"
      FileOID="EDC_CORE_DEMO"
      FileType="Snapshot"
@@ -24,6 +26,9 @@
       </StudyEventDef>
       <StudyEventDef Name="Adverse Events" OID="SE.AE" Repeating="Yes" Type="Common">
         <ItemGroupRef ItemGroupOID="FO.AE" Mandatory="No"/>
+      </StudyEventDef>
+      <StudyEventDef Name="Concomitant Medications" OID="SE.CM" Repeating="Yes" Type="Common">
+        <ItemGroupRef ItemGroupOID="FO.CM" Mandatory="No"/>
       </StudyEventDef>
 
       <!-- Demographics (CDASH DM) -->
@@ -64,6 +69,16 @@
         <ItemRef ItemOID="IT.AE.AEREL" Mandatory="Yes"/>
       </ItemGroupDef>
 
+      <!-- Concomitant medications (CDASH CM) -->
+      <ItemGroupDef Name="Concomitant Medication" OID="FO.CM" Type="Form" Repeating="Dynamic">
+        <ItemGroupRef ItemGroupOID="IG.CM" Mandatory="Yes"/>
+      </ItemGroupDef>
+      <ItemGroupDef Name="Concomitant Medication" OID="IG.CM" Type="Section" Repeating="No">
+        <ItemRef ItemOID="IT.CM.CMTRT" Mandatory="Yes"/>
+        <ItemRef ItemOID="IT.CM.CMSTDTC" Mandatory="No"/>
+        <ItemRef ItemOID="IT.CM.CMENDTC" Mandatory="No"/>
+      </ItemGroupDef>
+
       <ItemDef DataType="date" Name="Birth Date" OID="IT.DM.BRTHDTC">
         <Question><TranslatedText xml:lang="en" Type="text/plain">What is the subject's date of birth?</TranslatedText></Question>
       </ItemDef>
@@ -102,7 +117,7 @@
         <Question><TranslatedText xml:lang="en" Type="text/plain">What was the weight?</TranslatedText></Question>
       </ItemDef>
 
-      <ItemDef DataType="text" Length="200" Name="Reported Term" OID="IT.AE.AETERM">
+      <ItemDef DataType="text" Length="200" Name="Reported Term" OID="IT.AE.AETERM" edc:CodingDictionary="MedDRA">
         <Question><TranslatedText xml:lang="en" Type="text/plain">What is the adverse event term?</TranslatedText></Question>
       </ItemDef>
       <ItemDef DataType="date" Name="Start Date" OID="IT.AE.AESTDTC">
@@ -121,6 +136,16 @@
       <ItemDef DataType="integer" Length="1" Name="Relationship to Study Treatment" OID="IT.AE.AEREL">
         <Question><TranslatedText xml:lang="en" Type="text/plain">What was the relationship to study treatment?</TranslatedText></Question>
         <CodeListRef CodeListOID="CL.AEREL"/>
+      </ItemDef>
+
+      <ItemDef DataType="text" Length="200" Name="Reported Medication Name" OID="IT.CM.CMTRT" edc:CodingDictionary="WHODrug">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the medication taken?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="date" Name="Start Date" OID="IT.CM.CMSTDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">When did the subject start taking the medication?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="date" Name="End Date" OID="IT.CM.CMENDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">When did the subject stop taking the medication?</TranslatedText></Question>
       </ItemDef>
 
       <CodeList DataType="integer" Name="Sex" OID="CL.SEX">

@@ -1,5 +1,6 @@
 import { type OdmFile, parseOdm } from "@edc-core/odm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { ApiError, api } from "./client.js";
 
 export interface Me {
@@ -554,6 +555,201 @@ export function useLabImportRun(studyId: string, runId: string | null) {
     refetchInterval: (query) => (query.state.data?.status === "running" ? 2000 : false),
     queryFn: () => api<LabImportRun>(`/studies/${studyId}/lab-import/runs/${runId}`),
   });
+}
+
+// ── Medical coding ─────────────────────────────────────────────────────
+
+export interface Dictionary {
+  id: string;
+  type: "MedDRA" | "WHODrug";
+  version: string;
+  termsCount: number;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface CodingSettings {
+  bindings: {
+    dictionaryType: "MedDRA" | "WHODrug";
+    dictionaryId: string;
+    version: string;
+    termsCount: number;
+  }[];
+  availableDictionaries: Dictionary[];
+}
+
+export interface CodingItem {
+  formInstanceId: string;
+  itemGroupOid: string;
+  itemGroupRepeatKey: number;
+  itemOid: string;
+  subjectKey: string;
+  eventOid: string;
+  formOid: string;
+  verbatim: string;
+  dictionaryType: "MedDRA" | "WHODrug";
+  status: "uncoded" | "stale" | "coded_auto" | "coded_manual";
+  coding: {
+    code: string;
+    term: string;
+    ptTerm: string | null;
+    socTerm: string | null;
+    atcCode: string | null;
+    atcText: string | null;
+    dictionaryVersion: string | null;
+    verbatim: string;
+    origin: string;
+    createdAt: string;
+  } | null;
+}
+
+export interface CodingSearchResult {
+  id: string;
+  code: string;
+  term: string;
+  ptTerm: string | null;
+  socTerm: string | null;
+  atcCode: string | null;
+  atcText: string | null;
+}
+
+export interface CodingRunRow {
+  id: string;
+  status: "running" | "completed" | "completed_with_errors" | "failed";
+  totalOccurrences: number;
+  processedOccurrences: number;
+  counts: Record<string, number>;
+  issues: { subjectKey: string; itemOid: string; verbatim: string; message: string }[];
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+export interface CodingOccurrenceInput {
+  formInstanceId: string;
+  itemGroupOid: string;
+  itemGroupRepeatKey: number;
+  itemOid: string;
+  reason?: string;
+}
+
+export function useDictionaries(enabled: boolean) {
+  return useQuery<Dictionary[]>({
+    queryKey: ["dictionaries"],
+    enabled,
+    queryFn: () => api<Dictionary[]>("/dictionaries"),
+  });
+}
+
+export function useUploadDictionary() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { type: "MedDRA" | "WHODrug"; version: string; content: string }) =>
+      api<Dictionary>("/dictionaries", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dictionaries"] }),
+  });
+}
+
+export function useCodingSettings(studyId: string) {
+  return useQuery<CodingSettings>({
+    queryKey: ["coding-settings", studyId],
+    queryFn: () => api<CodingSettings>(`/studies/${studyId}/coding/settings`),
+  });
+}
+
+export function useSaveDictionaryBinding(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { dictionaryType: "MedDRA" | "WHODrug"; dictionaryId: string | null }) =>
+      api<CodingSettings>(`/studies/${studyId}/coding/settings`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coding-settings", studyId] });
+      queryClient.invalidateQueries({ queryKey: ["coding-items", studyId] });
+    },
+  });
+}
+
+export function useCodingItems(studyId: string, status: string, type: string) {
+  const params = new URLSearchParams();
+  if (status !== "all") params.set("status", status);
+  if (type !== "all") params.set("type", type);
+  const qs = params.toString();
+  return useQuery<CodingItem[]>({
+    queryKey: ["coding-items", studyId, status, type],
+    queryFn: () => api<CodingItem[]>(`/studies/${studyId}/coding/items${qs ? `?${qs}` : ""}`),
+  });
+}
+
+export function useCodingSearch(studyId: string, type: "MedDRA" | "WHODrug", q: string) {
+  return useQuery<CodingSearchResult[]>({
+    queryKey: ["coding-search", studyId, type, q],
+    enabled: q.trim().length >= 2,
+    queryFn: () =>
+      api<CodingSearchResult[]>(
+        `/studies/${studyId}/coding/search?type=${type}&q=${encodeURIComponent(q)}`,
+      ),
+  });
+}
+
+export function useAssignCoding(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CodingOccurrenceInput & { termId: string }) =>
+      api<unknown>(`/studies/${studyId}/coding/assign`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coding-items", studyId] }),
+  });
+}
+
+export function useClearCoding(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CodingOccurrenceInput) =>
+      api<unknown>(`/studies/${studyId}/coding/clear`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coding-items", studyId] }),
+  });
+}
+
+export function useStartCodingRun(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api<{ runId: string; totalOccurrences: number }>(`/studies/${studyId}/coding/runs`, {
+        method: "POST",
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coding-runs", studyId] }),
+  });
+}
+
+export function useCodingRuns(studyId: string) {
+  return useQuery<CodingRunRow[]>({
+    queryKey: ["coding-runs", studyId],
+    queryFn: () => api<CodingRunRow[]>(`/studies/${studyId}/coding/runs`),
+  });
+}
+
+export function useCodingRun(studyId: string, runId: string | null) {
+  const queryClient = useQueryClient();
+  const query = useQuery<CodingRunRow>({
+    queryKey: ["coding-runs", studyId, runId],
+    enabled: runId !== null,
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 2000 : false),
+    queryFn: () => api<CodingRunRow>(`/studies/${studyId}/coding/runs/${runId}`),
+  });
+  const status = query.data?.status;
+  useEffect(() => {
+    if (status && status !== "running") {
+      queryClient.invalidateQueries({ queryKey: ["coding-items", studyId] });
+    }
+  }, [status, studyId, queryClient]);
+  return query;
 }
 
 // ── Notifications ──────────────────────────────────────────────────────

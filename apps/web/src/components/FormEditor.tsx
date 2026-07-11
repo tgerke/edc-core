@@ -202,6 +202,28 @@ function ItemEditor({
             />
             Blinded
           </label>
+          <label
+            className="grid gap-1 text-xs font-medium text-zinc-500"
+            title="Values are verbatim terms coded against this dictionary on the study's coding page. Blinded items are never codable."
+          >
+            Coding
+            <select
+              className={selectClass}
+              value={def.codingDictionary ?? ""}
+              onChange={(e) =>
+                onChange(
+                  updateItemDef(mdv, def.oid, {
+                    codingDictionary:
+                      e.target.value === "" ? null : (e.target.value as "MedDRA" | "WHODrug"),
+                  }),
+                )
+              }
+            >
+              <option value="">none</option>
+              <option value="MedDRA">MedDRA</option>
+              <option value="WHODrug">WHODrug</option>
+            </select>
+          </label>
         </div>
       ) : null}
     </div>

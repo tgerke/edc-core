@@ -1,8 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
-import type { FastifyPluginAsync, FastifyRequest } from "fastify";
+import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requirePermission } from "../auth/plugin.js";
-import { isStudyMember } from "../auth/rbac.js";
 import type { AuthenticatedUser } from "../auth/service.js";
 import { labImportMappings, labImportRuns } from "../db/schema/index.js";
 import { CaptureError } from "../services/capture.js";
@@ -14,6 +13,7 @@ import {
   startLabImport,
   updateLabImportMapping,
 } from "../services/lab-imports.js";
+import { requireMembership, sendCaptureError, studyScope } from "./helpers.js";
 
 // CSV files travel as JSON strings, like ODM build imports (the SPA reads
 // the file client-side). The global body limit is Fastify's 1 MiB default;
@@ -36,24 +36,6 @@ const importRequestSchema = z.object({
   content: z.string().min(1),
   fileName: z.string().max(300).optional(),
 });
-
-function studyScope(request: FastifyRequest) {
-  return { studyId: (request.params as { studyId: string }).studyId };
-}
-
-async function requireMembership(request: FastifyRequest): Promise<boolean> {
-  const user = request.user as AuthenticatedUser;
-  const { studyId } = request.params as { studyId: string };
-  return user.isSystemAdmin || (await isStudyMember(request.server.db, user.id, studyId));
-}
-
-function sendCaptureError(
-  reply: { code: (n: number) => { send: (b: unknown) => unknown } },
-  err: CaptureError,
-) {
-  const status = { conflict: 409, not_found: 404, invalid: 400 }[err.code];
-  return reply.code(status).send({ error: err.message });
-}
 
 export const labImportRoutes: FastifyPluginAsync = async (app) => {
   app.get("/studies/:studyId/lab-import/mappings", async (request, reply) => {
