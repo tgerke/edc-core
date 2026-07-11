@@ -1,0 +1,11 @@
+llt_code,llt_term,pt_code,pt_term,hlt_code,hlt_term,hlgt_code,hlgt_term,soc_code,soc_term
+90000001,Headache,91000001,Headache,92000001,Headaches NEC,93000001,Headaches,94000001,Nervous system disorders
+90000002,Migraine,91000002,Migraine,92000001,Headaches NEC,93000001,Headaches,94000001,Nervous system disorders
+90000003,Dizziness,91000003,Dizziness,92000002,Neurological signs and symptoms NEC,93000002,Neurological disorders NEC,94000001,Nervous system disorders
+90000004,Nausea,91000004,Nausea,92000003,Nausea and vomiting symptoms,93000003,Gastrointestinal signs and symptoms,94000002,Gastrointestinal disorders
+90000005,Vomiting,91000005,Vomiting,92000003,Nausea and vomiting symptoms,93000003,Gastrointestinal signs and symptoms,94000002,Gastrointestinal disorders
+90000006,Abdominal pain,91000006,Abdominal pain,92000004,Gastrointestinal and abdominal pains,93000003,Gastrointestinal signs and symptoms,94000002,Gastrointestinal disorders
+90000007,Fatigue,91000007,Fatigue,92000005,Asthenic conditions,93000004,General system disorders NEC,94000003,General disorders and administration site conditions
+90000008,Pyrexia,91000008,Pyrexia,92000006,Febrile disorders,93000004,General system disorders NEC,94000003,General disorders and administration site conditions
+90000009,Rash,91000009,Rash,92000007,Rashes eruptions and exanthems NEC,93000005,Epidermal and dermal conditions,94000004,Skin and subcutaneous tissue disorders
+90000010,Insomnia,91000010,Insomnia,92000008,Disturbances in initiating and maintaining sleep,93000006,Sleep disorders and disturbances,94000005,Psychiatric disorders
