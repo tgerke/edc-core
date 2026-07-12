@@ -53,6 +53,15 @@ The development compose file publishes Postgres (5432) and the R engine
 reverse proxy. The R engine in particular executes analyst code by design;
 it must never be reachable from outside the container network.
 
+With a proxy in front, the API sees the proxy's address unless you tell it
+which proxies to trust: set `EDC_TRUST_PROXY` on the API container (`1` for
+a single proxy layer you control, a hop count or address/CIDR list for
+multi-hop setups) so the [access log](guide/user-admin.qmd), session
+records, and IP-change audit events carry the real client address from
+`X-Forwarded-For`. Leave it **unset when no proxy is in front**: trusting
+the header without a proxy lets any client forge the address that lands in
+your evidence trail.
+
 ## Encryption at rest
 
 GDPR names "the pseudonymisation and encryption of personal data" as the
@@ -142,6 +151,8 @@ Before first real use:
 - [ ] `NODE_ENV=production` on the API container (secure cookies).
 - [ ] TLS-terminating reverse proxy in front; no other published ports —
   in particular not 5432 (Postgres) or 8000 (R engine).
+- [ ] `EDC_TRUST_PROXY` set to match your proxy topology — and never set
+  without a proxy actually in front.
 - [ ] Encrypted volumes for `pgdata`, `lakedata`, and backups.
 - [ ] Paired database + lake backups on a schedule that meets your records
   retention period; restore drill completed.
