@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { AuthConfig } from "./auth/config.js";
 import { authPlugin } from "./auth/plugin.js";
 import { createDb, type Db } from "./db/client.js";
+import { adminUserRoutes } from "./routes/admin-users.js";
 import { auditRoutes } from "./routes/audit.js";
 import { captureRoutes } from "./routes/capture.js";
 import { codingRoutes } from "./routes/coding.js";
@@ -40,6 +41,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     db,
     ...(opts.authConfig ? { config: opts.authConfig } : {}),
   });
+  await server.register(adminUserRoutes);
   await server.register(studyRoutes);
   await server.register(studyBuildRoutes);
   await server.register(labImportRoutes);
