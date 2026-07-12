@@ -236,8 +236,19 @@ export class AuthService {
     return { ok: true };
   }
 
-  /** Validates a bearer token; slides the idle window on success. */
-  async validateSession(token: string): Promise<AuthenticatedUser | null> {
+  /**
+   * Validates a bearer token; slides the idle window on success.
+   *
+   * Device check (§11.10(h), P11-14): the session is bound to the user-agent
+   * it was issued to. A token presented by a different client is treated as
+   * stolen — the session is revoked, the violation audited, and the request
+   * refused. An IP change is not fatal (network roaming is legitimate) but is
+   * audited and the session row updated to the new address.
+   */
+  async validateSession(
+    token: string,
+    meta: { ip?: string; userAgent?: string } = {},
+  ): Promise<AuthenticatedUser | null> {
     const [row] = await this.db
       .select({ session: sessions, user: users })
       .from(sessions)
@@ -251,10 +262,42 @@ export class AuthService {
     if (now > row.session.expiresAt.getTime() || now > idleDeadline) return null;
     if (row.user.status !== "active") return null;
 
-    await this.db
-      .update(sessions)
-      .set({ lastSeenAt: new Date() })
-      .where(eq(sessions.id, row.session.id));
+    if (row.session.userAgent !== null && meta.userAgent !== row.session.userAgent) {
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(sessions)
+          .set({ revokedAt: new Date() })
+          .where(eq(sessions.id, row.session.id));
+        await tx.insert(auditEvents).values({
+          actorId: row.user.id,
+          action: "auth.session_binding_violation",
+          entityType: "session",
+          entityId: row.session.id,
+          oldValue: { userAgent: row.session.userAgent },
+          newValue: { userAgent: meta.userAgent ?? null, ip: meta.ip ?? null },
+        });
+      });
+      return null;
+    }
+
+    const ipChanged =
+      meta.ip !== undefined && row.session.ip !== null && meta.ip !== row.session.ip;
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(sessions)
+        .set({ lastSeenAt: new Date(), ...(ipChanged ? { ip: meta.ip } : {}) })
+        .where(eq(sessions.id, row.session.id));
+      if (ipChanged) {
+        await tx.insert(auditEvents).values({
+          actorId: row.user.id,
+          action: "auth.session_ip_changed",
+          entityType: "session",
+          entityId: row.session.id,
+          oldValue: { ip: row.session.ip },
+          newValue: { ip: meta.ip },
+        });
+      }
+    });
 
     return {
       id: row.user.id,
