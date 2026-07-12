@@ -222,6 +222,8 @@ describe.skipIf(!dbAvailable)("capture workflow (integration)", () => {
   });
 
   it("audited every status change", async () => {
+    // Explicit order: without it Postgres may return concurrent-scan-rotated
+    // row order under parallel suites.
     const trail = await db
       .select()
       .from(auditEvents)
@@ -231,7 +233,8 @@ describe.skipIf(!dbAvailable)("capture workflow (integration)", () => {
           eq(auditEvents.entityId, fx.formId),
           eq(auditEvents.action, "form.status_changed"),
         ),
-      );
+      )
+      .orderBy(auditEvents.id);
     const sequence = trail.map((e) => (e.newValue as { status: string }).status);
     expect(sequence).toEqual(["in_progress", "complete", "verified", "locked"]);
   });

@@ -54,6 +54,12 @@ permissions scoped per-study and per-site with six default clinical roles.
 entity, actor, and time; export to CSV — because E6(R3) treats review as an
 expectation, not an option.
 
+**Device checks and access review (P11-14).** Sessions are bound to the
+client they were issued to: a token presented by a different browser is
+revoked on the spot and the violation audited. Every API request lands in a
+structured access log — who, from where, with what result — reviewable and
+exportable by system administrators.
+
 **Point-in-time data (E6-07).** Published snapshots are immutable and
 version-pinned; an interim analysis or DB lock references a snapshot that can
 be re-read identically forever.
@@ -67,7 +73,7 @@ trail, signature manifest — in open formats that outlive the running system.
 
 ## Known gaps
 
-Tracked openly in the matrix: PDF casebook rendering, device/terminal checks,
-formal lifecycle-procedure documentation, anomaly reporting, and hardened
+Tracked openly in the matrix: PDF casebook rendering, formal
+lifecycle-procedure documentation, anomaly reporting, and hardened
 deployment guidance are on the [roadmap](https://github.com/tgerke/edc-core#roadmap)
 and marked 🟡/⚪ rather than claimed.

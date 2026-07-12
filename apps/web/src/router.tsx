@@ -11,6 +11,7 @@ import {
 import { useLogout, useMe } from "./api/hooks.js";
 import { NotificationsBell } from "./components/NotificationsBell.js";
 import { Button, Spinner } from "./components/ui.js";
+import { AdminAccessLogPage } from "./pages/AdminAccessLogPage.js";
 import { AdminDictionariesPage } from "./pages/AdminDictionariesPage.js";
 import { AdminUsersPage } from "./pages/AdminUsersPage.js";
 import { AuditPage } from "./pages/AuditPage.js";
@@ -170,6 +171,12 @@ const adminUsersRoute = createRoute({
   component: AdminUsersPage,
 });
 
+const adminAccessLogRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/admin/access-log",
+  component: AdminAccessLogPage,
+});
+
 const changePasswordRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/account/password",
@@ -208,6 +215,7 @@ const routeTree = rootRoute.addChildren([
     auditRoute,
     adminDictionariesRoute,
     adminUsersRoute,
+    adminAccessLogRoute,
     changePasswordRoute,
     teamRoute,
     workbenchRoute,

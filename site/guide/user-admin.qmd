@@ -81,3 +81,21 @@ without an ordinary audited role grant. Toggling the flag is itself
 audited, and you cannot change or deactivate your own account — a second
 administrator has to do it, so a lone admin can't lock the deployment
 out of administration.
+
+## The access log
+
+System administrators have an **Access log** page (linked from the
+Studies header) recording every API request: who made it, from which
+address and client, against which path, and with what result — including
+unauthenticated attempts. Filter by username, IP address, path prefix,
+or status code, and export the current view to CSV for an inspection
+copy. Retention is your deployment's call; the table is ordinary
+operational data, separate from the append-only audit trail.
+
+Sessions are also **bound to the client they were issued to**. A session
+token presented by a different browser than the one that signed in is
+treated as stolen: the session is revoked immediately and the violation
+recorded in the audit trail (`auth.session_binding_violation`). A change
+of IP address alone does not end the session — networks legitimately
+roam — but it is audited too (`auth.session_ip_changed`), so unusual
+access patterns are reviewable after the fact.
