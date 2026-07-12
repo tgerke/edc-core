@@ -82,41 +82,46 @@ joined to that release's automated test results (regenerate locally with
 
 ## What's here
 
-- Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned and immutable
-- Metadata-driven data capture with JSONata edit checks and a server-enforced
-  entry workflow (in progress → complete → verified → signed → locked)
+- Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned
+  and immutable, with mid-study amendment migration (build diff, impact
+  analysis, batch re-pointing of unsigned forms)
+- Metadata-driven data capture with JSONata edit checks, repeating item
+  groups, a server-enforced entry workflow (in progress → complete → verified
+  → signed → locked), and an audited subject lifecycle (screening → enrolled →
+  completed / withdrawn, with reinstate)
 - Append-only audit trail (database-enforced), threaded query management,
   Part 11 e-signatures, audit review UI
+- Access control: unique accounts with per-study/per-site role scoping, admin
+  account lifecycle and per-study team pages, OIDC SSO with Part 11
+  re-authentication at signing
+- Item-level blinding enforced in capture, casebooks, audit review, and
+  structurally in the analytics lake
+- External data: central-lab CSV import (dry-run validation, idempotent
+  re-imports, conflicts reported, never overwriting) and RTSM assignment
+  intake via study-scoped API keys with an append-only transfer log
+- Medical coding against MedDRA/WHODrug (bring your own licensed
+  dictionaries): exact-match auto-coding plus a manual workbench, stale-coding
+  detection, codings in the analytics lake
+- Notifications: in-app inbox plus optional SMTP email for queries,
+  signatures, and overdue forms
+- Access evidence: structured access log with review UI, session binding to
+  the issuing client, and security anomaly detection (failed-login bursts,
+  lockouts, binding violations) with audited acknowledgement
 - Per-study DuckLake snapshots; sandboxed SQL + R workbench; Dataset-JSON v1.1 /
   CSV / Parquet exports; per-subject PDF casebooks; self-contained study archives
-- Per-release validation pack; CDASH-aligned demo study with one-command seed
+- Per-release validation pack; deployment guide (TLS, encryption, backups,
+  GDPR/HIPAA posture); CDASH-aligned demo study with one-command seed
 
 ## Roadmap
 
-edc-core v0.1 covers build → capture → clean → export. The **minimum credible
-set** for running a real study is on main:
-
-1. **OIDC SSO** — authorization-code flow against Entra/Okta/Keycloak, JIT
-   provisioning, SSO-only mode
-2. **Mid-study amendment migration** — build diff, impact analysis, and batch
-   migration of unsigned forms to a new build version
-3. **Role-based blinding** — item-level blinding enforced in capture,
-   casebooks, and the analytics lake
-4. **Notifications** — in-app inbox plus optional SMTP email for queries,
-   signatures, and overdue forms
-5. **Lab data import** — central-lab CSV batches mapped onto eCRF forms, with
-   dry-run validation, idempotent re-imports, and conflict reporting
-6. **Medical coding** — MedDRA/WHODrug coding of verbatim terms with
-   exact-match auto-coding and a manual workbench; bring your own licensed
-   dictionaries
-7. **RTSM intake** — external randomization systems post arm assignments via
-   study-scoped API keys; assignments land as blinded eCRF items with an
-   append-only transfer log, never overwriting
-
-Randomization/RTSM is deliberately an **integration point, not a build** —
-edc-core consumes randomization assignments from external RTSM systems
-rather than reimplementing one. A Python workbench sidecar is deferred; SQL
-and R cover the analytics surface for now.
+Every row of the [traceability matrix](docs/regulatory-traceability.md)
+currently maps to an implemented, tested mechanism — new requirements enter
+there before they are claimed. Two boundaries are deliberate rather than
+pending: randomization/RTSM stays an **integration point, not a build**
+(edc-core consumes assignments from external systems rather than
+reimplementing one), and statistical deliverables belong in your validated
+environment, fed by exported snapshots. A Python workbench sidecar is
+deferred; SQL and R cover the analytics surface for now.
 
 ## License
 
