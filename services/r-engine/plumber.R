@@ -16,6 +16,7 @@ function() {
     status = "ok",
     service = "edc-core-r-engine",
     r_version = paste(R.version$major, R.version$minor, sep = "."),
+    duckdb_version = as.character(utils::packageVersion("duckdb")),
     time = format(Sys.time(), "%Y-%m-%dT%H:%M:%OS3Z", tz = "UTC")
   )
 }
