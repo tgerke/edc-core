@@ -3,6 +3,7 @@ import { buildServer } from "./server.js";
 import { sweepInterruptedMigrations } from "./services/amendments.js";
 import { sweepInterruptedCodingRuns } from "./services/coding.js";
 import { sweepInterruptedLabImports } from "./services/lab-imports.js";
+import { migrateAllLakeCatalogs } from "./services/lake.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
@@ -21,6 +22,17 @@ if (sweptImports > 0) {
 const sweptCoding = await sweepInterruptedCodingRuns(server.db);
 if (sweptCoding > 0) {
   server.log.warn({ swept: sweptCoding }, "marked interrupted coding runs as failed");
+}
+
+// Catalogs written by an older DuckLake spec are upgraded in place before
+// traffic; READ_ONLY attaches (workbench, r-engine, exports) cannot migrate
+// and would fail on stale catalogs.
+const lakes = await migrateAllLakeCatalogs(server.db);
+if (lakes.migrated.length > 0) {
+  server.log.info({ catalogs: lakes.migrated.length }, "lake catalogs checked/migrated");
+}
+for (const f of lakes.failed) {
+  server.log.error({ schema: f.schema, error: f.error }, "lake catalog migration failed");
 }
 
 try {
