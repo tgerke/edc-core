@@ -33,7 +33,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 
 | ID | Requirement (section) | System mechanism | Status |
 |---|---|---|---|
-| E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (§4, Annex 1/2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; lifecycle procedures doc still to write | 🟡 `study-builds.test.ts`, `capture.test.ts` |
+| E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (§4, Annex 1/2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; audited subject lifecycle (screening/enrolled/screen-failed/completed/withdrawn with reasons); lifecycle procedures doc still to write | 🟡 `study-builds.test.ts`, `capture.test.ts`, `subject-lifecycle.test.ts` |
 | E6-02 | Computerized systems validated proportionate to risk | Deterministic versioned builds; validation pack ships per release with full automated test evidence | 🟢 |
 | E6-03 | Audit trails enabled by default; metadata defined; routine review expected | Audit always-on (not configurable off); dedicated review UI (`/studies/:id/audit`) with action/entity/actor filters, facets, pagination, CSV export; `audit.review` permission-gated | 🟢 `audit.test.ts` |
 | E6-04 | Traceability of data corrections and transformations | Reason-for-change on corrections; workbench executions audited with code text; R runs persist exact script content, version, snapshot ID, logs, and outputs | 🟢 `capture.test.ts`, `snapshots.test.ts` |
