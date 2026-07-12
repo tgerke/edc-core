@@ -22,6 +22,8 @@ website:
         text: Five-minute tour
       - text: User guide
         href: guide/study-builds.qmd
+      - href: data-lifecycle.qmd
+        text: Data lifecycle
       - href: compliance.qmd
         text: Compliance
     right:
