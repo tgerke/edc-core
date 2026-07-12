@@ -19,7 +19,7 @@ import { studyBuildRoutes } from "./routes/study-builds.js";
 import { workbenchRoutes } from "./routes/workbench.js";
 import { registerScheduler } from "./worker/scheduler.js";
 
-export const API_VERSION = "0.2.0";
+export const API_VERSION = "0.3.0";
 
 /**
  * EDC_TRUST_PROXY: which upstream proxies may assert the client address via
