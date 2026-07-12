@@ -21,13 +21,33 @@ import { registerScheduler } from "./worker/scheduler.js";
 
 export const API_VERSION = "0.2.0";
 
+/**
+ * EDC_TRUST_PROXY: which upstream proxies may assert the client address via
+ * X-Forwarded-For. Deliberately opt-in — with no proxy in front, honoring the
+ * header would let any client forge the IP that lands in the access log,
+ * session records, and auth.session_ip_changed audit events. Unset → trust
+ * nothing; "1"/"true" → trust all hops (single proxy you control); an
+ * integer → hop count; anything else → Fastify address/CIDR list.
+ */
+export function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  if (!raw) return false;
+  if (raw === "1" || raw === "true") return true;
+  const hops = Number(raw);
+  if (Number.isInteger(hops) && hops > 0) return hops;
+  return raw;
+}
+
 export interface BuildServerOptions {
   db?: Db;
   authConfig?: AuthConfig;
+  trustProxy?: boolean | number | string;
 }
 
 export async function buildServer(opts: BuildServerOptions = {}): Promise<FastifyInstance> {
-  const server = Fastify({ logger: true });
+  const server = Fastify({
+    logger: true,
+    trustProxy: opts.trustProxy ?? parseTrustProxy(process.env.EDC_TRUST_PROXY),
+  });
 
   let db = opts.db;
   if (!db) {
