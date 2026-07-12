@@ -5,7 +5,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { users } from "../db/schema/index.js";
+import { accessLog, users } from "../db/schema/index.js";
 import { API_KEY_PREFIX } from "./api-keys.js";
 import { type AuthConfig, loadAuthConfig } from "./config.js";
 import {
@@ -71,7 +71,12 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
     // API keys (machine auth) never resolve to a session or a user; routes
     // that accept them opt in via requireRtsmKey.
     request.user =
-      token && !token.startsWith(API_KEY_PREFIX) ? await service.validateSession(token) : null;
+      token && !token.startsWith(API_KEY_PREFIX)
+        ? await service.validateSession(token, {
+            ...(request.ip ? { ip: request.ip } : {}),
+            ...(request.headers["user-agent"] ? { userAgent: request.headers["user-agent"] } : {}),
+          })
+        : null;
 
     // A temporary admin-issued credential (account creation, password reset)
     // can do nothing but become a real one. Server-side, not just UI: the
@@ -89,6 +94,30 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
           .code(403)
           .send({ error: "password change required", code: "password_change_required" });
       }
+    }
+  });
+
+  // Structured access logging (P11-14): every API request gets a row — human
+  // sessions, API-key intake, and unauthenticated attempts alike. Health
+  // probes are excluded as pure noise. A failed write must never fail the
+  // request it describes.
+  app.addHook("onResponse", async (request, reply) => {
+    const path = request.url.split("?")[0] ?? request.url;
+    if (path === "/health") return;
+    try {
+      await opts.db.insert(accessLog).values({
+        userId: request.user?.id ?? request.servicePrincipal?.userId ?? null,
+        sessionId: request.user?.sessionId ?? null,
+        method: request.method,
+        path,
+        route: request.routeOptions.url ?? null,
+        statusCode: reply.statusCode,
+        ip: request.ip ?? null,
+        userAgent: request.headers["user-agent"] ?? null,
+        durationMs: Math.round(reply.elapsedTime),
+      });
+    } catch (err) {
+      request.log.error({ err }, "access log write failed");
     }
   });
 

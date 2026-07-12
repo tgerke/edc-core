@@ -1179,6 +1179,56 @@ export function useSetSystemAdmin() {
   });
 }
 
+// ── Access log ─────────────────────────────────────────────────────────
+
+export interface AccessLogEntry {
+  id: string;
+  occurredAt: string;
+  user: string | null;
+  userName: string | null;
+  method: string;
+  path: string;
+  route: string | null;
+  statusCode: number;
+  ip: string | null;
+  userAgent: string | null;
+  sessionId: string | null;
+  durationMs: number | null;
+}
+
+export interface AccessLogFilters {
+  user?: string;
+  ip?: string;
+  path?: string;
+  status?: string;
+  limit: number;
+  offset: number;
+}
+
+export interface AccessLogPage {
+  total: number;
+  entries: AccessLogEntry[];
+}
+
+export function accessLogQueryString(filters: AccessLogFilters): string {
+  const params = new URLSearchParams();
+  if (filters.user) params.set("user", filters.user);
+  if (filters.ip) params.set("ip", filters.ip);
+  if (filters.path) params.set("path", filters.path);
+  if (filters.status) params.set("status", filters.status);
+  params.set("limit", String(filters.limit));
+  params.set("offset", String(filters.offset));
+  return params.toString();
+}
+
+export function useAccessLog(filters: AccessLogFilters) {
+  return useQuery<AccessLogPage>({
+    queryKey: ["access-log", filters],
+    placeholderData: (previous) => previous,
+    queryFn: () => api<AccessLogPage>(`/admin/access-log?${accessLogQueryString(filters)}`),
+  });
+}
+
 // ── Study team ─────────────────────────────────────────────────────────
 
 export interface RoleInfo {
