@@ -46,7 +46,12 @@ process-level boundary while the DuckDB lockdown protects the data layer.
 
 **Version coupling.** The Node API's embedded DuckDB (`@duckdb/node-api`)
 is pinned to the same DuckDB minor as the R `duckdb` package so both sides
-speak the same DuckLake catalog format. Bump them together.
+speak the same DuckLake catalog format. Bump them together (currently
+1.5.x, DuckLake spec 1.0). A bump that moves the catalog spec must also
+migrate every study's catalog: the API does this at boot
+(`migrateAllLakeCatalogs`, attach with `AUTOMATIC_MIGRATION`), because
+read-only attachers — workbench, r-engine, exports — cannot migrate and
+fail outright on a stale catalog (#62, #64).
 
 **Positioning.** The workbench is *operational* analytics — enrollment,
 query aging, data cleaning status — not a validated statistical compute

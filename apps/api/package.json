@@ -16,7 +16,7 @@
     "db:load-dictionary": "tsx src/scripts/load-dictionary.ts"
   },
   "dependencies": {
-    "@duckdb/node-api": "1.4.5-r.1",
+    "@duckdb/node-api": "1.5.4-r.1",
     "@edc-core/odm": "workspace:*",
     "@edc-core/rules": "workspace:*",
     "@edc-core/schemas": "workspace:*",
