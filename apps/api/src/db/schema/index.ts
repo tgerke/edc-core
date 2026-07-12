@@ -8,5 +8,6 @@ export * from "./integrations.js";
 export * from "./lab-imports.js";
 export * from "./notifications.js";
 export * from "./review.js";
+export * from "./rtsm.js";
 export * from "./studies.js";
 export * from "./users.js";

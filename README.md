@@ -109,6 +109,9 @@ set** for running a real study is on main:
 6. **Medical coding** — MedDRA/WHODrug coding of verbatim terms with
    exact-match auto-coding and a manual workbench; bring your own licensed
    dictionaries
+7. **RTSM intake** — external randomization systems post arm assignments via
+   study-scoped API keys; assignments land as blinded eCRF items with an
+   append-only transfer log, never overwriting
 
 Randomization/RTSM is deliberately an **integration point, not a build** —
 edc-core consumes randomization assignments from external RTSM systems
