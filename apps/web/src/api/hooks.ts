@@ -1164,6 +1164,80 @@ export function useSetSystemAdmin() {
   });
 }
 
+// ── Study team ─────────────────────────────────────────────────────────
+
+export interface RoleInfo {
+  name: string;
+  description: string;
+}
+
+export interface StudyMember {
+  grantId: string;
+  userId: string;
+  username: string;
+  fullName: string;
+  email: string;
+  userStatus: "active" | "locked" | "deactivated";
+  roleName: string;
+  siteId: string | null;
+  siteOid: string | null;
+  siteName: string | null;
+  grantedAt: string;
+  grantedBy: string;
+}
+
+export interface UserMatch {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string;
+}
+
+export function useRoles() {
+  return useQuery<RoleInfo[]>({
+    queryKey: ["roles"],
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: () => api<RoleInfo[]>("/roles"),
+  });
+}
+
+export function useStudyMembers(studyId: string) {
+  return useQuery<StudyMember[]>({
+    queryKey: ["members", studyId],
+    queryFn: () => api<StudyMember[]>(`/studies/${studyId}/members`),
+  });
+}
+
+export function useUserSearch(studyId: string, query: string) {
+  return useQuery<UserMatch[]>({
+    queryKey: ["user-search", studyId, query],
+    enabled: query.trim().length >= 2,
+    queryFn: () =>
+      api<UserMatch[]>(`/studies/${studyId}/users?query=${encodeURIComponent(query.trim())}`),
+  });
+}
+
+export function useGrantRole(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { userId: string; roleName: string; siteId?: string }) =>
+      api<{ id: string }>(`/studies/${studyId}/roles`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members", studyId] }),
+  });
+}
+
+export function useRevokeGrant(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (grantId: string) =>
+      api(`/studies/${studyId}/roles/${grantId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members", studyId] }),
+  });
+}
+
 export function useChangePassword() {
   const queryClient = useQueryClient();
   return useMutation({
