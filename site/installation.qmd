@@ -122,9 +122,10 @@ matrix joined to that exact release's automated test results. See
 ## Before you deploy anywhere real
 
 The compose file in `infra/` is a *local development* stack: it uses a
-hard-coded database password and no TLS. For any networked deployment, set
-your own secrets, terminate TLS in front of the API and web containers, and
-review your organization's requirements for encryption at rest and backups.
+hard-coded database password and no TLS. Before any networked deployment,
+work through the [deployment guide](deployment.qmd) — TLS, encryption at
+rest, paired backups, log retention, and the GDPR/HIPAA hosting
+considerations.
 :::
 
 ## Local development

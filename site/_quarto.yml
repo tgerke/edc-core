@@ -16,6 +16,8 @@ website:
         text: Home
       - href: installation.qmd
         text: Installation
+      - href: deployment.qmd
+        text: Deployment
       - href: tour.qmd
         text: Five-minute tour
       - text: User guide
