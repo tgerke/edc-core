@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, ne } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, reauthGrants, sessions, users } from "../db/schema/index.js";
 import type { AuthConfig } from "./config.js";
-import { verifyPassword } from "./password.js";
+import { hashPassword, validatePasswordPolicy, verifyPassword } from "./password.js";
 
 export type LoginResult =
   | { ok: true; token: string; userId: string }
@@ -26,11 +26,27 @@ export interface AuthenticatedUser {
   isSystemAdmin: boolean;
   /** False for OIDC-provisioned accounts with no local password. */
   hasPassword: boolean;
+  /** Temporary admin-issued credential: gated to the change-password flow. */
+  mustChangePassword: boolean;
   sessionId: string;
 }
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Kills every live session of an account — deactivation and admin password
+ * reset must take effect immediately, not at next idle timeout (E6-05
+ * "timely revocation"). Returns the number of sessions revoked.
+ */
+export async function revokeUserSessions(db: Db, userId: string): Promise<number> {
+  const revoked = await db
+    .update(sessions)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  return revoked.length;
 }
 
 // Constant-ish response for unknown users / passwordless accounts.
@@ -246,8 +262,91 @@ export class AuthService {
       fullName: row.user.fullName,
       isSystemAdmin: row.user.isSystemAdmin,
       hasPassword: row.user.passwordHash !== null,
+      mustChangePassword: row.user.mustChangePassword,
       sessionId: row.session.id,
     };
+  }
+
+  /**
+   * Self-service password change (the only way a mustChangePassword gate
+   * lifts). Requires the current password even for temporary credentials —
+   * possession of the session alone is not enough — and failures count
+   * toward lockout exactly like login failures (§11.300(d)). Every other
+   * session of the account is revoked on success.
+   */
+  async changePassword(
+    actor: AuthenticatedUser,
+    input: { currentPassword: string; newPassword: string },
+  ): Promise<
+    { ok: true } | { ok: false; code: "invalid_credentials" | "locked" | "policy"; message: string }
+  > {
+    const [user] = await this.db.select().from(users).where(eq(users.id, actor.id)).limit(1);
+    if (!user || user.status !== "active" || user.passwordHash === null) {
+      return { ok: false, code: "invalid_credentials", message: "invalid credentials" };
+    }
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      return { ok: false, code: "locked", message: "account is locked" };
+    }
+
+    const valid = await verifyPassword(user.passwordHash, input.currentPassword);
+    if (!valid) {
+      const failedCount = user.failedLoginCount + 1;
+      const lock = failedCount >= this.config.maxFailedLogins;
+      const lockedUntil = lock ? new Date(Date.now() + this.config.lockoutMinutes * 60_000) : null;
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({ failedLoginCount: failedCount, lockedUntil, updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+        await tx.insert(auditEvents).values({
+          actorId: user.id,
+          action: lock ? "auth.lockout" : "auth.login_failed",
+          entityType: "user",
+          entityId: user.id,
+          newValue: { failedLoginCount: failedCount, context: "change_password" },
+        });
+      });
+      return lock
+        ? { ok: false, code: "locked", message: "account is locked" }
+        : { ok: false, code: "invalid_credentials", message: "current password is incorrect" };
+    }
+
+    const violation = validatePasswordPolicy(input.newPassword, this.config.passwordMinLength);
+    if (violation) return { ok: false, code: "policy", message: violation };
+
+    const newHash = await hashPassword(input.newPassword);
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          passwordHash: newHash,
+          passwordChangedAt: new Date(),
+          mustChangePassword: false,
+          failedLoginCount: 0,
+          lockedUntil: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
+      await tx.insert(auditEvents).values({
+        actorId: user.id,
+        action: "auth.password_changed",
+        entityType: "user",
+        entityId: user.id,
+      });
+      // A changed password invalidates every other session: whoever held the
+      // old credential is out, only the changing session survives.
+      await tx
+        .update(sessions)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(sessions.userId, user.id),
+            isNull(sessions.revokedAt),
+            ne(sessions.id, actor.sessionId),
+          ),
+        );
+    });
+    return { ok: true };
   }
 
   async logout(sessionId: string, actorId: string): Promise<void> {

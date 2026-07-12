@@ -3,6 +3,7 @@ import cookie from "@fastify/cookie";
 import { eq } from "drizzle-orm";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
+import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { users } from "../db/schema/index.js";
 import { API_KEY_PREFIX } from "./api-keys.js";
@@ -33,6 +34,11 @@ declare module "fastify" {
 export const SESSION_COOKIE = "edc_session";
 export const OIDC_STATE_COOKIE = "edc_oidc_state";
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(1),
+});
+
 function extractToken(request: FastifyRequest): string | null {
   const header = request.headers.authorization;
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
@@ -60,12 +66,30 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
   app.decorateRequest("user", null);
   app.decorateRequest("servicePrincipal", null);
 
-  app.addHook("onRequest", async (request) => {
+  app.addHook("onRequest", async (request, reply) => {
     const token = extractToken(request);
     // API keys (machine auth) never resolve to a session or a user; routes
     // that accept them opt in via requireRtsmKey.
     request.user =
       token && !token.startsWith(API_KEY_PREFIX) ? await service.validateSession(token) : null;
+
+    // A temporary admin-issued credential (account creation, password reset)
+    // can do nothing but become a real one. Server-side, not just UI: the
+    // allowlist is the change-password flow and the calls needed to reach it.
+    if (request.user?.mustChangePassword) {
+      const path = request.url.split("?")[0];
+      const allowed =
+        path === "/auth/me" ||
+        path === "/auth/change-password" ||
+        path === "/auth/logout" ||
+        path === "/auth/config" ||
+        path === "/health";
+      if (!allowed) {
+        await reply
+          .code(403)
+          .send({ error: "password change required", code: "password_change_required" });
+      }
+    }
   });
 
   app.get("/auth/config", async () => ({
@@ -115,7 +139,23 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
       fullName: user.fullName,
       isSystemAdmin: user.isSystemAdmin,
       hasPassword: user.hasPassword,
+      mustChangePassword: user.mustChangePassword,
     };
+  });
+
+  app.post("/auth/change-password", { preHandler: requireAuth }, async (request, reply) => {
+    const user = request.user as AuthenticatedUser;
+    if (!user.hasPassword) {
+      return reply.code(400).send({ error: "this account authenticates through SSO" });
+    }
+    const parsed = changePasswordSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const result = await service.changePassword(user, parsed.data);
+    if (!result.ok) {
+      const status = result.code === "locked" ? 423 : 400;
+      return reply.code(status).send({ error: result.message, code: result.code });
+    }
+    return { ok: true };
   });
 
   // ── OIDC (authorization code + PKCE) ──────────────────────────────────
