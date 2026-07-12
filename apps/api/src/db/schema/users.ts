@@ -16,6 +16,9 @@ export const users = pgTable("users", {
   status: text("status", { enum: ["active", "locked", "deactivated"] })
     .notNull()
     .default("active"),
+  // Set when an administrator issues the credential (creation, reset): the
+  // holder can reach nothing but the change-password flow until cleared.
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   // System-level administration (create studies, manage users) sits outside
   // study-scoped RBAC; per-study capabilities always come from role grants.
   isSystemAdmin: boolean("is_system_admin").notNull().default(false),
