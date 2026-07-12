@@ -14,6 +14,32 @@ entry.
 Site-scoped roles (coordinator, investigator) see only their site's subjects;
 study-scoped roles (data manager, monitor) see all sites.
 
+## Subject lifecycle
+
+Every subject carries a lifecycle status shown next to their key:
+**screening**, **enrolled**, **screen failed**, **completed**, or
+**withdrawn**. Adding a subject enrolls them directly by default, or
+registers them in screening if your workflow separates the two.
+Transitions are a site act (the `subject.enroll` permission, scoped like
+enrollment itself) and follow the expected paths: screening → enrolled or
+screen failed; enrolled → completed or withdrawn. Screen failure and
+withdrawal require a reason, which lands in the audit trail alongside the
+old and new status; *reinstate* undoes any terminal status — also with a
+required reason — returning the subject to where they came from.
+
+Two deliberate boundaries:
+
+- **Status is disposition, not a lock.** A withdrawn subject's forms stay
+  editable — the withdrawal visit still gets keyed and open queries still
+  get resolved. Editability is governed by form workflow states and
+  locks, exactly as before.
+- **Structured disposition data belongs on a CRF.** The status drives the
+  matrix, casebook cover, and the `subjects` table in the analytics lake
+  (so disposition counts are one `GROUP BY` away). The withdrawal *date*,
+  reason *category*, and similar analysis variables should be items on a
+  disposition form, where they get audit, edit checks, and exports like
+  any other data.
+
 ## Entering data
 
 CRFs render directly from the study build's metadata — field types, required

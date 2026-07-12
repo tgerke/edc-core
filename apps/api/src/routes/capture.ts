@@ -22,7 +22,10 @@ import {
   type FormTransitionAction,
   latestMetadataVersion,
   resolveFormContext,
+  SUBJECT_TRANSITIONS,
+  type SubjectTransitionAction,
   transitionForm,
+  transitionSubject,
   writeItemValue,
 } from "../services/capture.js";
 import { generateSubjectCasebook } from "../services/casebook.js";
@@ -31,7 +34,16 @@ import { ExportError } from "../services/exports.js";
 import { listFormSignatures, SignatureError, signForm } from "../services/signatures.js";
 import type { StudyBuildDefinition } from "../services/study-builds.js";
 
-const enrollSchema = z.object({ siteId: z.uuid(), subjectKey: z.string().min(1) });
+const enrollSchema = z.object({
+  siteId: z.uuid(),
+  subjectKey: z.string().min(1),
+  /** "screening" registers a candidate; omitted = enrolled (back-compat). */
+  status: z.enum(["screening", "enrolled"]).optional(),
+});
+const subjectTransitionSchema = z.object({
+  action: z.enum(Object.keys(SUBJECT_TRANSITIONS) as [SubjectTransitionAction]),
+  reason: z.string().min(1).optional(),
+});
 const ensureFormSchema = z.object({
   eventOid: z.string().min(1),
   eventRepeatKey: z.number().int().positive().optional(),
@@ -119,8 +131,40 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
         siteId: parsed.data.siteId,
         subjectKey: parsed.data.subjectKey,
         actorId: user.id,
+        ...(parsed.data.status ? { status: parsed.data.status } : {}),
       });
       return reply.code(201).send(subject);
+    } catch (err) {
+      return sendCaptureError(reply, err);
+    }
+  });
+
+  // Lifecycle transitions are a site act, like enrollment. Statuses are
+  // disposition, not locks: forms stay editable after withdrawal.
+  app.post("/subjects/:subjectId/status", async (request, reply) => {
+    const { subjectId } = request.params as { subjectId: string };
+    const parsed = subjectTransitionSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+
+    const [subject] = await app.db
+      .select({ studyId: subjects.studyId, siteId: subjects.siteId })
+      .from(subjects)
+      .where(eq(subjects.id, subjectId))
+      .limit(1);
+    if (!subject) return reply.code(404).send({ error: "subject not found" });
+    const user = await guard(request, reply, "subject.enroll", {
+      studyId: subject.studyId,
+      siteId: subject.siteId,
+    });
+    if (!user) return;
+
+    try {
+      return await transitionSubject(app.db, {
+        subjectId,
+        action: parsed.data.action,
+        ...(parsed.data.reason !== undefined ? { reason: parsed.data.reason } : {}),
+        actorId: user.id,
+      });
     } catch (err) {
       return sendCaptureError(reply, err);
     }
