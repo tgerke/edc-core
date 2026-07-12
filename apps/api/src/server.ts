@@ -13,6 +13,7 @@ import { labImportRoutes } from "./routes/lab-imports.js";
 import { notificationRoutes } from "./routes/notifications.js";
 import { queryRoutes } from "./routes/queries.js";
 import { rtsmRoutes } from "./routes/rtsm.js";
+import { securityAnomalyRoutes } from "./routes/security-anomalies.js";
 import { snapshotRoutes } from "./routes/snapshots.js";
 import { studyRoutes } from "./routes/studies.js";
 import { studyBuildRoutes } from "./routes/study-builds.js";
@@ -64,6 +65,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   });
   await server.register(adminUserRoutes);
   await server.register(accessLogRoutes);
+  await server.register(securityAnomalyRoutes);
   await server.register(studyRoutes);
   await server.register(studyBuildRoutes);
   await server.register(labImportRoutes);

@@ -12,6 +12,7 @@ import { useLogout, useMe } from "./api/hooks.js";
 import { NotificationsBell } from "./components/NotificationsBell.js";
 import { Button, Spinner } from "./components/ui.js";
 import { AdminAccessLogPage } from "./pages/AdminAccessLogPage.js";
+import { AdminAnomaliesPage } from "./pages/AdminAnomaliesPage.js";
 import { AdminDictionariesPage } from "./pages/AdminDictionariesPage.js";
 import { AdminUsersPage } from "./pages/AdminUsersPage.js";
 import { AuditPage } from "./pages/AuditPage.js";
@@ -177,6 +178,12 @@ const adminAccessLogRoute = createRoute({
   component: AdminAccessLogPage,
 });
 
+const adminAnomaliesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/admin/anomalies",
+  component: AdminAnomaliesPage,
+});
+
 const changePasswordRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/account/password",
@@ -216,6 +223,7 @@ const routeTree = rootRoute.addChildren([
     adminDictionariesRoute,
     adminUsersRoute,
     adminAccessLogRoute,
+    adminAnomaliesRoute,
     changePasswordRoute,
     teamRoute,
     workbenchRoute,

@@ -43,6 +43,8 @@ export function NotificationsBell() {
         to: "/forms/$formInstanceId",
         params: { formInstanceId: notification.payload.formInstanceId },
       });
+    } else if (notification.payload.anomalyId) {
+      await navigate({ to: "/admin/anomalies" });
     }
   }
 

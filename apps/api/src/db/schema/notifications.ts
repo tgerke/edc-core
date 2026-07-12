@@ -25,11 +25,17 @@ export const notifications = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id),
-    studyId: uuid("study_id")
-      .notNull()
-      .references(() => studies.id),
+    // Null for system-level notifications (security anomalies) with no study
+    // context.
+    studyId: uuid("study_id").references(() => studies.id),
     type: text("type", {
-      enum: ["query.opened", "query.answered", "form.awaiting_signature", "form.overdue"],
+      enum: [
+        "query.opened",
+        "query.answered",
+        "form.awaiting_signature",
+        "form.overdue",
+        "security.anomaly",
+      ],
     }).notNull(),
     title: text("title").notNull(),
     body: text("body").notNull(),
