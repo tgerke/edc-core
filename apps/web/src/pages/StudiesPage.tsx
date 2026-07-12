@@ -71,6 +71,9 @@ export function StudiesPage() {
             <Link to="/admin/access-log">
               <Button variant="ghost">Access log</Button>
             </Link>
+            <Link to="/admin/anomalies">
+              <Button variant="ghost">Anomalies</Button>
+            </Link>
             <Link to="/admin/dictionaries">
               <Button variant="ghost">Dictionaries</Button>
             </Link>

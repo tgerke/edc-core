@@ -8,11 +8,13 @@ export type NotificationType =
   | "query.opened"
   | "query.answered"
   | "form.awaiting_signature"
-  | "form.overdue";
+  | "form.overdue"
+  | "security.anomaly";
 
 export interface NewNotification {
   userId: string;
-  studyId: string;
+  /** Omitted for system-level notifications (security anomalies). */
+  studyId?: string;
   type: NotificationType;
   title: string;
   body: string;
@@ -34,7 +36,7 @@ export async function notify(db: Db, items: NewNotification[]): Promise<void> {
     .values(
       items.map((item) => ({
         userId: item.userId,
-        studyId: item.studyId,
+        studyId: item.studyId ?? null,
         type: item.type,
         title: item.title,
         body: item.body,
