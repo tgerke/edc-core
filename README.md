@@ -4,7 +4,7 @@
 
 Commercial EDC platforms are expensive, closed, and dated. The open-source alternatives run on legacy stacks. `edc-core` is a from-scratch EDC built on modern web technology, an analytics-native data architecture, and CDISC standards — designed so that regulatory expectations (21 CFR Part 11, ICH E6(R3)) are structural properties of the system, not afterthoughts.
 
-> **Status: alpha (v0.3.0-dev).** The full feature set below is released as [v0.2.0](https://github.com/tgerke/edc-core/releases/tag/v0.2.0), but edc-core has not yet been used in a production study. See the [changelog](CHANGELOG.md) and the [user guide](https://tgerke.github.io/edc-core/).
+> **Status: alpha.** The full feature set below is released as [v0.3.0](https://github.com/tgerke/edc-core/releases/tag/v0.3.0), but edc-core has not yet been used in a production study. See the [changelog](CHANGELOG.md) and the [user guide](https://tgerke.github.io/edc-core/).
 
 ## Why
 
