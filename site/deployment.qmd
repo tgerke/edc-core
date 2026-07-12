@@ -3,10 +3,10 @@ title: "Deployment"
 ---
 
 The compose file in `infra/` is a **local development stack**: hard-coded
-database password, no TLS, every service port published to the host, and a web
-container that runs the Vite dev server. It is the reference topology, not a
-hardened one. This page is what to change before clinical data touches the
-system — and how the pieces map to GDPR and HIPAA hosting expectations.
+database password, no TLS, and every service port published to the host. It
+is the reference topology, not a hardened one. This page is what to change
+before clinical data touches the system — and how the pieces map to GDPR and
+HIPAA hosting expectations.
 
 ::: {.callout-note}
 ## Pseudonymized is not anonymous
@@ -157,11 +157,3 @@ Before first real use:
   [validation pack](compliance.qmd).
 - [ ] An `access_log` retention job, and a decision recorded for how long you
   keep it.
-
-::: {.callout-warning}
-## Known limitation
-
-The published web image currently serves the SPA through Vite's dev server
-behind the reverse proxy. It works, but a production-grade static build is
-open on the roadmap — track it in the repository issues.
-:::
