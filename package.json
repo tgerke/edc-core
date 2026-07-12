@@ -1,7 +1,7 @@
 {
   "name": "edc-core",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A modern, open-source Electronic Data Capture (EDC) system for clinical research",
   "license": "AGPL-3.0-only",
   "engines": {
