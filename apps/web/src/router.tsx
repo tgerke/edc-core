@@ -24,6 +24,7 @@ import { QueriesPage } from "./pages/QueriesPage.js";
 import { ReauthCompletePage } from "./pages/ReauthCompletePage.js";
 import { StudiesPage } from "./pages/StudiesPage.js";
 import { StudyPage } from "./pages/StudyPage.js";
+import { TeamPage } from "./pages/TeamPage.js";
 import { WorkbenchPage } from "./pages/WorkbenchPage.js";
 
 const rootRoute = createRootRoute({ component: Outlet });
@@ -175,6 +176,12 @@ const changePasswordRoute = createRoute({
   component: ChangePasswordPage,
 });
 
+const teamRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/team",
+  component: TeamPage,
+});
+
 const workbenchRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/studies/$studyId/workbench",
@@ -202,6 +209,7 @@ const routeTree = rootRoute.addChildren([
     adminDictionariesRoute,
     adminUsersRoute,
     changePasswordRoute,
+    teamRoute,
     workbenchRoute,
     formEntryRoute,
   ]),

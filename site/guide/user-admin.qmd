@@ -3,9 +3,8 @@ title: "User administration"
 ---
 
 Accounts and access are administered in two places: a system-wide *Users*
-page for account lifecycle (this page), and per-study team management for
-role grants (coming with study team management). Both write every action
-to the audit trail.
+page for account lifecycle, and a per-study *Team* page for role grants.
+Both write every action to the audit trail.
 
 ## Accounts
 
@@ -49,6 +48,29 @@ account.
   immediately* — access ends when you click, not at the next session
   timeout. Reactivate restores sign-in; the account's history is
   untouched either way.
+
+## Study teams
+
+Each study has a **Team** page (linked from the study header). Every
+member of the study can see the team — who holds which role, at which
+scope, granted when and by whom — since that is their own delegation
+context. Changing the team requires the `roles.grant` permission (held
+by the `admin` role by default; system administrators can also grant, so
+a brand-new study's first grant is reachable).
+
+A grant is a **role at a scope**: either study-wide or narrowed to one
+site. Site-scoped grants only confer their capabilities for subjects at
+that site — a coordinator granted `data_entry` at Site A cannot enter
+data for Site B. The same role can be held at several scopes; an
+identical duplicate is refused. Revoking a grant takes effect
+immediately, and revoke-then-regrant is an ordinary sequence (staff
+returning to a study) — every cycle stays its own audited record.
+
+Roles are the seeded catalog (`admin`, `data_manager`, `investigator`,
+`data_entry`, `monitor`, `read_only`); the `rtsm_agent` machine role is
+deliberately absent from the picker. Users are found by name, username,
+or email — the search requires `roles.grant` and returns only enough to
+pick the right person, so there is no browsable user directory.
 
 ## System administrators
 
