@@ -1,0 +1,37 @@
+# Substituted by the nginx image entrypoint at startup: ${API_PROXY_TARGET}
+# comes from the environment; nginx runtime variables ($host, $uri, ...) are
+# untouched because they are not defined environment variables.
+server {
+    listen 5173;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # The SPA always calls /api/*; the trailing slash on proxy_pass strips
+    # the /api prefix, matching the Vite dev proxy this replaces.
+    location /api/ {
+        proxy_pass ${API_PROXY_TARGET}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Hashed bundle files never change content under the same name.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # index.html references the current hashes; always revalidate it.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # Client-side routes (/studies/..., /forms/...) resolve to the SPA shell.
+    location / {
+        try_files $uri /index.html;
+    }
+}
