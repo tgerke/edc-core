@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.2.0 — integrations, administration, and deployment hardening (2026-07)
+
+Closes out the traceability matrix's last planned rows (P11-14 device
+checks, DP-02 hosting guidance): every Part 11 and data-protection row is
+now 🟢 or explicitly tracked 🟡.
+
+### RTSM integration (#46, #47, ADR-0010)
+- Machine auth: study-scoped `edcrtsm_` API keys bound to auditable
+  service accounts; keys reach intake routes only — a leaked key can post
+  assignments and nothing else
+- Assignment intake endpoint: idempotent replays, conflicts reported and
+  never written, the arm never echoed back; append-only `rtsm_events` as
+  the reconciliation basis (E6-11); blinded arms land on blinded items
+
+### User & team administration (#48, #49)
+- Account lifecycle: create/deactivate/reactivate/unlock, show-once
+  temporary passwords gated server-side to the change-password flow,
+  deactivation revokes live sessions immediately (E6-05)
+- Per-study Team page: grants and revocations at study or site scope,
+  fully audited; revoke-then-regrant fixed to be an ordinary sequence
+
+### Subject lifecycle (#50)
+- Screening → enrolled | screen-failed; enrolled → completed | withdrawn;
+  terminal states reversible by audited reinstate; reasons required and
+  recorded in the audit trail (E6-01)
+
+### Access evidence (#51, #56)
+- Session binding (P11-14, §11.10(h)): sessions bound to the issuing
+  client — a token presented by a different user-agent is revoked and
+  audited; IP changes audited without ending the session
+- Structured access log: one row per API request with system-admin review
+  UI and CSV export; `EDC_TRUST_PROXY` records real client addresses
+  behind reverse proxies (opt-in, spoofing-aware)
+
+### Deployment (#52, #54)
+- Deployment guide (DP-02): encryption in transit/at rest, paired
+  database+lake backups sized to the records-retention period, log
+  retention, GDPR/HIPAA hosting posture, production checklist
+- Web image rebuilt as a static nginx build — no more Vite dev server in
+  release images; ~52 MB runtime layer, same port and proxy contract
+
+### Fixes
+- Notification scan scoped per study (test-stability fix, #45)
+
+Migrations 0014–0018 (API keys, RTSM intake, user admin, regrant fix,
+access log).
+
 ## v0.1.0 — first usable release (2026-07)
 
 The core capture MVP, end to end: build a study from CDISC ODM, capture
