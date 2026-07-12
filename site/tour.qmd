@@ -22,7 +22,9 @@ site's subjects.
 ![](images/studies.png){.screenshot fig-alt="Studies list showing the demo study"}
 
 Open the study, then **subjects**. The subject matrix shows every subject ×
-event × form and its workflow state at a glance:
+event × form and its workflow state at a glance, with each subject's
+lifecycle status (screening, enrolled, completed, withdrawn) badged next to
+their key:
 
 ![](images/subject-matrix.png){.screenshot fig-alt="Subject matrix with form status per event"}
 
@@ -94,7 +96,8 @@ recorded with its code, logs, and results:
 From the analytics page you can export any snapshot table as **Dataset-JSON
 v1.1** (the FDA-accepted exchange format), CSV, or Parquet — or download the
 **study archive**: a self-contained zip with the ODM study definition (XML +
-JSON), all datasets, the complete audit trail, and the signature manifest.
+JSON), all datasets, the complete audit trail, the signature manifest, and a
+PDF casebook for every subject.
 
 That's the whole loop: capture → clean → verify → sign → snapshot → analyze →
 archive, with every step audited. For details on any piece, head to the
