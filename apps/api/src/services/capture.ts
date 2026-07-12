@@ -63,9 +63,49 @@ export async function latestMetadataVersion(db: Db, studyId: string) {
   return row ?? null;
 }
 
+export type SubjectStatus = "screening" | "enrolled" | "screen_failed" | "completed" | "withdrawn";
+
+/**
+ * The subject lifecycle, enforced like the form workflow (P11-13). Statuses
+ * are disposition, not locks: a withdrawn subject's forms stay editable —
+ * the withdrawal visit still gets keyed and queries still get resolved —
+ * with editability governed by form status and locks as always. Structured
+ * disposition data (date, reason category) belongs on a DS eCRF form; the
+ * transition reason lands in the audit trail.
+ */
+export const SUBJECT_TRANSITIONS: Record<
+  string,
+  { from: SubjectStatus[]; reasonRequired: boolean }
+> = {
+  enroll: { from: ["screening"], reasonRequired: false },
+  screen_fail: { from: ["screening"], reasonRequired: true },
+  complete: { from: ["enrolled"], reasonRequired: false },
+  withdraw: { from: ["enrolled"], reasonRequired: true },
+  // The correction path: every reinstatement is a deliberate, explained act.
+  reinstate: { from: ["screen_failed", "completed", "withdrawn"], reasonRequired: true },
+};
+
+export type SubjectTransitionAction = keyof typeof SUBJECT_TRANSITIONS;
+
+function subjectTransitionTarget(action: string, from: SubjectStatus): SubjectStatus {
+  if (action === "enroll") return "enrolled";
+  if (action === "screen_fail") return "screen_failed";
+  if (action === "complete") return "completed";
+  if (action === "withdraw") return "withdrawn";
+  // reinstate: back to where the subject came from.
+  return from === "screen_failed" ? "screening" : "enrolled";
+}
+
 export async function enrollSubject(
   db: Db,
-  input: { studyId: string; siteId: string; subjectKey: string; actorId: string },
+  input: {
+    studyId: string;
+    siteId: string;
+    subjectKey: string;
+    actorId: string;
+    /** "screening" registers a candidate; default remains "enrolled". */
+    status?: "screening" | "enrolled";
+  },
 ) {
   const [site] = await db
     .select()
@@ -74,6 +114,7 @@ export async function enrollSubject(
     .limit(1);
   if (!site) throw new CaptureError("invalid", "site does not belong to this study");
 
+  const status = input.status ?? "enrolled";
   return db.transaction(async (tx) => {
     const [subject] = await tx
       .insert(subjects)
@@ -81,19 +122,69 @@ export async function enrollSubject(
         studyId: input.studyId,
         siteId: input.siteId,
         subjectKey: input.subjectKey,
-        status: "enrolled",
+        status,
       })
       .returning();
     if (!subject) throw new Error("subject insert returned no row");
     await tx.insert(auditEvents).values({
       actorId: input.actorId,
       studyId: input.studyId,
-      action: "subject.enrolled",
+      action: status === "screening" ? "subject.registered" : "subject.enrolled",
       entityType: "subject",
       entityId: subject.id,
-      newValue: { subjectKey: input.subjectKey, siteId: input.siteId },
+      newValue: { subjectKey: input.subjectKey, siteId: input.siteId, status },
     });
     return subject;
+  });
+}
+
+export async function transitionSubject(
+  db: Db,
+  input: { subjectId: string; action: string; reason?: string; actorId: string },
+) {
+  const transition = SUBJECT_TRANSITIONS[input.action];
+  if (!transition) throw new CaptureError("invalid", `unknown action "${input.action}"`);
+
+  const [subject] = await db
+    .select()
+    .from(subjects)
+    .where(eq(subjects.id, input.subjectId))
+    .limit(1);
+  if (!subject) throw new CaptureError("not_found", "subject not found");
+
+  const from = subject.status as SubjectStatus;
+  if (!transition.from.includes(from)) {
+    throw new CaptureError(
+      "conflict",
+      `cannot ${input.action} a ${from} subject (allowed from: ${transition.from.join(", ")})`,
+    );
+  }
+  const reason = input.reason?.trim();
+  if (transition.reasonRequired && !reason) {
+    throw new CaptureError("invalid", `a reason is required to ${input.action}`);
+  }
+  const to = subjectTransitionTarget(input.action, from);
+
+  return db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(subjects)
+      .set({ status: to })
+      .where(and(eq(subjects.id, subject.id), eq(subjects.status, from)))
+      .returning();
+    if (!updated) {
+      throw new CaptureError("conflict", "subject status changed concurrently; retry");
+    }
+    await tx.insert(auditEvents).values({
+      actorId: input.actorId,
+      studyId: subject.studyId,
+      action: "subject.status_changed",
+      entityType: "subject",
+      entityId: subject.id,
+      oldValue: { status: from },
+      newValue: { status: to, action: input.action },
+      reason: reason ?? null,
+    });
+    return updated;
   });
 }
 

@@ -202,10 +202,25 @@ export function useMatrix(studyId: string) {
 export function useEnrollSubject(studyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { siteId: string; subjectKey: string }) =>
+    mutationFn: (body: { siteId: string; subjectKey: string; status?: "screening" | "enrolled" }) =>
       api<SubjectSummary>(`/studies/${studyId}/subjects`, {
         method: "POST",
         body: JSON.stringify(body),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["matrix", studyId] }),
+  });
+}
+
+export function useTransitionSubject(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { subjectId: string; action: string; reason?: string }) =>
+      api<SubjectSummary>(`/subjects/${input.subjectId}/status`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: input.action,
+          ...(input.reason !== undefined ? { reason: input.reason } : {}),
+        }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["matrix", studyId] }),
   });
