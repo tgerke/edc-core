@@ -772,11 +772,22 @@ export function useCodingRun(studyId: string, runId: string | null) {
 
 export interface NotificationRow {
   id: string;
-  studyId: string;
-  type: "query.opened" | "query.answered" | "form.awaiting_signature" | "form.overdue";
+  studyId: string | null;
+  type:
+    | "query.opened"
+    | "query.answered"
+    | "form.awaiting_signature"
+    | "form.overdue"
+    | "security.anomaly";
   title: string;
   body: string;
-  payload: { formInstanceId?: string; queryId?: string; subjectKey?: string; formOid?: string };
+  payload: {
+    formInstanceId?: string;
+    queryId?: string;
+    subjectKey?: string;
+    formOid?: string;
+    anomalyId?: string;
+  };
   readAt: string | null;
   createdAt: string;
 }
@@ -1226,6 +1237,65 @@ export function useAccessLog(filters: AccessLogFilters) {
     queryKey: ["access-log", filters],
     placeholderData: (previous) => previous,
     queryFn: () => api<AccessLogPage>(`/admin/access-log?${accessLogQueryString(filters)}`),
+  });
+}
+
+// ── Security anomalies ─────────────────────────────────────────────────
+
+export type AnomalyKind = "failed_login_burst" | "lockout" | "session_binding_violation";
+
+export interface SecurityAnomaly {
+  id: string;
+  detectedAt: string;
+  kind: AnomalyKind;
+  severity: "warning" | "critical";
+  user: string | null;
+  ip: string | null;
+  summary: string;
+  details: Record<string, unknown>;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  acknowledgedNote: string | null;
+}
+
+export interface AnomalyFilters {
+  status?: "open" | "acknowledged";
+  kind?: AnomalyKind;
+  limit: number;
+  offset: number;
+}
+
+export interface AnomalyPage {
+  total: number;
+  entries: SecurityAnomaly[];
+}
+
+export function anomalyQueryString(filters: AnomalyFilters): string {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.kind) params.set("kind", filters.kind);
+  params.set("limit", String(filters.limit));
+  params.set("offset", String(filters.offset));
+  return params.toString();
+}
+
+export function useSecurityAnomalies(filters: AnomalyFilters) {
+  return useQuery<AnomalyPage>({
+    queryKey: ["security-anomalies", filters],
+    placeholderData: (previous) => previous,
+    queryFn: () => api<AnomalyPage>(`/admin/security-anomalies?${anomalyQueryString(filters)}`),
+  });
+}
+
+export function useAcknowledgeAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { anomalyId: string; note?: string }) =>
+      api(`/admin/security-anomalies/${input.anomalyId}/acknowledge`, {
+        method: "POST",
+        body: JSON.stringify(input.note ? { note: input.note } : {}),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["security-anomalies"] }),
   });
 }
 

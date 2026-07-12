@@ -107,8 +107,7 @@ Back them up from the same point in time and restore them together.
 Every API request lands in the `access_log` table — who, from which address
 and client, what, and with what result — reviewable by system administrators
 in the app (**Access log** in the Studies header) and exportable as CSV. This
-is the evidence trail for access reviews; point your monitoring at repeated
-401/403 patterns.
+is the evidence trail for access reviews.
 
 The table grows without bound, and its rows are operational telemetry, not
 clinical records. Prune on your own schedule once entries age out of your
@@ -124,6 +123,23 @@ retention is governed by §11.10(e), not by operational convenience.
 
 Application logs go to stdout on every container; ship them to your log
 collector with your platform's usual mechanism.
+
+## Security anomaly detection
+
+The API's scheduler periodically sweeps the access log and audit trail for
+three signals: bursts of failed authentications from one source address
+(`EDC_ANOMALY_FAILED_LOGIN_THRESHOLD` 401s within
+`EDC_ANOMALY_WINDOW_MINUTES`, defaults 10 within 15; `0` disables the burst
+rule), account lockouts, and session binding violations. Each finding is
+recorded once, notifies system administrators (email too, if SMTP is
+configured), and waits for review under **Anomalies** in the Studies header.
+Acknowledging a finding — with a note on what was done — is written to the
+audit trail; that acknowledgement is your recorded incident response
+(ICH E6(R3) 3.16.1(w)).
+
+This is deliberately a coarse first line, not an intrusion-detection system:
+it watches what the application itself can see. Keep platform-level
+monitoring (network, host, container) in place alongside it.
 
 ## Hosting relationships
 
@@ -168,3 +184,6 @@ Before first real use:
   [validation pack](compliance.qmd).
 - [ ] An `access_log` retention job, and a decision recorded for how long you
   keep it.
+- [ ] Anomaly thresholds reviewed (`EDC_ANOMALY_FAILED_LOGIN_THRESHOLD`,
+  `EDC_ANOMALY_WINDOW_MINUTES`) and a routine for reviewing and
+  acknowledging findings written into your SOPs.

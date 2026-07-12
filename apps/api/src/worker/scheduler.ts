@@ -16,10 +16,12 @@ import {
   loadEmailConfig,
 } from "../services/email.js";
 import { notify } from "../services/notifications.js";
+import { loadAnomalyConfig, scanSecurityAnomalies } from "../services/security-anomalies.js";
 
 /**
- * The in-process scheduler: one setInterval in the API driving two idempotent
- * jobs — the overdue-form scan and the email outbox. Assumption (matching
+ * The in-process scheduler: one setInterval in the API driving three
+ * idempotent jobs — the overdue-form scan, the security-anomaly sweep, and
+ * the email outbox. Assumption (matching
  * infra/compose.yaml): a single API instance. A second instance is harmless
  * anyway — each tick takes a pg_try_advisory_lock and skips if another
  * holder is mid-tick, and both jobs are idempotent (dedupe key / outbox
@@ -175,6 +177,7 @@ const TICK_LOCK = "edc-core:notify-scan";
 export function registerScheduler(app: FastifyInstance): void {
   const config = loadSchedulerConfig();
   if (config.scanMinutes <= 0) return;
+  const anomalyConfig = loadAnomalyConfig();
   const emailConfig = loadEmailConfig();
   const transport = emailConfig ? createEmailTransport(emailConfig) : null;
 
@@ -192,6 +195,8 @@ export function registerScheduler(app: FastifyInstance): void {
       try {
         const overdue = await scanOverdueForms(app.db, config.overdueDays);
         if (overdue > 0) app.log.info({ overdue }, "overdue-form notifications created");
+        const anomalies = await scanSecurityAnomalies(app.db, anomalyConfig);
+        if (anomalies > 0) app.log.warn({ anomalies }, "security anomalies detected");
         if (transport && emailConfig) {
           const sent = await dispatchEmails(app.db, transport, emailConfig, app.log);
           if (sent > 0) app.log.info({ sent }, "notification emails sent");
