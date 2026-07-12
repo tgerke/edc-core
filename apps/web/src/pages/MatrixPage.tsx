@@ -8,8 +8,9 @@ import {
   usePermissions,
   useSites,
   useStudies,
+  useTransitionSubject,
 } from "../api/hooks.js";
-import { Button, Card, ErrorNote, Input, PageTitle, Spinner } from "../components/ui.js";
+import { Badge, Button, Card, ErrorNote, Input, PageTitle, Spinner } from "../components/ui.js";
 
 export const STATUS_STYLES: Record<string, string> = {
   empty: "bg-zinc-50 text-zinc-400 ring-zinc-200",
@@ -25,15 +26,132 @@ export function statusLabel(status: string): string {
   return status.replace("_", " ");
 }
 
+const SUBJECT_STATUS_TONES: Record<string, "amber" | "emerald" | "sky" | "zinc"> = {
+  screening: "amber",
+  enrolled: "emerald",
+  completed: "sky",
+  withdrawn: "zinc",
+  screen_failed: "zinc",
+};
+
+// Mirrors SUBJECT_TRANSITIONS server-side; the server is authoritative.
+const SUBJECT_ACTIONS: Record<string, Array<{ action: string; label: string; reason: boolean }>> = {
+  screening: [
+    { action: "enroll", label: "Enroll", reason: false },
+    { action: "screen_fail", label: "Screen fail…", reason: true },
+  ],
+  enrolled: [
+    { action: "complete", label: "Complete", reason: false },
+    { action: "withdraw", label: "Withdraw…", reason: true },
+  ],
+  screen_failed: [{ action: "reinstate", label: "Reinstate…", reason: true }],
+  completed: [{ action: "reinstate", label: "Reinstate…", reason: true }],
+  withdrawn: [{ action: "reinstate", label: "Reinstate…", reason: true }],
+};
+
+function SubjectLifecycle({
+  studyId,
+  subjectId,
+  subjectKey,
+  status,
+  canTransition,
+}: {
+  studyId: string;
+  subjectId: string;
+  subjectKey: string;
+  status: string;
+  canTransition: boolean;
+}) {
+  const transition = useTransitionSubject(studyId);
+  const [pending, setPending] = useState<{ action: string; label: string } | null>(null);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const actions = SUBJECT_ACTIONS[status] ?? [];
+
+  async function run(action: string, withReason?: string) {
+    setError(null);
+    try {
+      await transition.mutateAsync({
+        subjectId,
+        action,
+        ...(withReason ? { reason: withReason } : {}),
+      });
+      setPending(null);
+      setReason("");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-zinc-900">{subjectKey}</span>
+        <Badge tone={SUBJECT_STATUS_TONES[status] ?? "zinc"}>{statusLabel(status)}</Badge>
+        {canTransition && actions.length > 0 && !pending ? (
+          <select
+            className="rounded-md border border-zinc-200 bg-white px-1 py-0.5 text-xs text-zinc-500"
+            value=""
+            onChange={(e) => {
+              const chosen = actions.find((a) => a.action === e.target.value);
+              if (!chosen) return;
+              if (chosen.reason) setPending({ action: chosen.action, label: chosen.label });
+              else void run(chosen.action);
+            }}
+            disabled={transition.isPending}
+            title={`Change status of ${subjectKey}`}
+          >
+            <option value="">…</option>
+            {actions.map((a) => (
+              <option key={a.action} value={a.action}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      {pending ? (
+        <div className="flex items-center gap-1">
+          <input
+            className="w-40 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs"
+            placeholder={`Reason to ${statusLabel(pending.action)}`}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => run(pending.action, reason)}
+            disabled={reason.trim() === "" || transition.isPending}
+          >
+            {pending.label.replace("…", "")}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setPending(null);
+              setReason("");
+              setError(null);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : null}
+      {error ? <div className="text-xs text-amber-700">{error}</div> : null}
+    </div>
+  );
+}
+
 function EnrollForm({ studyId, onDone }: { studyId: string; onDone: () => void }) {
   const { data: sites } = useSites(studyId);
   const enroll = useEnrollSubject(studyId);
   const [siteId, setSiteId] = useState("");
   const [subjectKey, setSubjectKey] = useState("");
+  const [status, setStatus] = useState<"enrolled" | "screening">("enrolled");
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    await enroll.mutateAsync({ siteId, subjectKey });
+    await enroll.mutateAsync({ siteId, subjectKey, status });
     onDone();
   }
 
@@ -61,8 +179,16 @@ function EnrollForm({ studyId, onDone }: { studyId: string; onDone: () => void }
             required
           />
         </div>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as "enrolled" | "screening")}
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+        >
+          <option value="enrolled">Enrolled</option>
+          <option value="screening">Screening</option>
+        </select>
         <Button type="submit" disabled={enroll.isPending}>
-          Enroll
+          {status === "screening" ? "Register" : "Enroll"}
         </Button>
         {enroll.isError ? <ErrorNote>{enroll.error.message}</ErrorNote> : null}
       </form>
@@ -112,6 +238,7 @@ export function MatrixPage() {
   const [enrolling, setEnrolling] = useState(false);
   const study = studies?.find((s) => s.id === studyId);
   const canExport = permissions?.includes("export.data") ?? false;
+  const canEnroll = permissions?.includes("subject.enroll") ?? false;
 
   if (isPending) return <Spinner />;
   if (isError || !matrix) return <ErrorNote>Failed to load the subject matrix.</ErrorNote>;
@@ -171,7 +298,15 @@ export function MatrixPage() {
             <tbody className="divide-y divide-zinc-100">
               {matrix.subjects.map((subject) => (
                 <tr key={subject.id}>
-                  <td className="px-4 py-2.5 font-medium text-zinc-900">{subject.subjectKey}</td>
+                  <td className="px-4 py-2.5">
+                    <SubjectLifecycle
+                      studyId={studyId}
+                      subjectId={subject.id}
+                      subjectKey={subject.subjectKey}
+                      status={subject.status}
+                      canTransition={canEnroll}
+                    />
+                  </td>
                   <td className="px-4 py-2.5 text-zinc-500">{subject.siteName}</td>
                   {columns.map(({ event, form }) => (
                     <td key={`${event.oid}:${form.oid}`} className="px-3 py-2.5">

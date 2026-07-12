@@ -15,7 +15,11 @@ export const subjects = pgTable(
       .notNull()
       .references(() => sites.id),
     subjectKey: text("subject_key").notNull(),
-    status: text("status", { enum: ["screening", "enrolled", "completed", "withdrawn"] })
+    // Lifecycle is enforced by SUBJECT_TRANSITIONS (services/capture.ts);
+    // history lives in the audit trail (subject.status_changed), not here.
+    status: text("status", {
+      enum: ["screening", "enrolled", "screen_failed", "completed", "withdrawn"],
+    })
       .notNull()
       .default("screening"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
