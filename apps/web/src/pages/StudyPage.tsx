@@ -77,6 +77,10 @@ export function StudyPage() {
                 subjects
               </Link>
               {" · "}
+              <Link to="/studies/$studyId/team" params={{ studyId }} className="underline">
+                team
+              </Link>
+              {" · "}
               <Link to="/studies/$studyId/queries" params={{ studyId }} className="underline">
                 queries
               </Link>
