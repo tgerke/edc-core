@@ -71,9 +71,17 @@ recorded with their full code, logs, outputs, actor, and snapshot version.
 self-contained bundle — ODM metadata, Dataset-JSON/CSV data, complete audit
 trail, signature manifest — in open formats that outlive the running system.
 
+## Data lifecycle procedures
+
+Requirements alone don't run a trial. The [data lifecycle](data-lifecycle.qmd)
+page walks ICH E6(R3) §4.2 element by element — capture, audit trails, review,
+corrections, transfer, finalisation, retention, destruction — separating what
+the system enforces by construction from what belongs in your SOPs and data
+management plan.
+
 ## Known gaps
 
-Tracked openly in the matrix: PDF casebook rendering and formal
-lifecycle-procedure documentation are on the
-[roadmap](https://github.com/tgerke/edc-core#roadmap) and marked 🟡/⚪
-rather than claimed.
+Every matrix row currently maps to an implemented mechanism (🟢). New
+requirements enter the matrix as 🟡/⚪ before they are claimed — check the
+[matrix](https://github.com/tgerke/edc-core/blob/main/docs/regulatory-traceability.md)
+itself for the live status rather than this page.
