@@ -5,14 +5,17 @@ import {
   Link,
   Navigate,
   Outlet,
+  useLocation,
   useNavigate,
 } from "@tanstack/react-router";
 import { useLogout, useMe } from "./api/hooks.js";
 import { NotificationsBell } from "./components/NotificationsBell.js";
 import { Button, Spinner } from "./components/ui.js";
 import { AdminDictionariesPage } from "./pages/AdminDictionariesPage.js";
+import { AdminUsersPage } from "./pages/AdminUsersPage.js";
 import { AuditPage } from "./pages/AuditPage.js";
 import { BuilderPage } from "./pages/BuilderPage.js";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage.js";
 import { CodingPage } from "./pages/CodingPage.js";
 import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
@@ -41,6 +44,7 @@ function AppShell() {
   const { data: me, isPending } = useMe();
   const logout = useLogout();
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (isPending) {
     return (
@@ -50,6 +54,11 @@ function AppShell() {
     );
   }
   if (!me) return <Navigate to="/login" />;
+  // A temporary admin-issued password unlocks nothing but this form; the
+  // server enforces the same gate (403 password_change_required).
+  if (me.mustChangePassword && location.pathname !== "/account/password") {
+    return <Navigate to="/account/password" />;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -68,7 +77,13 @@ function AppShell() {
           </nav>
           <div className="ml-auto flex items-center gap-3">
             <NotificationsBell />
-            <span className="text-sm text-zinc-500">{me.fullName}</span>
+            {me.hasPassword ? (
+              <Link to="/account/password" className="text-sm text-zinc-500 hover:text-zinc-900">
+                {me.fullName}
+              </Link>
+            ) : (
+              <span className="text-sm text-zinc-500">{me.fullName}</span>
+            )}
             <Button
               variant="ghost"
               onClick={async () => {
@@ -148,6 +163,18 @@ const adminDictionariesRoute = createRoute({
   component: AdminDictionariesPage,
 });
 
+const adminUsersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/admin/users",
+  component: AdminUsersPage,
+});
+
+const changePasswordRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/account/password",
+  component: ChangePasswordPage,
+});
+
 const workbenchRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/studies/$studyId/workbench",
@@ -173,6 +200,8 @@ const routeTree = rootRoute.addChildren([
     codingRoute,
     auditRoute,
     adminDictionariesRoute,
+    adminUsersRoute,
+    changePasswordRoute,
     workbenchRoute,
     formEntryRoute,
   ]),

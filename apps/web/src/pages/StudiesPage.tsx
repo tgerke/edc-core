@@ -65,6 +65,9 @@ export function StudiesPage() {
         <PageTitle sub="Studies you are a member of">Studies</PageTitle>
         {me?.isSystemAdmin ? (
           <div className="flex items-center gap-2">
+            <Link to="/admin/users">
+              <Button variant="ghost">Users</Button>
+            </Link>
             <Link to="/admin/dictionaries">
               <Button variant="ghost">Dictionaries</Button>
             </Link>

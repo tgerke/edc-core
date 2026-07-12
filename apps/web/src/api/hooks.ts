@@ -9,6 +9,7 @@ export interface Me {
   fullName: string;
   isSystemAdmin: boolean;
   hasPassword: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface AuthConfigInfo {
@@ -1095,5 +1096,82 @@ export function useRtsmEvents(studyId: string) {
   return useQuery<RtsmEvent[]>({
     queryKey: ["rtsm-events", studyId],
     queryFn: () => api<RtsmEvent[]>(`/studies/${studyId}/rtsm/events`),
+  });
+}
+
+// ── User administration ────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  fullName: string;
+  status: "active" | "locked" | "deactivated";
+  isSystemAdmin: boolean;
+  mustChangePassword: boolean;
+  hasPassword: boolean;
+  ssoLinked: boolean;
+  lockedUntil: string | null;
+  passwordChangedAt: string;
+  createdAt: string;
+}
+
+export function useAdminUsers() {
+  return useQuery<AdminUser[]>({
+    queryKey: ["admin-users"],
+    queryFn: () => api<AdminUser[]>("/admin/users"),
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      username: string;
+      email: string;
+      fullName: string;
+      isSystemAdmin?: boolean;
+      auth: "password" | "sso";
+    }) =>
+      api<AdminUser & { temporaryPassword?: string }>("/admin/users", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+  });
+}
+
+export function useUserAction(action: "deactivate" | "reactivate" | "unlock" | "reset-password") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api<AdminUser & { temporaryPassword?: string }>(`/admin/users/${userId}/${action}`, {
+        method: "POST",
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+  });
+}
+
+export function useSetSystemAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { userId: string; isSystemAdmin: boolean }) =>
+      api<AdminUser>(`/admin/users/${input.userId}/system-admin`, {
+        method: "POST",
+        body: JSON.stringify({ isSystemAdmin: input.isSystemAdmin }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+  });
+}
+
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { currentPassword: string; newPassword: string }) =>
+      api<{ ok: boolean }>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.refetchQueries({ queryKey: ["me"] }),
   });
 }

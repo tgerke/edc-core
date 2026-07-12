@@ -1,0 +1,61 @@
+---
+title: "User administration"
+---
+
+Accounts and access are administered in two places: a system-wide *Users*
+page for account lifecycle (this page), and per-study team management for
+role grants (coming with study team management). Both write every action
+to the audit trail.
+
+## Accounts
+
+System administrators manage accounts at **Users** (linked from the
+Studies page). Accounts are **deactivated, never deleted**: 21 CFR Part 11
+requires signatures to stay attributable to one individual indefinitely,
+so a departed user's account is switched off but their name remains on
+everything they signed.
+
+Creating an account takes a username, email, full name, and one choice:
+
+- **Local password** — edc-core generates a temporary password and shows
+  it exactly once. Share it with the user securely; it is not stored,
+  logged, or recoverable. The user must replace it at first sign-in
+  (below).
+- **SSO** — no local password is created. When the user first signs in
+  through your identity provider, the account links automatically by
+  verified email.
+
+## Temporary passwords
+
+A password issued by an administrator — at account creation or reset — is
+a *temporary credential*: the session it opens can reach nothing but the
+change-password form, enforced server-side, until the user sets a
+password only they know. Administrators never know a user's working
+password at any point.
+
+Any signed-in user can change their own password from the menu bar (click
+your name). Changing a password signs out every other session of the
+account.
+
+## Lockouts, resets, and deactivation
+
+- **Unlock** clears a failed-login lockout immediately (the lockout would
+  also expire on its own).
+- **Reset password** issues a new show-once temporary password, signs the
+  user out everywhere, and reimposes the first-sign-in change requirement.
+  SSO-only accounts have no password to reset — manage those credentials
+  in your identity provider.
+- **Deactivate** blocks sign-in *and revokes every live session
+  immediately* — access ends when you click, not at the next session
+  timeout. Reactivate restores sign-in; the account's history is
+  untouched either way.
+
+## System administrators
+
+The system-admin flag (create studies, manage users and dictionaries) is
+separate from study-level roles: it deliberately confers **no clinical
+capability** — a system administrator cannot enter, verify, or sign data
+without an ordinary audited role grant. Toggling the flag is itself
+audited, and you cannot change or deactivate your own account — a second
+administrator has to do it, so a lone admin can't lock the deployment
+out of administration.
