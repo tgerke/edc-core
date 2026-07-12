@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.3.0 — security monitoring and a complete traceability matrix (2026-07)
+
+The traceability matrix reaches all-🟢: every requirement row now maps to
+an implemented, tested mechanism. New requirements enter the matrix as
+🟡/⚪ before they are claimed.
+
+### Security anomaly detection (#58, E6-06)
+- Periodic sweep over the access log and audit trail: failed-login bursts
+  per source address (`EDC_ANOMALY_FAILED_LOGIN_THRESHOLD` within
+  `EDC_ANOMALY_WINDOW_MINUTES`, defaults 10 within 15), account lockouts,
+  and session binding violations
+- Findings are materialised once (deduplicated), notify system
+  administrators (email too, with SMTP configured), and wait for review at
+  **Anomalies**; acknowledgement — the recorded incident response per
+  ICH E6(R3) 3.16.1(w) — is written to the audit trail
+
+### Data lifecycle documentation (#59, closes E6-01)
+- New top-level docs page mapping every ICH E6(R3) Annex 1 §4.2 lifecycle
+  element (capture → audit trails → review → corrections → transfer →
+  finalisation → retention → destruction) to its system mechanism and the
+  sponsor-side procedure it expects
+- Corrected the matrix's E6-01 citation: the adopted E6(R3) guideline
+  contains only Annex 1 (the old "(§4, Annex 1/2)" reference was wrong)
+
+### Documentation refresh (#60)
+- All screenshots recaptured against the current UI (notification bell,
+  subject lifecycle badges, study-page integration panels); new screenshots
+  for users admin, study team, access log, security anomalies, and the
+  medical coding work queue
+- User guide gains the Security anomalies section; README feature list
+  caught up with what has shipped
+
+Migration 0019 (security anomalies; `notifications.study_id` nullable).
+
 ## v0.2.0 — integrations, administration, and deployment hardening (2026-07)
 
 Closes out the traceability matrix's last planned rows (P11-14 device
