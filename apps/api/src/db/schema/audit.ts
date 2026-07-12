@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { studies } from "./studies.js";
@@ -60,5 +61,34 @@ export const accessLog = pgTable(
   (t) => [
     index("access_log_time").on(t.occurredAt),
     index("access_log_user_time").on(t.userId, t.occurredAt),
+  ],
+);
+
+// Detected security anomalies (E6-06): the scheduler's periodic sweep over
+// access_log and audit_events materialises each finding once — dedupe_key is
+// unique, so re-scans are no-ops. Acknowledgement is the recorded response;
+// it writes a security.anomaly_acknowledged audit event alongside the update.
+export const securityAnomalies = pgTable(
+  "security_anomalies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+    kind: text("kind", {
+      enum: ["failed_login_burst", "lockout", "session_binding_violation"],
+    }).notNull(),
+    severity: text("severity", { enum: ["warning", "critical"] }).notNull(),
+    userId: uuid("user_id").references(() => users.id),
+    ip: text("ip"),
+    summary: text("summary").notNull(),
+    /** Rule-specific evidence: counts, window bounds, source audit event id. */
+    details: jsonb("details").notNull().default({}),
+    dedupeKey: text("dedupe_key").notNull(),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    acknowledgedBy: uuid("acknowledged_by").references(() => users.id),
+    acknowledgedNote: text("acknowledged_note"),
+  },
+  (t) => [
+    uniqueIndex("security_anomaly_dedupe").on(t.dedupeKey),
+    index("security_anomaly_time").on(t.detectedAt),
   ],
 );

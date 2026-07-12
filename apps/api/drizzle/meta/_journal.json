@@ -134,6 +134,13 @@
       "when": 1783834514000,
       "tag": "0018_access_log",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783869216533,
+      "tag": "0019_security_anomalies",
+      "breakpoints": true
     }
   ]
 }
