@@ -51,7 +51,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 | ID | Requirement | System mechanism | Status |
 |---|---|---|---|
 | DP-01 | GDPR pseudonymization by design | No direct identifiers in clinical tables by construction; subject keys only; site holds the link | 🟢 |
-| DP-02 | GDPR/HIPAA hosting guidance | Deployment docs: encryption at rest/in transit, backup, access logging | ⚪ (next) |
+| DP-02 | GDPR/HIPAA hosting guidance | Deployment guide (`site/deployment.qmd`): TLS termination and secure cookies, volume-level encryption at rest, paired database+lake backups sized to the records-retention period, access-log retention, processor/transfer posture (GDPR Art. 28/32/44), production checklist | 🟢 |
 
 ## Standards conformance
 

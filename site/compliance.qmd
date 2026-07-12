@@ -74,6 +74,6 @@ trail, signature manifest — in open formats that outlive the running system.
 ## Known gaps
 
 Tracked openly in the matrix: PDF casebook rendering, formal
-lifecycle-procedure documentation, anomaly reporting, and hardened
-deployment guidance are on the [roadmap](https://github.com/tgerke/edc-core#roadmap)
-and marked 🟡/⚪ rather than claimed.
+lifecycle-procedure documentation, and anomaly reporting are on the
+[roadmap](https://github.com/tgerke/edc-core#roadmap) and marked 🟡/⚪
+rather than claimed.
