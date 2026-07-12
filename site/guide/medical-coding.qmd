@@ -96,6 +96,8 @@ record, **not** in the form data:
   corrects the verbatim, the coding shows as **stale** on the coding
   page until a human confirms or recodes it.
 
+![](../images/coding.png){.screenshot fig-alt="Medical coding work queue with auto-coded terms and one uncoded verbatim"}
+
 **Auto-coding** handles the bulk: one click starts a background run
 that assigns every uncoded verbatim exactly matching a dictionary term
 (case- and whitespace-insensitive; MedDRA matches LLT terms, WHODrug

@@ -14,6 +14,8 @@ requires signatures to stay attributable to one individual indefinitely,
 so a departed user's account is switched off but their name remains on
 everything they signed.
 
+![](../images/users-admin.png){.screenshot fig-alt="Users administration page with account creation and lifecycle actions"}
+
 Creating an account takes a username, email, full name, and one choice:
 
 - **Local password** — edc-core generates a temporary password and shows
@@ -54,7 +56,9 @@ account.
 Each study has a **Team** page (linked from the study header). Every
 member of the study can see the team — who holds which role, at which
 scope, granted when and by whom — since that is their own delegation
-context. Changing the team requires the `roles.grant` permission (held
+context.
+
+![](../images/team.png){.screenshot fig-alt="Study team page listing role grants with their scopes"} Changing the team requires the `roles.grant` permission (held
 by the `admin` role by default; system administrators can also grant, so
 a brand-new study's first grant is reachable).
 
@@ -92,6 +96,8 @@ or status code, and export the current view to CSV for an inspection
 copy. Retention is your deployment's call; the table is ordinary
 operational data, separate from the append-only audit trail.
 
+![](../images/access-log.png){.screenshot fig-alt="Access log with per-request rows and filters"}
+
 Sessions are also **bound to the client they were issued to**. A session
 token presented by a different browser than the one that signed in is
 treated as stolen: the session is revoked immediately and the violation
@@ -99,3 +105,19 @@ recorded in the audit trail (`auth.session_binding_violation`). A change
 of IP address alone does not end the session — networks legitimately
 roam — but it is audited too (`auth.session_ip_changed`), so unusual
 access patterns are reviewable after the fact.
+
+## Security anomalies
+
+What the access log and audit trail record, a background sweep also
+*watches*: bursts of failed authentications from one address, account
+lockouts, and session binding violations each raise a **security
+anomaly**. Findings notify system administrators and wait under
+**Anomalies** (linked from the Studies header) for review;
+acknowledging one — with a note on what was done — writes the recorded
+response to the audit trail.
+
+![](../images/anomalies.png){.screenshot fig-alt="Security anomalies review page with open findings and acknowledge actions"}
+
+Detection thresholds and the operational side (what to put in your
+SOPs, how this relates to platform monitoring) are covered in the
+[deployment guide](../deployment.qmd#security-anomaly-detection).
