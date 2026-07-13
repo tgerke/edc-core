@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.4.0 — Python workbench and blinding governance (2026-07)
+
+The analytics workbench speaks Python as well as R and SQL, the engines
+move to DuckDB 1.5 in lockstep, and blinding governance gets its missing
+half: a documented, append-only break-the-blind event for every unblinding
+(E6(R3) Annex 1 §4.1.4). Automated intake stops silently accepting data
+for subjects who left the study, and two operational rough edges — RTSM
+config by free-text OID, all-or-nothing UA session binding — get fixed.
 
 ### UA-binding kill-switch (#69)
 - `EDC_SESSION_UA_STRICT` (default on) controls user-agent-strict session
@@ -47,6 +54,19 @@
 - New published image `ghcr.io/tgerke/edc-core-py-engine`; compose service
   `py-engine` (host port 8001)
 - No database migration: the language columns were already free-text
+
+### DuckDB 1.5 / DuckLake spec 1.0 lockstep upgrade (#64)
+- `@duckdb/node-api` 1.5.4-r.1 and R `{duckdb}` 1.5.4.2 upgraded together
+  (the catalog format requires matching minors; ADR-0008 constraint)
+- Existing per-study lake catalogs migrate to DuckLake spec 1.0
+  automatically at API boot; failures log without blocking startup
+- Note: catalogs migrated to spec 1.0 are no longer attachable by pre-1.5
+  builds — upgrade API and engines together
+
+### Development infrastructure
+- `pnpm test` runs against a dedicated `<db>_test` database recreated
+  fresh per run (with its own lake directory), so test runs no longer
+  pollute the development database (#73)
 
 ## v0.3.0 — security monitoring and a complete traceability matrix (2026-07)
 
