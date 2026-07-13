@@ -68,6 +68,9 @@ jobs:
           - name: r-engine
             context: services/r-engine
             dockerfile: services/r-engine/Dockerfile
+          - name: py-engine
+            context: services/py-engine
+            dockerfile: services/py-engine/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

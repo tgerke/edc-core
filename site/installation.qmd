@@ -3,7 +3,7 @@ title: "Installation"
 ---
 
 edc-core ships as a small set of containers: a PostgreSQL system of record, a
-Node/TypeScript API, a browser SPA, and a sandboxed R engine. One compose file
+Node/TypeScript API, a browser SPA, and sandboxed R and Python engines. One compose file
 brings up the whole stack; rootless Podman is the recommended path, and Docker
 works identically.
 
@@ -20,7 +20,7 @@ git clone https://github.com/tgerke/edc-core
 cd edc-core
 pnpm install
 
-# Postgres + API + web + R engine
+# Postgres + API + web + R and Python engines
 podman compose -f infra/compose.yaml up --build
 ```
 
@@ -112,6 +112,7 @@ Tagged releases publish versioned images to GitHub Container Registry:
 ghcr.io/tgerke/edc-core-api
 ghcr.io/tgerke/edc-core-web
 ghcr.io/tgerke/edc-core-r-engine
+ghcr.io/tgerke/edc-core-py-engine
 ```
 
 Each release also attaches a **validation pack** — the regulatory traceability

@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { hasPermission } from "../auth/rbac.js";
-import { executeR, listExecutions, listScripts, saveScript } from "../services/r-workbench.js";
+import { executeScript, listExecutions, listScripts, saveScript } from "../services/r-workbench.js";
 import { executeWorkbenchSql, WorkbenchError } from "../services/workbench.js";
 
 const runSchema = z.object({
@@ -9,7 +9,7 @@ const runSchema = z.object({
   sql: z.string().min(1).max(100_000),
 });
 
-const runRSchema = z.object({
+const runScriptSchema = z.object({
   snapshotId: z.uuid(),
   content: z.string().min(1).max(200_000),
   scriptId: z.uuid().optional(),
@@ -18,7 +18,7 @@ const runRSchema = z.object({
 
 const saveScriptSchema = z.object({
   name: z.string().min(1).max(120),
-  language: z.enum(["r", "sql"]),
+  language: z.enum(["r", "python", "sql"]),
   content: z.string().min(1).max(200_000),
 });
 
@@ -54,23 +54,30 @@ export const workbenchRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.post("/studies/:studyId/workbench/r", async (request, reply) => {
-    const { studyId } = request.params as { studyId: string };
-    if (!request.user) return reply.code(401).send({ error: "authentication required" });
-    if (!(await hasPermission(app.db, request.user.id, "analytics.run", { studyId }))) {
-      return reply.code(403).send({ error: "missing permission: analytics.run" });
-    }
-    const parsed = runRSchema.safeParse(request.body ?? {});
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
-    try {
-      return await executeR(app.db, { studyId, ...parsed.data, actorId: request.user.id });
-    } catch (err) {
-      if (err instanceof WorkbenchError) {
-        return reply.code(ERROR_STATUS[err.code]).send({ error: err.message });
+  for (const language of ["r", "python"] as const) {
+    app.post(`/studies/:studyId/workbench/${language}`, async (request, reply) => {
+      const { studyId } = request.params as { studyId: string };
+      if (!request.user) return reply.code(401).send({ error: "authentication required" });
+      if (!(await hasPermission(app.db, request.user.id, "analytics.run", { studyId }))) {
+        return reply.code(403).send({ error: "missing permission: analytics.run" });
       }
-      throw err;
-    }
-  });
+      const parsed = runScriptSchema.safeParse(request.body ?? {});
+      if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+      try {
+        return await executeScript(app.db, {
+          studyId,
+          language,
+          ...parsed.data,
+          actorId: request.user.id,
+        });
+      } catch (err) {
+        if (err instanceof WorkbenchError) {
+          return reply.code(ERROR_STATUS[err.code]).send({ error: err.message });
+        }
+        throw err;
+      }
+    });
+  }
 
   app.get("/studies/:studyId/workbench/scripts", async (request, reply) => {
     const { studyId } = request.params as { studyId: string };

@@ -17,12 +17,12 @@
 ┌───────┴───────────┐   ┌──────────────┴──────────────┐
 │  PostgreSQL 16+   │   │  DuckLake (Parquet + DuckDB)│
 │  system of record │   │  analytics/export layer;    │
-│  + DuckLake       │   │  read by R engine & exports │
+│  + DuckLake       │   │  read by engines & exports  │
 │  catalog          │   └──────────────┬──────────────┘
 └───────────────────┘   ┌──────────────┴──────────────┐
-                        │  services/r-engine          │
-                        │  Rocker + plumber, duckdb/  │
-                        │  DBI, read-only, sandboxed  │
+                        │  services/{r,py}-engine     │
+                        │  sandboxed R + Python       │
+                        │  runtimes, read-only        │
                         └─────────────────────────────┘
 ```
 
@@ -49,16 +49,17 @@
    Dataset-JSON v1.1 for data exchange, CDASH-aligned example CRFs. The archive format of a
    study must outlive the running system.
 
-5. **Analysis code is a first-class, audited artifact.** R scripts execute server-side in an
-   isolated container against read-only snapshots; scripts, logs, and outputs are versioned.
-   This directly serves ICH E6(R3)'s transformation-traceability expectations. See ADR-0004.
+5. **Analysis code is a first-class, audited artifact.** R and Python scripts execute
+   server-side in isolated containers against read-only snapshots; scripts, logs, and outputs
+   are versioned. This directly serves ICH E6(R3)'s transformation-traceability expectations.
+   See ADR-0004.
 
 ## Data lifecycle
 
 ```
 capture (Postgres, audited)
   → snapshot (worker publishes versioned Parquet into DuckLake)
-    → analysis/review (DuckDB SQL, R workbench — read-only)
+    → analysis/review (DuckDB SQL, R/Python workbench — read-only)
       → export (Dataset-JSON v1.1, CSV, Parquet, full ODM archive)
         → archive/retention (self-contained study archive)
 ```
@@ -74,6 +75,7 @@ database lock references an immutable snapshot ID, reproducible indefinitely.
 - `packages/odm` — ODM v2.0 parsing/validation/serialization; no runtime dependency on the API
 - `packages/rules` — edit-check expression engine, evaluable in browser and server
 - `services/r-engine` — R runtime container; communicates with the API over HTTP (plumber)
+- `services/py-engine` — Python runtime container; same HTTP execution contract as the R engine
 - `infra` — Compose stack; the deployment unit is a set of OCI containers
 
 ## Decision records

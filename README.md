@@ -31,12 +31,12 @@ Commercial EDC platforms are expensive, closed, and dated. The open-source alter
 ┌───────┴───────────┐   ┌──────────────┴──────────────┐
 │  PostgreSQL 16+   │   │  DuckLake (Parquet + DuckDB)│
 │  system of record │   │  analytics/export layer;    │
-│  + DuckLake       │   │  read by R engine & exports │
+│  + DuckLake       │   │  read by engines & exports  │
 │  catalog          │   └──────────────┬──────────────┘
 └───────────────────┘   ┌──────────────┴──────────────┐
-                        │  services/r-engine          │
-                        │  Rocker + plumber, duckdb/  │
-                        │  DBI, read-only, sandboxed  │
+                        │  services/{r,py}-engine     │
+                        │  sandboxed R + Python       │
+                        │  runtimes, read-only        │
                         └─────────────────────────────┘
 ```
 
@@ -52,6 +52,7 @@ See [docs/architecture.md](docs/architecture.md) and the [architecture decision 
 | `packages/schemas` | Shared zod schemas and API types |
 | `packages/rules` | Sandboxed edit-check expression engine (client + server) |
 | `services/r-engine` | Server-side R runtime (Rocker + plumber) |
+| `services/py-engine` | Server-side Python runtime (duckdb + pandas) |
 | `infra` | Compose stack for local/self-hosted deployment |
 | `docs` | Architecture, ADRs, regulatory traceability matrix |
 | `examples` | Sample ODM study definitions |
@@ -64,7 +65,7 @@ Requires Node ≥ 22, pnpm ≥ 9, and Podman (or Docker).
 pnpm install
 pnpm check        # lint + typecheck + tests
 
-# full stack (Postgres + api + web + r-engine)
+# full stack (Postgres + api + web + r-engine + py-engine)
 podman compose -f infra/compose.yaml up --build
 # web UI:  http://localhost:5173
 # API:     http://localhost:3000/health
@@ -75,7 +76,7 @@ pnpm --filter @edc-core/api db:seed-demo   # see examples/README.md
 ```
 
 Tagged releases publish versioned images to GHCR
-(`ghcr.io/tgerke/edc-core-{api,web,r-engine}`) along with a **validation
+(`ghcr.io/tgerke/edc-core-{api,web,r-engine,py-engine}`) along with a **validation
 pack** — the [regulatory traceability matrix](docs/regulatory-traceability.md)
 joined to that release's automated test results (regenerate locally with
 `pnpm validation-pack`).
@@ -107,7 +108,7 @@ joined to that release's automated test results (regenerate locally with
 - Access evidence: structured access log with review UI, session binding to
   the issuing client, and security anomaly detection (failed-login bursts,
   lockouts, binding violations) with audited acknowledgement
-- Per-study DuckLake snapshots; sandboxed SQL + R workbench; Dataset-JSON v1.1 /
+- Per-study DuckLake snapshots; sandboxed SQL + R + Python workbench; Dataset-JSON v1.1 /
   CSV / Parquet exports; per-subject PDF casebooks; self-contained study archives
 - Per-release validation pack; deployment guide (TLS, encryption, backups,
   GDPR/HIPAA posture); CDASH-aligned demo study with one-command seed
@@ -120,8 +121,9 @@ there before they are claimed. Two boundaries are deliberate rather than
 pending: randomization/RTSM stays an **integration point, not a build**
 (edc-core consumes assignments from external systems rather than
 reimplementing one), and statistical deliverables belong in your validated
-environment, fed by exported snapshots. A Python workbench sidecar is
-deferred; SQL and R cover the analytics surface for now.
+environment, fed by exported snapshots. The previously deferred Python
+workbench sidecar has shipped (`services/py-engine`), completing the planned
+analytics surface.
 
 ## License
 
