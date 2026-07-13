@@ -20,3 +20,8 @@ validation-pack/
 site/_site/
 site/.quarto/
 __pycache__/
+
+# terraform (infra/terraform/*): state is local and contains secrets
+**/.terraform/
+*.tfstate
+*.tfstate.*

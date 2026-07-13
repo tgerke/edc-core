@@ -2,16 +2,13 @@
 # Boot a production edc-core host on any Ubuntu 24.04 VM (ADR-0011): Docker,
 # the release-pinned compose stack, and basic host hardening. This same file
 # is the user_data for every infra/terraform/ root — Terraform substitutes
-# the ${...} placeholders via templatefile(). To use it standalone, render
-# it first:
+# the placeholder tokens via templatefile(). To use it standalone, render
+# it first — the placeholders and a copy-paste sed one-liner are in the
+# installation guide (site/installation.qmd, "Provisioning the VM"); note
+# that every $ { } sequence below is substituted, so keep real shell
+# variables out of this file.
 #
-#   sed -e 's/${domain}/edc.example.org/' \
-#       -e 's/${app_version}/0.4.0/' \
-#       -e "s/\${postgres_password}/$(openssl rand -hex 24)/" \
-#       -e 's/${extra_env}//' \
-#       cloud-init.yaml > user-data.yaml
-#
-# then pass user-data.yaml to your provider's "user data"/"cloud-init" field
+# Then pass user-data.yaml to your provider's "user data"/"cloud-init" field
 # (all of AWS, Azure, DigitalOcean, Hetzner, Proxmox, and Multipass accept
 # it). First boot takes a few minutes: watch with `cloud-init status --wait`,
 # then create the first admin:
@@ -36,7 +33,7 @@ swap:
   size: 2147483648 # engines spike; 2G headroom keeps the OOM killer away
 
 write_files:
-  # ${extra_env} is for additional .env lines (managed DATABASE_URL, OIDC,
+  # The extra_env token takes additional .env lines (managed DATABASE_URL, OIDC,
   # SMTP); leave it empty for the self-contained default. Everything the
   # stack supports is documented in infra/.env.example.
   - path: /opt/edc/.env
@@ -45,7 +42,7 @@ write_files:
       EDC_DOMAIN=${domain}
       EDC_VERSION=${app_version}
       POSTGRES_PASSWORD=${postgres_password}
-      COMPOSE_PROFILES=local-db,engines
+      COMPOSE_PROFILES=${compose_profiles}
       ${extra_env}
   - path: /etc/ssh/sshd_config.d/90-hardening.conf
     content: |

@@ -150,6 +150,7 @@ the result into the provider's *user data* field:
 sed -e 's/${domain}/edc.example.org/' \
     -e 's/${app_version}/0.4.0/' \
     -e "s/\${postgres_password}/$(openssl rand -hex 24)/" \
+    -e 's/${compose_profiles}/local-db,engines/' \
     -e 's/${extra_env}//' \
     infra/cloud-init.yaml > user-data.yaml
 ```
@@ -159,6 +160,12 @@ the analytics engines. First boot takes a few minutes
 (`cloud-init status --wait` on the host); once DNS points at it, Caddy
 obtains the certificate on its own, and the first admin is created with the
 `db:bootstrap-admin` command above.
+
+Prefer infrastructure-as-code? `infra/terraform/{aws,azure,digitalocean}`
+are three self-contained Terraform roots with an identical variable
+contract — each provisions the VM, firewall (SSH restricted to your admin
+CIDR), static IP, and encrypted disk, and delegates the install to the same
+cloud-init file. Each directory's README is a complete walkthrough.
 
 ::: {.callout-warning}
 ## The dev stack is not a deployment
