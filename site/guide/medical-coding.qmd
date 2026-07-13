@@ -2,17 +2,17 @@
 title: "Medical coding"
 ---
 
-Sites report adverse events and medications in their own words —
+Sites report adverse events and medications in their own words:
 "stomach ake", "asprin 81mg". Analysis needs standardized terms:
 regulatory datasets pair each verbatim with its dictionary-derived
 equivalent (in SDTM, `AETERM` codes to `AEDECOD`, the MedDRA Preferred
 Term, with `AELLT`/`AEBODSYS`/`AESOC` carrying the rest of the
 hierarchy; `CMTRT` codes to `CMDECOD`, the generic drug name in
 WHODrug, with ATC classes in `CMCLAS`). Sites are not expected to be
-coding experts — coding is a data-management activity that happens
+coding experts. Coding is a data-management activity that happens
 after entry, and edc-core gives it its own audited workflow.
 
-## Dictionaries are licensed — bring your own
+## Bring your own licensed dictionary
 
 MedDRA is licensed by the MSSO and WHODrug by the Uppsala Monitoring
 Centre; edc-core ships **no dictionary content** and does not parse
@@ -20,14 +20,14 @@ their native distribution formats. Instead, convert your licensed
 distribution once into a flat CSV (a simple join your distribution
 tooling produces directly) and load it:
 
-**MedDRA** — one row per Lowest Level Term, carrying its primary-SOC
+**MedDRA:** one row per Lowest Level Term, carrying its primary-SOC
 hierarchy path:
 
 ```csv
 llt_code,llt_term,pt_code,pt_term,hlt_code,hlt_term,hlgt_code,hlgt_term,soc_code,soc_term
 ```
 
-**WHODrug** — one row per drug name; ATC columns may be empty:
+**WHODrug:** one row per drug name; ATC columns may be empty:
 
 ```csv
 code,name,atc_code,atc_text
@@ -45,7 +45,7 @@ pnpm --filter @edc-core/api db:load-dictionary -- \
   --type MedDRA --version 27.1 --file meddra-27.1.csv
 ```
 
-Loads are validated whole — a malformed row, empty required field, or
+Loads are validated whole: a malformed row, empty required field, or
 duplicate code rejects the file with its line number. A loaded
 dictionary is immutable; a new release is a new upload with a new
 version label. Dictionaries are global: load MedDRA 27.1 once and
@@ -55,7 +55,7 @@ every study can bind to it.
 
 On the study's **coding** page, anyone with `study.manage` binds the
 study to one dictionary per type. Every coding stamps the dictionary
-version it used, so rebinding mid-study never rewrites history — the
+version it used, so rebinding mid-study never rewrites history; the
 codings made against 27.0 still say 27.0. (Regulatory datasets expect
 exactly that: the dictionary name and version used for coding is
 declared in Define-XML.)
@@ -74,8 +74,8 @@ builder):
 ```
 
 Like blinding, the flag is protocol metadata and versions with the
-build. Blinded items are never codable — coding surfaces show
-verbatims to every coder, which would bypass blinding — and the build
+build. Blinded items are never codable (coding surfaces show
+verbatims to every coder, which would bypass blinding), and the build
 importer warns if an item is flagged both ways.
 
 ## The coding workflow
@@ -101,8 +101,8 @@ record, **not** in the form data:
 **Auto-coding** handles the bulk: one click starts a background run
 that assigns every uncoded verbatim exactly matching a dictionary term
 (case- and whitespace-insensitive; MedDRA matches LLT terms, WHODrug
-matches drug names). Everything else is reported — no match, ambiguous
-match, no dictionary bound — and the run never touches already-coded
+matches drug names). Everything else is reported (no match, ambiguous
+match, no dictionary bound), and the run never touches already-coded
 or stale occurrences. Auto-codings are audited with `origin: auto` and
 the run id, and can be overridden manually at any time.
 
@@ -112,8 +112,8 @@ matches first), review the hierarchy path or ATC class, and assign.
 
 ## Analytics
 
-Every snapshot publish includes a `codings` lake table — the latest
-coding per occurrence with its full stamped path — joinable to any
+Every snapshot publish includes a `codings` lake table, the latest
+coding per occurrence with its full stamped path, joinable to any
 dataset on the occurrence keys:
 
 ```sql
@@ -128,7 +128,7 @@ LEFT JOIN lake.codings c
 One conformance note: regulatory submissions expect coded terms to
 match the dictionary's exact case and spelling. edc-core stores the
 dictionary term verbatim from your converted CSV, so that property is
-inherited from your conversion — convert faithfully.
+inherited from your conversion: convert faithfully.
 
 ## Current limitations
 
@@ -136,7 +136,7 @@ inherited from your conversion — convert faithfully.
   ordinary manual query (requires `query.manage`).
 - No coder/reviewer approval step; a coding is effective when
   assigned.
-- Exact-match auto-coding only — no synonym lists or wildcard rules.
+- Exact-match auto-coding only; no synonym lists or wildcard rules.
 - No SMQ (Standardised MedDRA Queries) support.
 - One coding per item occurrence; repeating item groups code each
   occurrence independently.

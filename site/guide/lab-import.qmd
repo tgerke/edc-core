@@ -4,7 +4,7 @@ title: "Lab data import"
 
 Central labs deliver results as batch files. Instead of keying them in,
 users with the `data.import` permission (data managers and admins by
-default) upload the file, review a dry-run report, and execute — the
+default) upload the file, review a dry-run report, and execute. The
 values land on ordinary eCRF forms through the same audited write path as
 typed data. That one design decision does most of the work: the audit
 trail, edit checks, blinding, SDV, signatures, casebooks, and the
@@ -14,14 +14,14 @@ analytics lake all treat imported values exactly like entered ones.
 
 A CSV file in **tall format**: a header row, then one row per test
 result. RFC 4180 quoting is supported (embedded commas, quotes, and
-newlines), the delimiter is a comma, and files up to 10 MB are accepted —
-roughly a hundred thousand rows. Malformed files (ragged rows,
+newlines), the delimiter is a comma, and files up to 10 MB (roughly a hundred
+thousand rows) are accepted. Malformed files (ragged rows,
 unterminated quotes) are rejected whole.
 
 Column names are whatever your lab sends; the mapping (below) tells
 edc-core what they mean. The examples here use SDTM-style names
 (`USUBJID`, `VISIT`, `LBTESTCD`, `LBORRES`, `LBORRESU`, `LBDTC`) because
-labs and data managers tend to recognize them — that is a naming
+labs and data managers tend to recognize them. That is a naming
 convention borrowed for familiarity, **not** a claim of SDTM conformance;
 the importer neither requires nor produces SDTM datasets.
 
@@ -65,15 +65,15 @@ after configuration.
 - `columns.subjectKey`, `visit`, `testCode`, and `result` are required;
   the rest are optional.
 - `siteOid`, when configured, cross-checks the file's site against the
-  subject's enrolled site — mismatches are errors, not silent accepts.
+  subject's enrolled site; mismatches are errors, not silent accepts.
 - `visitMap` matches the visit column case-insensitively.
 - A test's `unitItemOid` receives the unit column's value; tests without
-  one simply ignore the unit. There is no unit conversion — the file's
+  one simply ignore the unit. There is no unit conversion; the file's
   values are stored as sent.
 - `collectionDateItem` receives the collection date once per form.
 
 OIDs are checked against the study's latest build when a file is
-validated, not when the mapping is saved — builds move, and a stale
+validated, not when the mapping is saved: builds move, and a stale
 mapping should fail loudly at import time.
 
 ## Validate, then execute
@@ -87,23 +87,23 @@ CSV).
 
 The import contract:
 
-- **Missing form instances are created** — central labs usually report
+- **Missing form instances are created.** Central labs usually report
   before the site opens the form, so the importer instantiates the event
   and form exactly as data entry would, with audit rows.
 - **Imports never overwrite.** A row whose value already exists
   identically is skipped, so re-sending a cumulative file is safe and
   idempotent. A row that *differs* from the stored value is reported as a
-  conflict and left untouched — corrections go through the normal entry
+  conflict and left untouched; corrections go through the normal entry
   workflow, with a reason for change.
 - **Forms past data entry are skipped.** Complete, verified, signed, and
   locked forms never accept imported values; reopen them first if the lab
   retransmission is real.
 - **Withdrawn and screen-failed subjects are skipped.** Their rows are
-  reported (`skipped_subject_status`), never written silently — reinstate
+  reported (`skipped_subject_status`), never written silently; reinstate
   the subject first if the disposition is wrong. Completed subjects still
   import: post-completion results are a routine data flow.
 - **Blinded items require `data.unblind`.** A row targeting a blinded
-  item is skipped unless the importing user could also see that value —
+  item is skipped unless the importing user could also see that value,
   the same rule as manual entry.
 - **Edit checks run.** An imported out-of-range value opens a system
   query exactly as a typed one would.
@@ -119,6 +119,6 @@ is permanently distinguishable, and each run writes `lab_import.started`
   item groups are not yet addressable (repeat keys are fixed at 1).
 - No unit conversion; the unit is stored verbatim.
 - If a form is still pinned to an older build that lacks a mapped item,
-  its rows are skipped with a message — run the
+  its rows are skipped with a message; run the
   [amendment migration](study-builds.qmd#mid-study-amendments) first.
 - Mappings cannot be deleted (runs reference them); rename retired ones.
