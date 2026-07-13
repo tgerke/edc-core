@@ -541,6 +541,85 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
     }
   });
 
+  it("routes Python scripts to the py-engine and records them under their language", async () => {
+    // Fake Python engine: same /execute contract as the fake R engine above;
+    // the real engine is services/py-engine.
+    const received: unknown[] = [];
+    const engine = createServer((req, res) => {
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk;
+      });
+      req.on("end", () => {
+        received.push(JSON.parse(body));
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            stdout: "42",
+            resultColumns: ["subject_key", "n"],
+            resultJson: '[["SNAP-001",1]]',
+            elapsedMs: 5,
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => engine.listen(0, resolve));
+    const address = engine.address() as AddressInfo;
+    process.env.PY_ENGINE_URL = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const snapshot = (
+        await server.inject({
+          method: "GET",
+          url: `/studies/${fx.studyId}/snapshots`,
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json().snapshots[0];
+
+      // Python scripts save under their own language tag.
+      const saved = (
+        await server.inject({
+          method: "PUT",
+          url: `/studies/${fx.studyId}/workbench/scripts`,
+          payload: {
+            name: "enrollment-summary-py",
+            language: "python",
+            content: 'lake_read("subjects")',
+          },
+          headers: { authorization: `Bearer ${fx.dmToken}` },
+        })
+      ).json();
+      expect(saved.language).toBe("python");
+
+      const run = await server.inject({
+        method: "POST",
+        url: `/studies/${fx.studyId}/workbench/python`,
+        payload: {
+          snapshotId: snapshot.id,
+          content: saved.content,
+          scriptId: saved.id,
+          scriptVersion: saved.version,
+        },
+        headers: { authorization: `Bearer ${fx.dmToken}` },
+      });
+      expect(run.statusCode).toBe(200);
+      const execution = run.json();
+      expect(execution.language).toBe("python");
+      expect(execution.status).toBe("succeeded");
+      expect(execution.result).toEqual({ columns: ["subject_key", "n"], rows: [["SNAP-001", 1]] });
+
+      // The py-engine got the same study-scoped, version-pinned payload
+      // shape as the r-engine.
+      const payload = received.at(-1) as { metadataSchema: string; version: number };
+      expect(payload.metadataSchema).toBe(fx.schema);
+      expect(String(payload.version)).toBe(snapshot.lakeVersion);
+    } finally {
+      delete process.env.PY_ENGINE_URL;
+      engine.close();
+    }
+  });
+
   it(
     "exports a self-contained study archive zip (P11-06)",
     async () => {

@@ -955,10 +955,12 @@ export function useRunSql(studyId: string) {
   });
 }
 
+export type ScriptLanguage = "r" | "python";
+
 export interface SavedScript {
   id: string;
   name: string;
-  language: "r" | "sql";
+  language: ScriptLanguage | "sql";
   version: number;
   content: string;
   updatedBy: string;
@@ -970,7 +972,7 @@ export interface WorkbenchExecution {
   snapshotId: string;
   scriptId: string | null;
   scriptVersion: number | null;
-  language: "r";
+  language: ScriptLanguage;
   content: string;
   status: "succeeded" | "failed";
   stdout: string | null;
@@ -992,7 +994,7 @@ export function useScripts(studyId: string) {
 export function useSaveScript(studyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; language: "r" | "sql"; content: string }) =>
+    mutationFn: (body: { name: string; language: ScriptLanguage | "sql"; content: string }) =>
       api<SavedScript>(`/studies/${studyId}/workbench/scripts`, {
         method: "PUT",
         body: JSON.stringify(body),
@@ -1001,7 +1003,7 @@ export function useSaveScript(studyId: string) {
   });
 }
 
-export function useRunR(studyId: string) {
+export function useRunScript(studyId: string, language: ScriptLanguage) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: {
@@ -1010,7 +1012,7 @@ export function useRunR(studyId: string) {
       scriptId?: string;
       scriptVersion?: number;
     }) =>
-      api<WorkbenchExecution>(`/studies/${studyId}/workbench/r`, {
+      api<WorkbenchExecution>(`/studies/${studyId}/workbench/${language}`, {
         method: "POST",
         body: JSON.stringify(body),
       }),

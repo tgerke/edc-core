@@ -64,8 +64,9 @@ exportable by system administrators.
 version-pinned; an interim analysis or DB lock references a snapshot that can
 be re-read identically forever.
 
-**Traceable transformations (E6-04).** Workbench SQL and R executions are
-recorded with their full code, logs, outputs, actor, and snapshot version.
+**Traceable transformations (E6-04).** Workbench SQL, R, and Python
+executions are recorded with their full code, logs, outputs, actor, and
+snapshot version.
 
 **Accurate and complete copies (P11-06).** The study archive is a
 self-contained bundle — ODM metadata, Dataset-JSON/CSV data, complete audit

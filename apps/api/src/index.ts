@@ -25,7 +25,7 @@ if (sweptCoding > 0) {
 }
 
 // Catalogs written by an older DuckLake spec are upgraded in place before
-// traffic; READ_ONLY attaches (workbench, r-engine, exports) cannot migrate
+// traffic; READ_ONLY attaches (workbench, engine sidecars, exports) cannot migrate
 // and would fail on stale catalogs.
 const lakes = await migrateAllLakeCatalogs(server.db);
 if (lakes.migrated.length > 0) {

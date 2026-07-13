@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Python workbench sidecar (#65)
+- `services/py-engine`: Python analytics engine with the same execution
+  contract and containment as the R engine — study-scoped READ_ONLY lake
+  attach, version-pinned views, locked DuckDB session, fresh subprocess per
+  run; duckdb pinned 1.5.x in lockstep with the API (#64)
+- The workbench gains a Python tab; scripts save and version under
+  `language: "python"`, and every execution records its exact content,
+  snapshot, logs, and outputs (the E6-04 pattern, identical to R)
+- New published image `ghcr.io/tgerke/edc-core-py-engine`; compose service
+  `py-engine` (host port 8001)
+- No database migration: the language columns were already free-text
+
 ## v0.3.0 — security monitoring and a complete traceability matrix (2026-07)
 
 The traceability matrix reaches all-🟢: every requirement row now maps to

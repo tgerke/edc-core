@@ -19,3 +19,4 @@ validation-pack/
 # Quarto docs site build output
 site/_site/
 site/.quarto/
+__pycache__/
