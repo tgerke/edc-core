@@ -13,7 +13,7 @@
 
 name: edc-core
 
-x-database-url: &database-url ${DATABASE_URL:-postgres://edc:${POSTGRES_PASSWORD}@postgres:5432/edc}
+x-database-url: &database-url ${DATABASE_URL:-postgres://edc:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD (or DATABASE_URL) in .env}@postgres:5432/edc}
 
 services:
   caddy:
@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: edc
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: edc
     volumes:
       - pgdata:/var/lib/postgresql/data
