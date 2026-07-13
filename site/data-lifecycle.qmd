@@ -183,8 +183,17 @@ Two governance topics sit beside the lifecycle elements:
   land on blinded items via write-only service accounts. Unblinded access is
   a distinct permission (`data.unblind`) granted and revoked through the
   audited team workflow, so the roles and procedures §4.1.2 asks you to
-  define map onto grants you can review — and the grant history documents
-  who could see unblinded data, and when, for §4.1.4.
+  define map onto grants you can review. §4.1.4's documentation duty is
+  covered from both sides: the grant history records who could see
+  unblinded data and when, and the explicit **break-the-blind action**
+  records each unblinding event itself — per subject, with a category
+  (planned, or unplanned: emergency, inadvertent, other) and a required
+  reason, append-only, audited as `subject.unblinded`, and printed in the
+  subject's casebook. Breaking the blind is documentation, not a switch:
+  masking of blinded values stays governed by `data.unblind` grants, because
+  one subject's emergency unblinding must not unmask them for every viewer.
+  Assessing an unplanned unblinding's impact on trial results (§4.1.4) is
+  yours to decide and document.
 - **Computerised systems** (§4.3): validation evidence ships per release as
   the [validation pack](compliance.qmd); security controls, backup, and
   monitoring are the [deployment page](deployment.qmd). Training (§4.3.2)

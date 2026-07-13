@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Explicit break-the-blind action (#66, E6-13)
+- Per-subject unblind action gated by `data.unblind`: category (planned, or
+  unplanned — emergency/inadvertent/other, the E6(R3) §4.1.4 taxonomy) and
+  reason required
+- Events land in the new append-only `subject_unblindings` table (migration
+  0020) and the audit trail (`subject.unblinded`); the subject matrix shows
+  an *unblinded* badge and the casebook PDF prints an "Unblinding events"
+  section
+- Recording only: masking of blinded values stays governed by
+  `data.unblind` grants
+
 ### Python workbench sidecar (#65)
 - `services/py-engine`: Python analytics engine with the same execution
   contract and containment as the R engine — study-scoped READ_ONLY lake
