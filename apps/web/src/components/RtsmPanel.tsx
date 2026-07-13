@@ -1,13 +1,22 @@
+import {
+  formsForEvent,
+  type MetaDataVersion,
+  type ResolvedGroup,
+  type ResolvedItem,
+  resolveGroup,
+} from "@edc-core/odm";
 import { useState } from "react";
 import {
   type MintedRtsmKey,
   type RtsmEvent,
+  useMetadataVersions,
   useMintRtsmKey,
   useRevokeRtsmKey,
   useRtsmConfig,
   useRtsmEvents,
   useRtsmKeys,
   useSaveRtsmConfig,
+  useStudyBuild,
 } from "../api/hooks.js";
 import { Badge, Button, Card, ErrorNote, Spinner } from "./ui.js";
 
@@ -18,14 +27,127 @@ const OUTCOME_TONES: Record<RtsmEvent["outcome"], "emerald" | "sky" | "amber"> =
   rejected: "amber",
 };
 
-const CONFIG_FIELDS = [
-  ["eventOid", "Event OID", "SE.RAND"],
-  ["formOid", "Form OID", "FO.RAND"],
-  ["itemGroupOid", "Item group OID", "IG.RAND"],
-  ["itemOid", "Arm item OID", "IT.ARM"],
-] as const;
+interface ConfigDraft {
+  eventOid: string;
+  formOid: string;
+  itemGroupOid: string;
+  itemOid: string;
+  enabled: boolean;
+}
 
-type ConfigDraft = Record<(typeof CONFIG_FIELDS)[number][0], string> & { enabled: boolean };
+/** Groups (nested included) that directly contain items, in document order. */
+function groupsWithItems(root: ResolvedGroup): { oid: string; name: string }[] {
+  const out: { oid: string; name: string }[] = [];
+  const visit = (group: ResolvedGroup) => {
+    if (group.children.some((c) => c.kind === "item")) {
+      out.push({ oid: group.def.oid, name: group.def.name });
+    }
+    for (const child of group.children) if (child.kind === "group") visit(child);
+  };
+  visit(root);
+  return out;
+}
+
+function itemsOfGroup(root: ResolvedGroup, groupOid: string): ResolvedItem[] {
+  let found: ResolvedItem[] = [];
+  const visit = (group: ResolvedGroup) => {
+    if (group.def.oid === groupOid) {
+      found = group.children.filter((c): c is ResolvedItem => c.kind === "item");
+    }
+    for (const child of group.children) if (child.kind === "group") visit(child);
+  };
+  visit(root);
+  return found;
+}
+
+function OidSelect({
+  title,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  title: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { oid: string; label: string }[];
+  disabled?: boolean;
+}) {
+  return (
+    <label className="text-xs text-zinc-500">
+      {title}
+      <select
+        className="mt-0.5 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-800"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        title={title}
+      >
+        <option value="">Select…</option>
+        {options.map((option) => (
+          <option key={option.oid} value={option.oid}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Cascading pickers driven by the latest build (#68): each level narrows
+ * the next, and changing a parent clears everything downstream. */
+function ConfigPickers({
+  mdv,
+  draft,
+  setDraft,
+}: {
+  mdv: MetaDataVersion;
+  draft: ConfigDraft;
+  setDraft: (draft: ConfigDraft) => void;
+}) {
+  const forms = draft.eventOid ? formsForEvent(mdv, draft.eventOid) : [];
+  const resolvedForm = draft.formOid ? resolveGroup(mdv, draft.formOid) : null;
+  const groups = resolvedForm ? groupsWithItems(resolvedForm) : [];
+  const items =
+    resolvedForm && draft.itemGroupOid ? itemsOfGroup(resolvedForm, draft.itemGroupOid) : [];
+
+  return (
+    <div className="grid max-w-xl grid-cols-2 gap-2">
+      <OidSelect
+        title="Event"
+        value={draft.eventOid}
+        options={mdv.studyEventDefs.map((e) => ({ oid: e.oid, label: `${e.name} (${e.oid})` }))}
+        onChange={(eventOid) =>
+          setDraft({ ...draft, eventOid, formOid: "", itemGroupOid: "", itemOid: "" })
+        }
+      />
+      <OidSelect
+        title="Form"
+        value={draft.formOid}
+        options={forms.map((f) => ({ oid: f.oid, label: `${f.name} (${f.oid})` }))}
+        onChange={(formOid) => setDraft({ ...draft, formOid, itemGroupOid: "", itemOid: "" })}
+        disabled={draft.eventOid === ""}
+      />
+      <OidSelect
+        title="Item group"
+        value={draft.itemGroupOid}
+        options={groups.map((g) => ({ oid: g.oid, label: `${g.name} (${g.oid})` }))}
+        onChange={(itemGroupOid) => setDraft({ ...draft, itemGroupOid, itemOid: "" })}
+        disabled={draft.formOid === ""}
+      />
+      <OidSelect
+        title="Arm item"
+        value={draft.itemOid}
+        options={items.map((i) => ({
+          oid: i.def.oid,
+          label: `${i.def.name} (${i.def.oid})${i.def.blinded ? " — blinded" : ""}`,
+        }))}
+        onChange={(itemOid) => setDraft({ ...draft, itemOid })}
+        disabled={draft.itemGroupOid === ""}
+      />
+    </div>
+  );
+}
 
 export function RtsmPanel({ studyId }: { studyId: string }) {
   const { data: config, isPending } = useRtsmConfig(studyId);
@@ -34,6 +156,10 @@ export function RtsmPanel({ studyId }: { studyId: string }) {
   const mintKey = useMintRtsmKey(studyId);
   const revokeKey = useRevokeRtsmKey(studyId);
   const { data: events } = useRtsmEvents(studyId);
+  const { data: versions } = useMetadataVersions(studyId);
+  const latestVersion = versions?.reduce((max, v) => Math.max(max, v.version), 0) ?? 0;
+  const { data: build } = useStudyBuild(studyId, latestVersion);
+  const mdv = latestVersion > 0 ? build?.study?.metaDataVersions[0] : undefined;
 
   const [draft, setDraft] = useState<ConfigDraft | null>(null);
   const [label, setLabel] = useState("");
@@ -111,39 +237,31 @@ export function RtsmPanel({ studyId }: { studyId: string }) {
           {!config && !draft && !isPending ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-zinc-500">
-                Not configured — pick the eCRF item where incoming randomization arms land.
+                {mdv
+                  ? "Not configured — pick the eCRF item where incoming randomization arms land."
+                  : "Not configured — publish a study build first, then pick the arm item here."}
               </span>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  setDraft({
-                    eventOid: "",
-                    formOid: "",
-                    itemGroupOid: "",
-                    itemOid: "",
-                    enabled: true,
-                  })
-                }
-              >
-                Configure
-              </Button>
+              {mdv ? (
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    setDraft({
+                      eventOid: "",
+                      formOid: "",
+                      itemGroupOid: "",
+                      itemOid: "",
+                      enabled: true,
+                    })
+                  }
+                >
+                  Configure
+                </Button>
+              ) : null}
             </div>
           ) : null}
-          {draft ? (
+          {draft && mdv ? (
             <div className="space-y-2 rounded-lg bg-zinc-50 p-3 ring-1 ring-zinc-200">
-              <div className="grid max-w-xl grid-cols-2 gap-2">
-                {CONFIG_FIELDS.map(([field, title, placeholder]) => (
-                  <label key={field} className="text-xs text-zinc-500">
-                    {title}
-                    <input
-                      className="mt-0.5 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1 font-mono text-xs text-zinc-800"
-                      placeholder={placeholder}
-                      value={draft[field]}
-                      onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}
-                    />
-                  </label>
-                ))}
-              </div>
+              <ConfigPickers mdv={mdv} draft={draft} setDraft={setDraft} />
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -156,7 +274,11 @@ export function RtsmPanel({ studyId }: { studyId: string }) {
                 <Button
                   onClick={onSaveConfig}
                   disabled={
-                    saveConfig.isPending || CONFIG_FIELDS.some(([field]) => draft[field] === "")
+                    saveConfig.isPending ||
+                    draft.eventOid === "" ||
+                    draft.formOid === "" ||
+                    draft.itemGroupOid === "" ||
+                    draft.itemOid === ""
                   }
                 >
                   {saveConfig.isPending ? "Saving…" : "Save configuration"}
@@ -166,8 +288,8 @@ export function RtsmPanel({ studyId }: { studyId: string }) {
                 </Button>
               </div>
               <p className="text-xs text-zinc-500">
-                OIDs are validated against the latest study build on save. Blind the arm item
-                (edc:Blinded) in the build if this study is masked.
+                Choices come from the latest study build and are re-validated on save. Blind the arm
+                item (edc:Blinded) in the build if this study is masked.
               </p>
             </div>
           ) : null}
