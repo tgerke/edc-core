@@ -59,7 +59,13 @@ See [docs/architecture.md](docs/architecture.md) and the [architecture decision 
 
 ## Quick start (development)
 
-Requires Node ≥ 22, pnpm ≥ 9, and Podman (or Docker).
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tgerke/edc-core?quickstart=1)
+
+No local setup: the badge above boots the full dev stack with the demo
+study seeded in a free GitHub Codespace (~3 minutes; sign in as `admin` /
+`edc-demo-admin`, or as any seeded clinical role with `edc-demo-users`).
+
+Locally instead: requires Node ≥ 22, pnpm ≥ 9, and Podman (or Docker).
 
 ```sh
 pnpm install
