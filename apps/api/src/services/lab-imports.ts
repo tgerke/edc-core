@@ -17,8 +17,10 @@ import { blindedItemOids, canUnblind } from "./blinding.js";
 import {
   CaptureError,
   ensureFormInstance,
+  INTAKE_BLOCKED_STATUSES,
   latestMetadataVersion,
   resolveFormContext,
+  type SubjectStatus,
   writeItemValue,
 } from "./capture.js";
 import { evaluateFormChecks } from "./checks.js";
@@ -157,6 +159,7 @@ export const ROW_OUTCOMES = [
   "skipped_unchanged",
   "conflict_existing_value",
   "skipped_form_status",
+  "skipped_subject_status",
   "skipped_blinded",
   "error_no_subject",
   "error_site_mismatch",
@@ -362,7 +365,12 @@ export async function analyzeLabImport(db: Db, input: LabImportInput): Promise<L
     name === undefined ? "" : (row.fields[columnIndex.get(name) as number] ?? "").trim();
 
   const studySubjects = await db
-    .select({ id: subjects.id, subjectKey: subjects.subjectKey, siteId: subjects.siteId })
+    .select({
+      id: subjects.id,
+      subjectKey: subjects.subjectKey,
+      siteId: subjects.siteId,
+      status: subjects.status,
+    })
     .from(subjects)
     .where(eq(subjects.studyId, input.studyId));
   const subjectsByKey = new Map(studySubjects.map((s) => [s.subjectKey, s]));
@@ -400,6 +408,15 @@ export async function analyzeLabImport(db: Db, input: LabImportInput): Promise<L
         ...issueBase,
         message:
           subjectKey === "" ? "subject key is empty" : `subject "${subjectKey}" is not enrolled`,
+      });
+      continue;
+    }
+    // Status-aware intake (#67): rows for subjects who are out of the study
+    // are skipped and reported, like conflicts — never written silently.
+    if (INTAKE_BLOCKED_STATUSES.includes(subject.status as SubjectStatus)) {
+      staticOutcomes.add("skipped_subject_status", {
+        ...issueBase,
+        message: `subject "${subjectKey}" is ${subject.status}; reinstate before importing`,
       });
       continue;
     }

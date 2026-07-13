@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Status-aware RTSM intake and lab import (#67)
+- Automated intake refuses subjects who are out of the study: RTSM
+  assignments for withdrawn/screen-failed subjects are `rejected` (422,
+  reconcilable event row), lab-import rows are skipped and reported
+  (`skipped_subject_status`)
+- Completed subjects still accept data (post-completion results are
+  routine); reinstatement is the correction path
+- No migration; humans are unaffected (statuses remain disposition, not
+  locks)
+
 ### Explicit break-the-blind action (#66, E6-13)
 - Per-subject unblind action gated by `data.unblind`: category (planned, or
   unplanned — emergency/inadvertent/other, the E6(R3) §4.1.4 taxonomy) and
