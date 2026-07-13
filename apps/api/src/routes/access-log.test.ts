@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { loadAuthConfig } from "../auth/config.js";
 import { hashPassword } from "../auth/password.js";
 import { createDb, databaseUrl } from "../db/client.js";
 import { runMigrations } from "../db/migrate.js";
@@ -253,6 +254,63 @@ describe.skipIf(!dbAvailable)("access log & session binding (integration)", () =
         );
       expect(event?.oldValue).toMatchObject({ ip: "10.1.1.1" });
       expect(event?.newValue).toMatchObject({ ip: "10.2.2.2" });
+    });
+
+    it("EDC_SESSION_UA_STRICT=0 downgrades a UA mismatch to audit-and-rebind (#69)", async () => {
+      // Same db, second server with the kill-switch off (trust-proxy pattern).
+      const lax = await buildServer({
+        db,
+        authConfig: { ...loadAuthConfig(), sessionUaStrict: false },
+      });
+      await lax.ready();
+      try {
+        const loginRes = await lax.inject({
+          method: "POST",
+          url: "/auth/login",
+          payload: { username: fx.plainUsername, password: PASSWORD },
+          headers: { "user-agent": "managed-browser/1.0" },
+        });
+        expect(loginRes.statusCode).toBe(200);
+        const token = loginRes.json().token as string;
+        const session = await sessionFor(token);
+
+        const roamed = await lax.inject({
+          method: "GET",
+          url: "/auth/me",
+          headers: { authorization: `Bearer ${token}`, "user-agent": "managed-browser/2.0" },
+        });
+        expect(roamed.statusCode).toBe(200);
+
+        // Rebound once, not revoked; the violation is still audited.
+        const updated = await sessionFor(token);
+        expect(updated?.revokedAt).toBeNull();
+        expect(updated?.userAgent).toBe("managed-browser/2.0");
+
+        const again = await lax.inject({
+          method: "GET",
+          url: "/auth/me",
+          headers: { authorization: `Bearer ${token}`, "user-agent": "managed-browser/2.0" },
+        });
+        expect(again.statusCode).toBe(200);
+
+        const events = await db
+          .select()
+          .from(auditEvents)
+          .where(
+            and(
+              eq(auditEvents.action, "auth.session_binding_violation"),
+              eq(auditEvents.entityId, session?.id ?? ""),
+            ),
+          );
+        expect(events).toHaveLength(1);
+        expect(events[0]?.oldValue).toMatchObject({ userAgent: "managed-browser/1.0" });
+        expect(events[0]?.newValue).toMatchObject({
+          userAgent: "managed-browser/2.0",
+          enforced: false,
+        });
+      } finally {
+        await lax.close();
+      }
     });
   });
 
