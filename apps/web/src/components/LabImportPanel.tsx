@@ -17,6 +17,7 @@ const OUTCOME_LABELS: Record<string, string> = {
   skipped_unchanged: "unchanged (skipped)",
   conflict_existing_value: "conflicts with existing value",
   skipped_form_status: "form past data entry",
+  skipped_subject_status: "subject withdrawn/screen-failed",
   skipped_blinded: "blinded (no data.unblind)",
   skipped_pinned_build: "form pinned to older build",
   error_no_subject: "unknown subject",

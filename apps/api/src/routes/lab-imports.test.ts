@@ -572,4 +572,34 @@ describe.skipIf(!dbAvailable)("lab data import (integration)", () => {
     expect(after?.status).toBe("failed");
     expect(after?.finishedAt).not.toBeNull();
   });
+
+  it("skips and reports rows for withdrawn subjects (#67)", async () => {
+    const enrolled = await inject(fx.adminToken, {
+      method: "POST",
+      url: `/studies/${fx.studyId}/subjects`,
+      payload: { siteId: fx.siteAId, subjectKey: "S-003" },
+    });
+    expect(enrolled.statusCode).toBe(201);
+    const subjectId = enrolled.json().id;
+    const withdrawn = await inject(fx.adminToken, {
+      method: "POST",
+      url: `/subjects/${subjectId}/status`,
+      payload: { action: "withdraw", reason: "consent withdrawn" },
+    });
+    expect(withdrawn.statusCode).toBe(200);
+
+    const run = await importCsv(
+      fx.dmToken,
+      [HEADER, "S-003,SITE.A,SCREENING,ALT,55,U/L,2026-07-01"].join("\n"),
+    );
+    expect(run.status).toBe("completed_with_errors");
+    expect(run.counts).toEqual({ skipped_subject_status: 1 });
+    expect(run.issues[0]).toMatchObject({
+      outcome: "skipped_subject_status",
+      subjectKey: "S-003",
+    });
+    expect(run.issues[0].message).toMatch(/withdrawn.*reinstate/);
+    // Nothing was written: no form instance exists for the subject.
+    expect(await formInstance(subjectId, "SE.SCR")).toBeFalsy();
+  });
 });
