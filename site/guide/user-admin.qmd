@@ -18,17 +18,17 @@ everything they signed.
 
 Creating an account takes a username, email, full name, and one choice:
 
-- **Local password** — edc-core generates a temporary password and shows
+- **Local password:** edc-core generates a temporary password and shows
   it exactly once. Share it with the user securely; it is not stored,
   logged, or recoverable. The user must replace it at first sign-in
   (below).
-- **SSO** — no local password is created. When the user first signs in
+- **SSO:** no local password is created. When the user first signs in
   through your identity provider, the account links automatically by
   verified email.
 
 ## Temporary passwords
 
-A password issued by an administrator — at account creation or reset — is
+A password issued by an administrator (at account creation or reset) is
 a *temporary credential*: the session it opens can reach nothing but the
 change-password form, enforced server-side, until the user sets a
 password only they know. Administrators never know a user's working
@@ -44,18 +44,18 @@ account.
   also expire on its own).
 - **Reset password** issues a new show-once temporary password, signs the
   user out everywhere, and reimposes the first-sign-in change requirement.
-  SSO-only accounts have no password to reset — manage those credentials
+  SSO-only accounts have no password to reset; manage those credentials
   in your identity provider.
 - **Deactivate** blocks sign-in *and revokes every live session
-  immediately* — access ends when you click, not at the next session
+  immediately*: access ends when you click, not at the next session
   timeout. Reactivate restores sign-in; the account's history is
   untouched either way.
 
 ## Study teams
 
 Each study has a **Team** page (linked from the study header). Every
-member of the study can see the team — who holds which role, at which
-scope, granted when and by whom — since that is their own delegation
+member of the study can see the team (who holds which role, at which
+scope, granted when and by whom), since that is their own delegation
 context.
 
 ![](../images/team.png){.screenshot fig-alt="Study team page listing role grants with their scopes"} Changing the team requires the `roles.grant` permission (held
@@ -64,25 +64,25 @@ a brand-new study's first grant is reachable).
 
 A grant is a **role at a scope**: either study-wide or narrowed to one
 site. Site-scoped grants only confer their capabilities for subjects at
-that site — a coordinator granted `data_entry` at Site A cannot enter
+that site: a coordinator granted `data_entry` at Site A cannot enter
 data for Site B. The same role can be held at several scopes; an
 identical duplicate is refused. Revoking a grant takes effect
 immediately, and revoke-then-regrant is an ordinary sequence (staff
-returning to a study) — every cycle stays its own audited record.
+returning to a study); every cycle stays its own audited record.
 
 Roles are the seeded catalog (`admin`, `data_manager`, `investigator`,
 `data_entry`, `monitor`, `read_only`); the `rtsm_agent` machine role is
 deliberately absent from the picker. Users are found by name, username,
-or email — the search requires `roles.grant` and returns only enough to
+or email. The search requires `roles.grant` and returns only enough to
 pick the right person, so there is no browsable user directory.
 
 ## System administrators
 
 The system-admin flag (create studies, manage users and dictionaries) is
 separate from study-level roles: it deliberately confers **no clinical
-capability** — a system administrator cannot enter, verify, or sign data
+capability**. A system administrator cannot enter, verify, or sign data
 without an ordinary audited role grant. Toggling the flag is itself
-audited, and you cannot change or deactivate your own account — a second
+audited, and you cannot change or deactivate your own account. A second
 administrator has to do it, so a lone admin can't lock the deployment
 out of administration.
 
@@ -90,7 +90,7 @@ out of administration.
 
 System administrators have an **Access log** page (linked from the
 Studies header) recording every API request: who made it, from which
-address and client, against which path, and with what result — including
+address and client, against which path, and with what result, including
 unauthenticated attempts. Filter by username, IP address, path prefix,
 or status code, and export the current view to CSV for an inspection
 copy. Retention is your deployment's call; the table is ordinary
@@ -102,8 +102,8 @@ Sessions are also **bound to the client they were issued to**. A session
 token presented by a different browser than the one that signed in is
 treated as stolen: the session is revoked immediately and the violation
 recorded in the audit trail (`auth.session_binding_violation`). A change
-of IP address alone does not end the session — networks legitimately
-roam — but it is audited too (`auth.session_ip_changed`), so unusual
+of IP address alone does not end the session (networks legitimately
+roam), but it is audited too (`auth.session_ip_changed`), so unusual
 access patterns are reviewable after the fact.
 
 ## Security anomalies
@@ -113,7 +113,7 @@ What the access log and audit trail record, a background sweep also
 lockouts, and session binding violations each raise a **security
 anomaly**. Findings notify system administrators and wait under
 **Anomalies** (linked from the Studies header) for review;
-acknowledging one — with a note on what was done — writes the recorded
+acknowledging one, with a note on what was done, writes the recorded
 response to the audit trail.
 
 ![](../images/anomalies.png){.screenshot fig-alt="Security anomalies review page with open findings and acknowledge actions"}
