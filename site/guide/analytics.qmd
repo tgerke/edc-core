@@ -3,8 +3,8 @@ title: "Analytics workbench"
 ---
 
 Most EDC systems make operational reporting a vendor-locked afterthought.
-edc-core gives data managers **real SQL and real R, inside the EDC**, against
-versioned, analysis-ready study datasets.
+edc-core gives data managers **real SQL, R, and Python, inside the EDC**,
+against versioned, analysis-ready study datasets.
 
 ## Snapshots
 
@@ -31,15 +31,20 @@ selected study's snapshot (isolation is physical, at attach time — not a
 convention). Results are capped at 5,000 rows with a 30-second timeout, are
 downloadable as CSV, and **every execution is audited with its SQL text**.
 
-## R
+## R and Python
 
-The R tab sends scripts to a sandboxed server-side R container (Rocker +
-plumber). Each run executes in a fresh subprocess against the same pinned
-snapshot, with two helpers in scope:
+The R and Python tabs send scripts to sandboxed server-side containers (R:
+Rocker + plumber; Python: duckdb + pandas). Each run executes in a fresh
+subprocess against the same pinned snapshot, with two helpers in scope:
 
 ```r
 vs <- lake_read("ig_vs")     # a table as a data.frame
 lake_query("SELECT ...")      # arbitrary DuckDB SQL, as a data.frame
+```
+
+```python
+vs = lake_read("ig_vs")      # a table as a pandas DataFrame
+lake_query("SELECT ...")     # arbitrary DuckDB SQL, as a DataFrame
 ```
 
 Console output, the last data-frame result, and timing come back to the

@@ -62,6 +62,8 @@ E6-04), and saved scripts are versioned append-only.
 **Python later.** A Python sidecar can implement the same execution
 contract (attach payload in, `{ok, stdout, resultColumns, resultJson}` out)
 with zero changes to the API or UI beyond a language tag.
+*Update 2026-07: shipped as `services/py-engine` (#65), on exactly these
+terms.*
 
 ## Consequences
 

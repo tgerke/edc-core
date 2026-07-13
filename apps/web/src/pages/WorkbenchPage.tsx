@@ -2,12 +2,13 @@ import { useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   type SavedScript,
+  type ScriptLanguage,
   type Snapshot,
   type SnapshotTable,
   useExecutions,
   usePermissions,
   usePublishSnapshot,
-  useRunR,
+  useRunScript,
   useRunSql,
   useSaveScript,
   useScripts,
@@ -221,18 +222,28 @@ function SqlPanel({
   );
 }
 
-function RPanel({
+const LANGUAGE_LABEL: Record<ScriptLanguage, string> = { r: "R", python: "Python" };
+
+const SCRIPT_PLACEHOLDER: Record<ScriptLanguage, string> = {
+  r: '# The snapshot is exposed as read-only, version-pinned views.\n# lake_read("table") returns a data.frame; lake_query(sql) runs DuckDB SQL.\nvs <- lake_read("subjects")\nnrow(vs)\nlake_query("SELECT site_oid, count(*) AS n FROM subjects GROUP BY site_oid")',
+  python:
+    '# The snapshot is exposed as read-only, version-pinned views.\n# lake_read("table") returns a pandas DataFrame; lake_query(sql) runs DuckDB SQL.\n# The last expression becomes the result grid.\nvs = lake_read("subjects")\nlen(vs)\nlake_query("SELECT site_oid, count(*) AS n FROM subjects GROUP BY site_oid")',
+};
+
+function ScriptPanel({
   studyId,
   snapshot,
   canRun,
+  language,
 }: {
   studyId: string;
   snapshot: Snapshot;
   canRun: boolean;
+  language: ScriptLanguage;
 }) {
   const { data: scripts } = useScripts(studyId);
   const saveScript = useSaveScript(studyId);
-  const runR = useRunR(studyId);
+  const runScript = useRunScript(studyId, language);
   const { data: executions } = useExecutions(studyId);
 
   const [content, setContent] = useState("");
@@ -241,17 +252,17 @@ function RPanel({
   const [execution, setExecution] = useState<WorkbenchExecution | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const rScripts = (scripts ?? []).filter((s) => s.language === "r");
+  const languageScripts = (scripts ?? []).filter((s) => s.language === language);
 
   async function run() {
-    if (!content.trim() || runR.isPending) return;
+    if (!content.trim() || runScript.isPending) return;
     setError(null);
     const pinned =
       loaded && loaded.content === content
         ? { scriptId: loaded.id, scriptVersion: loaded.version }
         : {};
     try {
-      setExecution(await runR.mutateAsync({ snapshotId: snapshot.id, content, ...pinned }));
+      setExecution(await runScript.mutateAsync({ snapshotId: snapshot.id, content, ...pinned }));
     } catch (err) {
       setExecution(null);
       setError((err as Error).message);
@@ -262,7 +273,7 @@ function RPanel({
     if (!name.trim() || !content.trim() || saveScript.isPending) return;
     setError(null);
     try {
-      setLoaded(await saveScript.mutateAsync({ name: name.trim(), language: "r", content }));
+      setLoaded(await saveScript.mutateAsync({ name: name.trim(), language, content }));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -275,7 +286,7 @@ function RPanel({
           className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm"
           value={loaded?.id ?? ""}
           onChange={(e) => {
-            const script = rScripts.find((s) => s.id === e.target.value) ?? null;
+            const script = languageScripts.find((s) => s.id === e.target.value) ?? null;
             setLoaded(script);
             if (script) {
               setContent(script.content);
@@ -284,7 +295,7 @@ function RPanel({
           }}
         >
           <option value="">unsaved script…</option>
-          {rScripts.map((s) => (
+          {languageScripts.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name} (v{s.version})
             </option>
@@ -306,9 +317,7 @@ function RPanel({
       </div>
       <textarea
         className={editorClass()}
-        placeholder={
-          '# The snapshot is exposed as read-only, version-pinned views.\n# lake_read("table") returns a data.frame; lake_query(sql) runs DuckDB SQL.\nvs <- lake_read("subjects")\nnrow(vs)\nlake_query("SELECT site_oid, count(*) AS n FROM subjects GROUP BY site_oid")'
-        }
+        placeholder={SCRIPT_PLACEHOLDER[language]}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={(e) => {
@@ -320,8 +329,8 @@ function RPanel({
         spellCheck={false}
       />
       <div className="mt-2 flex items-center gap-3">
-        <Button onClick={run} disabled={!canRun || runR.isPending || !content.trim()}>
-          {runR.isPending ? "Running in R…" : "Run (⌘⏎)"}
+        <Button onClick={run} disabled={!canRun || runScript.isPending || !content.trim()}>
+          {runScript.isPending ? `Running in ${LANGUAGE_LABEL[language]}…` : "Run (⌘⏎)"}
         </Button>
         {execution ? (
           <span className="text-xs text-zinc-500">
@@ -377,6 +386,7 @@ function RPanel({
               {executions.map((e) => (
                 <li key={e.id} className="flex items-center gap-3 px-3 py-2">
                   <Badge tone={e.status === "succeeded" ? "emerald" : "amber"}>{e.status}</Badge>
+                  <Badge tone="zinc">{LANGUAGE_LABEL[e.language]}</Badge>
                   <span className="font-mono text-xs text-zinc-600">
                     {e.content.split("\n")[0]?.slice(0, 60)}
                   </span>
@@ -409,7 +419,7 @@ export function WorkbenchPage() {
     if (!snapshotId && published[0]) setSnapshotId(published[0].id);
   }, [snapshotId, published]);
 
-  const [mode, setMode] = useState<"sql" | "r">("sql");
+  const [mode, setMode] = useState<"sql" | ScriptLanguage>("sql");
   const [sql, setSql] = useState("");
   const [note, setNote] = useState("");
 
@@ -418,7 +428,7 @@ export function WorkbenchPage() {
 
   return (
     <div>
-      <PageTitle sub="Self-service SQL and R over published snapshots — every run is read-only against an immutable point-in-time dataset. Operational analytics, not validated statistical output.">
+      <PageTitle sub="Self-service SQL, R, and Python over published snapshots — every run is read-only against an immutable point-in-time dataset. Operational analytics, not validated statistical output.">
         Analytics workbench
       </PageTitle>
 
@@ -493,14 +503,14 @@ export function WorkbenchPage() {
 
           <div>
             <div className="mb-3 flex gap-1 rounded-lg bg-zinc-100 p-1 text-sm w-fit">
-              {(["sql", "r"] as const).map((m) => (
+              {(["sql", "r", "python"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   className={`rounded-md px-4 py-1 font-medium ${mode === m ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
                   onClick={() => setMode(m)}
                 >
-                  {m === "sql" ? "SQL" : "R"}
+                  {m === "sql" ? "SQL" : LANGUAGE_LABEL[m]}
                 </button>
               ))}
             </div>
@@ -518,7 +528,14 @@ export function WorkbenchPage() {
                 setSql={setSql}
               />
             ) : (
-              <RPanel studyId={studyId} snapshot={selected} canRun={canRun} />
+              // Keyed by language so editor state doesn't bleed between R and Python.
+              <ScriptPanel
+                key={mode}
+                studyId={studyId}
+                snapshot={selected}
+                canRun={canRun}
+                language={mode}
+              />
             )}
           </div>
         </div>

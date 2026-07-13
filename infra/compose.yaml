@@ -27,10 +27,13 @@ services:
       # DuckLake analytics layer: Parquet files here, catalog in Postgres
       # (one schema + subdirectory per study) — no separate analytics server.
       LAKE_DATA_PATH: /var/lib/edc/lake
-      # R engine sidecar; it sees the same Postgres and lake volume.
+      # Engine sidecars; each sees the same Postgres and lake volume.
       R_ENGINE_URL: http://r-engine:8000
       R_ENGINE_CATALOG_URL: postgres://edc:edc-dev-only@postgres:5432/edc
       R_ENGINE_LAKE_PATH: /var/lib/edc/lake
+      PY_ENGINE_URL: http://py-engine:8000
+      PY_ENGINE_CATALOG_URL: postgres://edc:edc-dev-only@postgres:5432/edc
+      PY_ENGINE_LAKE_PATH: /var/lib/edc/lake
     ports:
       - "3000:3000"
     volumes:
@@ -48,11 +51,27 @@ services:
     depends_on:
       - api
 
+  # init: the engine servers run as PID 1 and kill timed-out script
+  # subprocesses; anything those scripts spawned reparents to PID 1 and
+  # would sit as a zombie without an init to reap it.
   r-engine:
     build:
       context: ../services/r-engine
+    init: true
     ports:
       - "8000:8000"
+    volumes:
+      - lakedata:/var/lib/edc/lake:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  py-engine:
+    build:
+      context: ../services/py-engine
+    init: true
+    ports:
+      - "8001:8000"
     volumes:
       - lakedata:/var/lib/edc/lake:ro
     depends_on:

@@ -1,0 +1,17 @@
+# Host-development overlay: run the API on the host (`pnpm --filter
+# @edc-core/api dev`, with the engine env from CONTRIBUTING.md) against
+# containerized Postgres and engine sidecars. The host API writes the lake
+# under apps/api/data/lake, so the engines must read that directory instead
+# of the compose volume — their READ_ONLY attach maps the catalog's host
+# paths onto this mount via OVERRIDE_DATA_PATH.
+#
+#   podman compose -f infra/compose.yaml -f infra/compose.dev.yaml \
+#     up -d postgres r-engine py-engine
+services:
+  r-engine:
+    volumes:
+      - ../apps/api/data/lake:/var/lib/edc/lake:ro
+
+  py-engine:
+    volumes:
+      - ../apps/api/data/lake:/var/lib/edc/lake:ro

@@ -30,8 +30,8 @@ Four places hold study data; everything else is stateless:
 | Your backups | Copies of both of the above |
 | Your SMTP relay | Notification emails — deliberately plain-text pointers, but they name subject keys (e.g. "New query on SUBJ-001"), so pseudonymous study context does transit your mail system |
 
-The R engine mounts the lake read-only and keeps no state of its own. The web
-container serves the SPA and holds nothing.
+The R and Python engines mount the lake read-only and keep no state of their
+own. The web container serves the SPA and holds nothing.
 
 ## Encryption in transit
 
@@ -43,15 +43,15 @@ public ports of their own. The session cookie is `httpOnly` and
 does not set it for you.
 
 Inside a single-host compose network, service-to-service traffic
-(API ↔ Postgres, API ↔ R engine) stays on the container network. The moment
+(API ↔ Postgres, API ↔ engines) stays on the container network. The moment
 any of those hops crosses a host boundary — a managed Postgres, a separate
 analytics box — require TLS on it (`DATABASE_URL` with `sslmode=verify-full`
 for Postgres).
 
-The development compose file publishes Postgres (5432) and the R engine
-(8000) to the host for convenience. In production, expose **only** the
-reverse proxy. The R engine in particular executes analyst code by design;
-it must never be reachable from outside the container network.
+The development compose file publishes Postgres (5432) and the engines
+(8000, 8001) to the host for convenience. In production, expose **only** the
+reverse proxy. The engines in particular execute analyst code by design;
+they must never be reachable from outside the container network.
 
 With a proxy in front, the API sees the proxy's address unless you tell it
 which proxies to trust: set `EDC_TRUST_PROXY` on the API container (`1` for
@@ -166,7 +166,7 @@ Before first real use:
   not baked into files.
 - [ ] `NODE_ENV=production` on the API container (secure cookies).
 - [ ] TLS-terminating reverse proxy in front; no other published ports —
-  in particular not 5432 (Postgres) or 8000 (R engine).
+  in particular not 5432 (Postgres) or 8000/8001 (engines).
 - [ ] `EDC_TRUST_PROXY` set to match your proxy topology — and never set
   without a proxy actually in front.
 - [ ] Encrypted volumes for `pgdata`, `lakedata`, and backups.

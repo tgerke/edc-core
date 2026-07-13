@@ -81,7 +81,7 @@ let writerQueue: Promise<unknown> = Promise.resolve();
  * catalog written by an older DuckLake spec (0.3, DuckDB 1.4.x) to the spec
  * the current engine writes. Idempotent: an already-current catalog attaches
  * unchanged. READ_ONLY attaches cannot migrate, so readers (workbench,
- * r-engine, exports) fail on stale catalogs until this has run.
+ * engine sidecars, exports) fail on stale catalogs until this has run.
  */
 export async function migrateLakeCatalog(ref: LakeRef): Promise<void> {
   const run = writerQueue.then(async () => {
