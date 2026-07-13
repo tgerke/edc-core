@@ -15,6 +15,9 @@ COPY packages/schemas packages/schemas
 COPY packages/odm packages/odm
 COPY packages/rules packages/rules
 COPY apps/api apps/api
+# db:seed-demo loads the CDASH demo study from here; shipping it keeps the
+# one-command demo seed available in containerized deployments.
+COPY examples examples
 
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@edc-core/api", "start"]
