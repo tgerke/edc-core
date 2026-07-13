@@ -27,6 +27,33 @@ export const subjects = pgTable(
   (t) => [uniqueIndex("subject_key_unique").on(t.studyId, t.subjectKey)],
 );
 
+// E6(R3) Annex 1 §4.1.4: any planned or unplanned unblinding — including
+// inadvertent or emergency unblinding — is documented as a discrete event.
+// Recording only: masking stays governed by the data.unblind permission,
+// because breaking the blind for one subject clinically does not mean every
+// system viewer should now see treatment data. Append-only (trigger).
+export const subjectUnblindings = pgTable(
+  "subject_unblindings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studyId: uuid("study_id")
+      .notNull()
+      .references(() => studies.id),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id),
+    category: text("category", {
+      enum: ["emergency", "inadvertent", "planned", "other"],
+    }).notNull(),
+    reason: text("reason").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("subject_unblinding_subject").on(t.subjectId, t.createdAt)],
+);
+
 export const studyEventInstances = pgTable(
   "study_event_instances",
   {
