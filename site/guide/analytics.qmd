@@ -54,6 +54,8 @@ directly serves ICH E6(R3)'s expectation of traceable data transformations.
 
 ![](../images/workbench-r.png){.screenshot fig-alt="R workbench with execution history"}
 
+![](../images/workbench-python.png){.screenshot fig-alt="Python workbench with a pandas result grid"}
+
 ::: {.callout-note}
 The workbench is for *operational* analytics — data cleaning status, accrual,
 query aging, dataset review. It is deliberately not a validated statistical

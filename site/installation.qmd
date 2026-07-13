@@ -178,6 +178,18 @@ contract — each provisions the VM, firewall (SSH restricted to your admin
 CIDR), static IP, and encrypted disk, and delegates the install to the same
 cloud-init file. Each directory's README is a complete walkthrough.
 
+::: {.callout-tip}
+## Running edc-core alongside ctms-core
+
+Everything on this page installs edc-core on its own. To co-deploy it with
+[ctms-core](https://github.com/tgerke/ctms-core) (the eTMF/regulatory-document
+sibling) on one host, with shared Keycloak single sign-on, one Postgres, and
+one Caddy for all hostnames, use the
+[clinical-stack](https://github.com/tgerke/clinical-stack) repo instead. Its
+install walkthrough covers the combined topology and the pre-wired EDC-to-eTMF
+filing credential.
+:::
+
 ::: {.callout-warning}
 ## The dev stack is not a deployment
 
