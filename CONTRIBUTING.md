@@ -44,6 +44,38 @@ recreates it fresh on every run, along with a separate lake directory
 somewhere else entirely. With no database server running, integration
 tests skip locally (and fail on CI).
 
+## Refreshing docs screenshots
+
+The screenshots in `site/images/` are generated, not hand-captured. After a
+UI change that shows up in the docs, regenerate them:
+
+```sh
+podman compose -f infra/compose.yaml down -v   # fresh stack → canonical state
+pnpm install
+npx playwright install chromium                # one-time browser download
+pnpm screenshots
+```
+
+`scripts/screenshots.mjs` brings up the compose stack if it isn't already
+running, bootstraps the system admin and seeds the demo study, builds the
+remaining reference states (a DEMO-003 subject in screening, the
+repeating-groups demo study with an occurrence-level edit-check query, a
+published snapshot, SQL/R/Python workbench runs, an auto-coding run that
+leaves "stomach ake" uncoded, and a failed-login burst surfaced as security
+anomalies), then captures every page at 1440x900 with `deviceScaleFactor: 2`,
+full page — the 2880px-wide PNGs the site expects.
+
+The state setup is idempotent, so the script can be re-run against a stack it
+already touched — useful with `--only name,name` to redo a subset (names are
+the PNG basenames) and `--out dir` to write somewhere other than
+`site/images/`. But the pages show whatever is in the database, so canonical
+screenshots want the fresh stack above; leftover dev data will appear in
+list pages.
+
+Playwright is a devDependency and downloads its browser on demand — no
+browser binaries are committed. Defaults can be overridden with `EDC_WEB_URL`,
+`EDC_DEMO_PASSWORD`, `DATABASE_URL`, and `EDC_COMPOSE_TOOL` (podman/docker).
+
 ## Ground rules
 
 - **Every clinical-data write path is audited.** New features that touch subject data must go through the audit layer; PRs that bypass it will not be merged. Audit tables are append-only and enforced by database triggers — tests must prove it.

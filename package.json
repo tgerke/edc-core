@@ -15,10 +15,12 @@
     "test": "pnpm -r --parallel test",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "dev": "pnpm -r --parallel dev",
-    "validation-pack": "node scripts/validation-pack.mjs"
+    "validation-pack": "node scripts/validation-pack.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
+    "playwright": "^1.61.1",
     "typescript": "^5.6.0"
   }
 }
