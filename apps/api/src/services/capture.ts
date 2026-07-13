@@ -87,6 +87,15 @@ export const SUBJECT_TRANSITIONS: Record<
 
 export type SubjectTransitionAction = keyof typeof SUBJECT_TRANSITIONS;
 
+/**
+ * Statuses in which a subject is not participating. Humans can still edit
+ * forms (disposition, not locks), but unattended intake (RTSM, lab import)
+ * refuses these subjects and reports it — silently accepting data for a
+ * withdrawn subject is exactly the mistake automation would otherwise hide.
+ * "completed" stays open: post-completion results are a routine data flow.
+ */
+export const INTAKE_BLOCKED_STATUSES: readonly SubjectStatus[] = ["screen_failed", "withdrawn"];
+
 function subjectTransitionTarget(action: string, from: SubjectStatus): SubjectStatus {
   if (action === "enroll") return "enrolled";
   if (action === "screen_fail") return "screen_failed";

@@ -98,6 +98,10 @@ The import contract:
 - **Forms past data entry are skipped.** Complete, verified, signed, and
   locked forms never accept imported values; reopen them first if the lab
   retransmission is real.
+- **Withdrawn and screen-failed subjects are skipped.** Their rows are
+  reported (`skipped_subject_status`), never written silently — reinstate
+  the subject first if the disposition is wrong. Completed subjects still
+  import: post-completion results are a routine data flow.
 - **Blinded items require `data.unblind`.** A row targeting a blinded
   item is skipped unless the importing user could also see that value —
   the same rule as manual entry.

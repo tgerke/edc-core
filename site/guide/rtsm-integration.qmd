@@ -61,12 +61,15 @@ Outcomes map to HTTP statuses the RTSM can branch on:
 | 201 | `applied` | Arm written; form auto-created and started if needed |
 | 200 | `duplicate` | Identical assignment already recorded — replays are safe |
 | 409 | `conflict` | A *different* value is already recorded; nothing written — resolve in the EDC |
-| 422 | `rejected` | Not applied: unknown subject, intake disabled/unconfigured, or an invalid arm value |
+| 422 | `rejected` | Not applied: unknown or withdrawn/screen-failed subject, intake disabled/unconfigured, or an invalid arm value |
 
 Assignments **never overwrite**, and no response ever echoes the arm.
 Unknown subjects are rejected rather than auto-enrolled — enrollment is a
 site act — and the rejected event (below) is the discrepancy signal for
-reconciliation.
+reconciliation. Withdrawn and screen-failed subjects are rejected too:
+a subject who is out of the study must not silently accept an
+assignment, and [reinstatement](data-capture.qmd#subject-lifecycle) is
+the correction path if the disposition is wrong.
 
 ## The transfer record
 
