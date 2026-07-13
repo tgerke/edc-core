@@ -119,14 +119,32 @@ Each release also attaches a **validation pack** — the regulatory traceability
 matrix joined to that exact release's automated test results. See
 [Compliance](compliance.qmd).
 
-::: {.callout-warning}
-## Before you deploy anywhere real
+## Production install
 
-The compose file in `infra/` is a *local development* stack: it uses a
-hard-coded database password and no TLS. Before any networked deployment,
-work through the [deployment guide](deployment.qmd) — TLS, encryption at
-rest, paired backups, log retention, and the GDPR/HIPAA hosting
-considerations.
+For a networked deployment, don't harden the dev stack — use the production
+one. On any host with Docker (or Podman) and a DNS name pointed at it:
+
+```sh
+git clone --depth 1 --branch v0.4.0 https://github.com/tgerke/edc-core
+cd edc-core/infra
+cp .env.example .env    # set EDC_DOMAIN, EDC_VERSION, POSTGRES_PASSWORD
+docker compose -f compose.prod.yaml up -d
+docker compose -f compose.prod.yaml exec api pnpm --filter @edc-core/api db:bootstrap-admin
+```
+
+`compose.prod.yaml` runs the pinned release images from GHCR, terminates TLS
+at Caddy (certificates are provisioned and renewed automatically), publishes
+nothing else, and sets the production hardening variables for you. The
+remaining operational work — encrypted volumes, paired backups, retention
+policy — is the [deployment guide](deployment.qmd).
+
+::: {.callout-warning}
+## The dev stack is not a deployment
+
+`infra/compose.yaml` (the quick start above) uses a hard-coded database
+password and no TLS. It is for local development only; anywhere networked,
+use `infra/compose.prod.yaml` and work through the
+[deployment guide](deployment.qmd).
 :::
 
 ## Local development

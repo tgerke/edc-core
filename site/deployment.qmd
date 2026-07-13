@@ -2,11 +2,41 @@
 title: "Deployment"
 ---
 
-The compose file in `infra/` is a **local development stack**: hard-coded
-database password, no TLS, and every service port published to the host. It
-is the reference topology, not a hardened one. This page is what to change
-before clinical data touches the system — and how the pieces map to GDPR and
-HIPAA hosting expectations.
+Two compose files live in `infra/`. `compose.yaml` is the **local
+development stack**: hard-coded database password, no TLS, every service
+port published to the host. `compose.prod.yaml` is the **supported
+production shape**: pinned release images, TLS terminated by Caddy as the
+only published service, and the hardening below wired in rather than left
+as homework. This page explains what the production stack does for you,
+what remains yours to do before clinical data touches the system, and how
+the pieces map to GDPR and HIPAA hosting expectations.
+
+## The production stack
+
+```sh
+cd infra
+cp .env.example .env    # set EDC_DOMAIN, EDC_VERSION, POSTGRES_PASSWORD
+docker compose -f compose.prod.yaml up -d
+docker compose -f compose.prod.yaml exec api pnpm --filter @edc-core/api db:bootstrap-admin
+```
+
+Once `EDC_DOMAIN` resolves to the host, Caddy obtains and renews the TLS
+certificate on its own; ports 80 and 443 are the only ones published.
+`NODE_ENV=production`, `EDC_TRUST_PROXY=1`, and `EDC_BASE_URL` are set by
+the compose file. Two profiles cover the supported variations
+(`COMPOSE_PROFILES` in `.env`): drop `local-db` when `DATABASE_URL` points
+at a managed PostgreSQL, and drop `engines` on small hosts that don't use
+the analytics workbench.
+
+::: {.callout-warning}
+## One API instance, always
+
+The notification and anomaly scheduler runs inside the API process and
+assumes a single instance. Never scale the `api` service past one replica —
+run a bigger VM instead. See [ADR-0011](https://github.com/tgerke/edc-core/blob/main/docs/adr/0011-single-vm-deployment-and-iac.md).
+:::
+
+To provision the VM itself, see [Installation](installation.qmd).
 
 ::: {.callout-note}
 ## Pseudonymized is not anonymous
@@ -90,6 +120,9 @@ Back them up from the same point in time and restore them together.
 - For Postgres, WAL archiving with point-in-time recovery (`pgBackRest`,
   `wal-g`, or your cloud's PITR) is the grown-up option; nightly `pg_dump`
   is acceptable for small deployments if the dump is encrypted and tested.
+  `infra/backup.sh` is the reference implementation of the paired backup:
+  it stops the API, dumps the database and archives the lake under one
+  timestamp, and restarts — restore instructions are in its header.
 - The lake directory is plain files: snapshot the volume or `rsync` it as
   part of the same backup window. Published snapshot files are immutable,
   which makes incremental strategies cheap.
@@ -159,16 +192,17 @@ data on your behalf.
 
 ## Production checklist
 
-Before first real use:
+Before first real use. Items marked *(wired)* are already handled by
+`compose.prod.yaml` — verify them instead if you deploy any other way:
 
-- [ ] Replace `POSTGRES_PASSWORD` / `DATABASE_URL` credentials (the compose
-  default is labeled `edc-dev-only` for a reason) and inject them as secrets,
-  not baked into files.
-- [ ] `NODE_ENV=production` on the API container (secure cookies).
+- [ ] Replace `POSTGRES_PASSWORD` / `DATABASE_URL` credentials (the dev
+  compose default is labeled `edc-dev-only` for a reason) and inject them as
+  secrets, not baked into files.
+- [ ] `NODE_ENV=production` on the API container (secure cookies). *(wired)*
 - [ ] TLS-terminating reverse proxy in front; no other published ports —
-  in particular not 5432 (Postgres) or 8000/8001 (engines).
+  in particular not 5432 (Postgres) or 8000/8001 (engines). *(wired)*
 - [ ] `EDC_TRUST_PROXY` set to match your proxy topology — and never set
-  without a proxy actually in front.
+  without a proxy actually in front. *(wired for the single Caddy layer)*
 - [ ] Encrypted volumes for `pgdata`, `lakedata`, and backups.
 - [ ] Paired database + lake backups on a schedule that meets your records
   retention period; restore drill completed.
