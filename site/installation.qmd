@@ -138,6 +138,28 @@ nothing else, and sets the production hardening variables for you. The
 remaining operational work — encrypted volumes, paired backups, retention
 policy — is the [deployment guide](deployment.qmd).
 
+### Provisioning the VM
+
+If the host doesn't exist yet, `infra/cloud-init.yaml` builds it on any
+provider that accepts cloud-init user data (AWS, Azure, DigitalOcean,
+Hetzner, Proxmox, ...): Docker, the release-pinned stack above, SSH
+hardening, and a firewall, unattended. Render the placeholders and paste
+the result into the provider's *user data* field:
+
+```sh
+sed -e 's/${domain}/edc.example.org/' \
+    -e 's/${app_version}/0.4.0/' \
+    -e "s/\${postgres_password}/$(openssl rand -hex 24)/" \
+    -e 's/${extra_env}//' \
+    infra/cloud-init.yaml > user-data.yaml
+```
+
+A VM with 2 vCPUs and 4 GB RAM is comfortable for the full stack including
+the analytics engines. First boot takes a few minutes
+(`cloud-init status --wait` on the host); once DNS points at it, Caddy
+obtains the certificate on its own, and the first admin is created with the
+`db:bootstrap-admin` command above.
+
 ::: {.callout-warning}
 ## The dev stack is not a deployment
 
