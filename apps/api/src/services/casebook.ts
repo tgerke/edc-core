@@ -12,7 +12,7 @@ import {
   subjects,
 } from "../db/schema/index.js";
 import { API_VERSION } from "../server.js";
-import { BLINDED_PLACEHOLDER } from "./blinding.js";
+import { BLINDED_PLACEHOLDER, listUnblindings } from "./blinding.js";
 import { ExportError } from "./exports.js";
 import { listFormSignatures } from "./signatures.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
@@ -77,6 +77,14 @@ export interface CasebookData {
   subject: { key: string; status: string; siteName: string };
   generatedAt: string;
   generator: { name: string; version: string };
+  /** Documented break-the-blind events (E6(R3) Annex 1 §4.1.4). Not masked:
+   * they record that the blind was broken, never a treatment value. */
+  unblindings: {
+    category: string;
+    reason: string;
+    actorName: string;
+    occurredAt: Date;
+  }[];
   events: CasebookEvent[];
 }
 
@@ -286,11 +294,19 @@ export async function collectCasebookData(
     });
   }
 
+  const unblindings = await listUnblindings(db, input.studyId, subject.id);
+
   return {
     study: { oid: study.oid, name: study.name },
     subject: { key: subject.key, status: subject.status, siteName: subject.siteName },
     generatedAt: new Date().toISOString(),
     generator: { name: "edc-core", version: API_VERSION },
+    unblindings: unblindings.map((u) => ({
+      category: u.category,
+      reason: u.reason,
+      actorName: u.actorName,
+      occurredAt: u.createdAt,
+    })),
     events,
   };
 }
@@ -345,6 +361,24 @@ export function renderCasebookPdf(data: CasebookData): Promise<Buffer> {
         "The complete change history is in the study audit trail.",
     );
   doc.moveDown(1);
+
+  if (data.unblindings.length > 0) {
+    ensureRoom(50);
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(ZINC.heading).text("Unblinding events");
+    doc.moveDown(0.2);
+    for (const event of data.unblindings) {
+      ensureRoom(16);
+      doc
+        .font("Helvetica")
+        .fontSize(9.5)
+        .fillColor(ZINC.body)
+        .text(
+          `${event.occurredAt.toISOString()} · ${event.category} · ${event.actorName} · ${event.reason}`,
+          { indent: 8 },
+        );
+    }
+    doc.moveDown(1);
+  }
 
   if (data.events.length === 0) {
     doc.font("Helvetica").fontSize(11).fillColor(ZINC.muted).text("No data recorded.");

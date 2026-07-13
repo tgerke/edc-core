@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import {
   type MatrixCell,
+  useBreakBlind,
   useEnrollSubject,
   useEnsureForm,
   useMatrix,
@@ -49,35 +50,60 @@ const SUBJECT_ACTIONS: Record<string, Array<{ action: string; label: string; rea
   withdrawn: [{ action: "reinstate", label: "Reinstate…", reason: true }],
 };
 
+// Mirrors UNBLINDING_CATEGORIES server-side (E6(R3) §4.1.4 taxonomy).
+const UNBLIND_CATEGORIES = ["emergency", "inadvertent", "planned", "other"] as const;
+const UNBLIND_ACTION = "unblind";
+
 function SubjectLifecycle({
   studyId,
   subjectId,
   subjectKey,
   status,
+  unblinded,
   canTransition,
+  canUnblind,
 }: {
   studyId: string;
   subjectId: string;
   subjectKey: string;
   status: string;
+  unblinded: boolean;
   canTransition: boolean;
+  canUnblind: boolean;
 }) {
   const transition = useTransitionSubject(studyId);
+  const breakBlind = useBreakBlind(studyId);
   const [pending, setPending] = useState<{ action: string; label: string } | null>(null);
   const [reason, setReason] = useState("");
+  const [category, setCategory] = useState<string>("emergency");
   const [error, setError] = useState<string | null>(null);
-  const actions = SUBJECT_ACTIONS[status] ?? [];
+  const busy = transition.isPending || breakBlind.isPending;
+  const actions = [
+    ...(canTransition ? (SUBJECT_ACTIONS[status] ?? []) : []),
+    // The documented break-the-blind event; always available, repeatable.
+    ...(canUnblind ? [{ action: UNBLIND_ACTION, label: "Break the blind…", reason: true }] : []),
+  ];
+
+  function reset() {
+    setPending(null);
+    setReason("");
+    setCategory("emergency");
+    setError(null);
+  }
 
   async function run(action: string, withReason?: string) {
     setError(null);
     try {
-      await transition.mutateAsync({
-        subjectId,
-        action,
-        ...(withReason ? { reason: withReason } : {}),
-      });
-      setPending(null);
-      setReason("");
+      if (action === UNBLIND_ACTION) {
+        await breakBlind.mutateAsync({ subjectId, category, reason: withReason ?? "" });
+      } else {
+        await transition.mutateAsync({
+          subjectId,
+          action,
+          ...(withReason ? { reason: withReason } : {}),
+        });
+      }
+      reset();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -88,7 +114,8 @@ function SubjectLifecycle({
       <div className="flex items-center gap-2">
         <span className="font-medium text-zinc-900">{subjectKey}</span>
         <Badge tone={SUBJECT_STATUS_TONES[status] ?? "zinc"}>{statusLabel(status)}</Badge>
-        {canTransition && actions.length > 0 && !pending ? (
+        {unblinded ? <Badge tone="amber">unblinded</Badge> : null}
+        {actions.length > 0 && !pending ? (
           <select
             className="rounded-md border border-zinc-200 bg-white px-1 py-0.5 text-xs text-zinc-500"
             value=""
@@ -98,7 +125,7 @@ function SubjectLifecycle({
               if (chosen.reason) setPending({ action: chosen.action, label: chosen.label });
               else void run(chosen.action);
             }}
-            disabled={transition.isPending}
+            disabled={busy}
             title={`Change status of ${subjectKey}`}
           >
             <option value="">…</option>
@@ -112,27 +139,38 @@ function SubjectLifecycle({
       </div>
       {pending ? (
         <div className="flex items-center gap-1">
+          {pending.action === UNBLIND_ACTION ? (
+            <select
+              className="rounded-md border border-zinc-200 bg-white px-1 py-1 text-xs"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              title="Unblinding category"
+            >
+              {UNBLIND_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <input
             className="w-40 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs"
-            placeholder={`Reason to ${statusLabel(pending.action)}`}
+            placeholder={
+              pending.action === UNBLIND_ACTION
+                ? "Reason for unblinding"
+                : `Reason to ${statusLabel(pending.action)}`
+            }
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
           <Button
             variant="secondary"
             onClick={() => run(pending.action, reason)}
-            disabled={reason.trim() === "" || transition.isPending}
+            disabled={reason.trim() === "" || busy}
           >
             {pending.label.replace("…", "")}
           </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setPending(null);
-              setReason("");
-              setError(null);
-            }}
-          >
+          <Button variant="ghost" onClick={reset}>
             Cancel
           </Button>
         </div>
@@ -239,6 +277,7 @@ export function MatrixPage() {
   const study = studies?.find((s) => s.id === studyId);
   const canExport = permissions?.includes("export.data") ?? false;
   const canEnroll = permissions?.includes("subject.enroll") ?? false;
+  const canUnblind = permissions?.includes("data.unblind") ?? false;
 
   if (isPending) return <Spinner />;
   if (isError || !matrix) return <ErrorNote>Failed to load the subject matrix.</ErrorNote>;
@@ -304,7 +343,9 @@ export function MatrixPage() {
                       subjectId={subject.id}
                       subjectKey={subject.subjectKey}
                       status={subject.status}
+                      unblinded={subject.unblinded}
                       canTransition={canEnroll}
+                      canUnblind={canUnblind}
                     />
                   </td>
                   <td className="px-4 py-2.5 text-zinc-500">{subject.siteName}</td>
