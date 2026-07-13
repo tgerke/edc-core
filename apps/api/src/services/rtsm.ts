@@ -9,8 +9,10 @@ import { BLINDED_PLACEHOLDER, blindedItemOids, canUnblind } from "./blinding.js"
 import {
   CaptureError,
   ensureFormInstance,
+  INTAKE_BLOCKED_STATUSES,
   latestMetadataVersion,
   resolveFormContext,
+  type SubjectStatus,
   writeItemValue,
 } from "./capture.js";
 import { evaluateFormChecks } from "./checks.js";
@@ -234,12 +236,21 @@ export async function applyAssignment(
   }
 
   const [subject] = await db
-    .select({ id: subjects.id, siteId: subjects.siteId })
+    .select({ id: subjects.id, siteId: subjects.siteId, status: subjects.status })
     .from(subjects)
     .where(and(eq(subjects.studyId, studyId), eq(subjects.subjectKey, assignment.subjectKey)))
     .limit(1);
   if (!subject) {
     return record("rejected", `subject "${assignment.subjectKey}" is not enrolled`);
+  }
+  // Status-aware intake (#67): a subject who is out of the study must not
+  // silently accept an assignment; reinstatement is the correction path.
+  if (INTAKE_BLOCKED_STATUSES.includes(subject.status as SubjectStatus)) {
+    return record(
+      "rejected",
+      `subject "${assignment.subjectKey}" is ${subject.status}; reinstate the subject before assigning`,
+      { subjectId: subject.id },
+    );
   }
 
   // Defense in depth: the route guard already proved the key, but the write

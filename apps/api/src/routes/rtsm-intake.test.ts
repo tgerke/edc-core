@@ -433,4 +433,50 @@ describe.skipIf(!dbAvailable)("RTSM assignment intake (integration)", () => {
       "append-only",
     );
   });
+
+  // Last: applies a second assignment, which would skew the earlier
+  // one-write-per-study count assertions if it ran before them.
+  it("rejects a withdrawn subject until reinstated (#67)", async () => {
+    const enrolled = await inject(fx.adminToken, {
+      method: "POST",
+      url: `/studies/${fx.studyId}/subjects`,
+      payload: { siteId: fx.siteId, subjectKey: "S-102" },
+    });
+    expect(enrolled.statusCode).toBe(201);
+    const subjectId = enrolled.json().id;
+    const withdrawn = await inject(fx.adminToken, {
+      method: "POST",
+      url: `/subjects/${subjectId}/status`,
+      payload: { action: "withdraw", reason: "consent withdrawn" },
+    });
+    expect(withdrawn.statusCode).toBe(200);
+
+    const rejected = await postAssignment({
+      subjectKey: "S-102",
+      arm: "ARM-A",
+      randomizationId: "R-W1",
+    });
+    expect(rejected.statusCode).toBe(422);
+    expect(rejected.json().reason).toMatch(/withdrawn.*reinstate/);
+    const [event] = await db
+      .select()
+      .from(rtsmEvents)
+      .where(and(eq(rtsmEvents.studyId, fx.studyId), eq(rtsmEvents.randomizationId, "R-W1")));
+    expect(event?.outcome).toBe("rejected");
+    expect(event?.subjectId).toBe(subjectId);
+
+    const reinstated = await inject(fx.adminToken, {
+      method: "POST",
+      url: `/subjects/${subjectId}/status`,
+      payload: { action: "reinstate", reason: "withdrawn in error" },
+    });
+    expect(reinstated.statusCode).toBe(200);
+    const applied = await postAssignment({
+      subjectKey: "S-102",
+      arm: "ARM-A",
+      randomizationId: "R-W2",
+    });
+    expect(applied.statusCode).toBe(201);
+    expect(applied.json().outcome).toBe("applied");
+  });
 });
