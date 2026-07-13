@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### UA-binding kill-switch (#69)
+- `EDC_SESSION_UA_STRICT` (default on) controls user-agent-strict session
+  binding; `0`/`false` downgrades a UA mismatch from revoke to
+  audit-and-rebind, mirroring IP-change handling, for environments where
+  UA churn is legitimate (managed browser rollouts, UA-freezing policies)
+- Lax-mode mismatches still audit as `auth.session_binding_violation`
+  (with `enforced: false`), so anomaly detection keeps seeing them
+
+### RTSM panel OID pickers (#68)
+- The RTSM config's free-text OID inputs are cascading pickers driven by
+  the latest study build (event → form → item group → arm item, labeled
+  by name with a blinded marker); server-side validation unchanged
+
 ### Status-aware RTSM intake and lab import (#67)
 - Automated intake refuses subjects who are out of the study: RTSM
   assignments for withdrawn/screen-failed subjects are `rejected` (422,
