@@ -109,6 +109,7 @@ describe.skipIf(!dbAvailable)("OIDC SSO (integration, mock issuer)", () => {
       lockoutMinutes: 15,
       sessionIdleMinutes: 30,
       sessionAbsoluteHours: 8,
+      sessionUaStrict: true,
       oidc: {
         issuerUrl: issuer.state.issuer,
         clientId: "edc-client",

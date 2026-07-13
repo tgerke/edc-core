@@ -244,6 +244,11 @@ export class AuthService {
    * stolen — the session is revoked, the violation audited, and the request
    * refused. An IP change is not fatal (network roaming is legitimate) but is
    * audited and the session row updated to the new address.
+   *
+   * With sessionUaStrict off (EDC_SESSION_UA_STRICT=0, for environments
+   * where UA churn is legitimate), a UA mismatch is handled like an IP
+   * change: audited under the same action — so anomaly detection still
+   * sees bursts — and the session rebinds to the new agent, once.
    */
   async validateSession(
     token: string,
@@ -262,7 +267,8 @@ export class AuthService {
     if (now > row.session.expiresAt.getTime() || now > idleDeadline) return null;
     if (row.user.status !== "active") return null;
 
-    if (row.session.userAgent !== null && meta.userAgent !== row.session.userAgent) {
+    const uaChanged = row.session.userAgent !== null && meta.userAgent !== row.session.userAgent;
+    if (uaChanged && this.config.sessionUaStrict) {
       await this.db.transaction(async (tx) => {
         await tx
           .update(sessions)
@@ -285,7 +291,12 @@ export class AuthService {
     await this.db.transaction(async (tx) => {
       await tx
         .update(sessions)
-        .set({ lastSeenAt: new Date(), ...(ipChanged ? { ip: meta.ip } : {}) })
+        .set({
+          lastSeenAt: new Date(),
+          ...(ipChanged ? { ip: meta.ip } : {}),
+          // Lax mode: rebind once so the change audits once, not per request.
+          ...(uaChanged ? { userAgent: meta.userAgent ?? null } : {}),
+        })
         .where(eq(sessions.id, row.session.id));
       if (ipChanged) {
         await tx.insert(auditEvents).values({
@@ -295,6 +306,16 @@ export class AuthService {
           entityId: row.session.id,
           oldValue: { ip: row.session.ip },
           newValue: { ip: meta.ip },
+        });
+      }
+      if (uaChanged) {
+        await tx.insert(auditEvents).values({
+          actorId: row.user.id,
+          action: "auth.session_binding_violation",
+          entityType: "session",
+          entityId: row.session.id,
+          oldValue: { userAgent: row.session.userAgent },
+          newValue: { userAgent: meta.userAgent ?? null, ip: meta.ip ?? null, enforced: false },
         });
       }
     });

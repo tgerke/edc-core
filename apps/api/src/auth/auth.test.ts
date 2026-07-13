@@ -29,6 +29,7 @@ const authConfig: AuthConfig = {
   lockoutMinutes: 15,
   sessionIdleMinutes: 30,
   sessionAbsoluteHours: 8,
+  sessionUaStrict: true,
   oidc: null,
   oidcOnly: false,
 };
