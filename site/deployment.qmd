@@ -178,6 +178,13 @@ Before first real use:
   (`EDC_SESSION_IDLE_MINUTES`, `EDC_SESSION_ABSOLUTE_HOURS`,
   `EDC_PASSWORD_MIN_LENGTH`, `EDC_MAX_FAILED_LOGINS`, `EDC_LOCKOUT_MINUTES`
   — see [Installation](installation.qmd) for SSO).
+- [ ] A decision on user-agent-strict session binding. It is on by default
+  (a session presented by a different client is revoked). Set
+  `EDC_SESSION_UA_STRICT=0` only where UA churn is legitimate — managed
+  browser rollouts or UA-freezing policies would otherwise mass-revoke
+  sessions — and note that mismatches are then audited and rebound rather
+  than revoked (anomaly detection still sees them); record the choice in
+  your SOPs.
 - [ ] One API instance only: the notification scheduler assumes it (see
   [Installation](installation.qmd)).
 - [ ] Pin image tags to a released version — each release ships with its

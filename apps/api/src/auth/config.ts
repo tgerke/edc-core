@@ -6,6 +6,14 @@ export interface AuthConfig {
   lockoutMinutes: number;
   sessionIdleMinutes: number;
   sessionAbsoluteHours: number;
+  /**
+   * When true (the default), a session presented by a different user-agent
+   * is revoked (P11-14). False downgrades the mismatch to audit-only and
+   * rebinds, mirroring IP-change handling — the escape hatch for
+   * environments where UA churn is legitimate (managed browser rollouts,
+   * UA-freezing/reduction policies) and strict binding would mass-revoke.
+   */
+  sessionUaStrict: boolean;
   oidc: OidcConfig | null;
   /** When true, POST /auth/login is disabled — SSO is the only way in. */
   oidcOnly: boolean;
@@ -37,6 +45,13 @@ function envInt(name: string, fallback: number): number {
 function envBool(name: string): boolean {
   const raw = process.env[name];
   return raw === "1" || raw === "true";
+}
+
+/** Default-on boolean: only an explicit "0"/"false" turns it off. */
+function envBoolDefaultTrue(name: string): boolean {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return true;
+  return !(raw === "0" || raw === "false");
 }
 
 function requireEnv(name: string): string {
@@ -71,6 +86,7 @@ export function loadAuthConfig(): AuthConfig {
     lockoutMinutes: envInt("EDC_LOCKOUT_MINUTES", 15),
     sessionIdleMinutes: envInt("EDC_SESSION_IDLE_MINUTES", 30),
     sessionAbsoluteHours: envInt("EDC_SESSION_ABSOLUTE_HOURS", 8),
+    sessionUaStrict: envBoolDefaultTrue("EDC_SESSION_UA_STRICT"),
     oidc,
     oidcOnly,
   };
