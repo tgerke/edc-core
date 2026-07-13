@@ -49,8 +49,8 @@ self-contained study archive that outlives the running system.
 
 ::: {.callout-note}
 **Status: alpha.** The full workflow — build, capture, clean, code, sign,
-snapshot, analyze, export — is released as
-[v0.3.0](https://github.com/tgerke/edc-core/releases/tag/v0.3.0), but
+snapshot, analyze (SQL, R, and Python), export — is released as
+[v0.4.0](https://github.com/tgerke/edc-core/releases/tag/v0.4.0), but
 edc-core has not yet been used in a production study. Follow progress on
 [GitHub](https://github.com/tgerke/edc-core).
 :::
