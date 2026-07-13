@@ -34,6 +34,16 @@ volume with container paths in the catalog, the host API writes it under
 `apps/api/data/lake` with host paths — a catalog created by one is
 unreadable by the other's writers.
 
+### Tests and the database
+
+API integration tests never touch the dev database. The vitest config
+derives a dedicated database by appending `_test` to the name in
+`DATABASE_URL` (default: `edc_test`), and the global setup drops and
+recreates it fresh on every run, along with a separate lake directory
+(`apps/api/data/lake-test`). Set `TEST_DATABASE_URL` to point tests
+somewhere else entirely. With no database server running, integration
+tests skip locally (and fail on CI).
+
 ## Ground rules
 
 - **Every clinical-data write path is audited.** New features that touch subject data must go through the audit layer; PRs that bypass it will not be merged. Audit tables are append-only and enforced by database triggers — tests must prove it.
