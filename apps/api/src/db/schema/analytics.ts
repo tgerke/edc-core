@@ -53,7 +53,7 @@ export const workbenchScripts = pgTable(
       .notNull()
       .references(() => studies.id),
     name: text("name").notNull(),
-    language: text("language", { enum: ["r", "sql"] }).notNull(),
+    language: text("language", { enum: ["r", "python", "sql"] }).notNull(),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id),
@@ -79,8 +79,9 @@ export const workbenchScriptVersions = pgTable(
   (t) => [uniqueIndex("workbench_script_version_unique").on(t.scriptId, t.version)],
 );
 
-// One row per R execution: exact content run, pinned snapshot, logs, and
-// outputs — the E6-04 evidence trail for data transformations.
+// One row per engine (R/Python) execution: exact content run, pinned
+// snapshot, logs, and outputs — the E6-04 evidence trail for data
+// transformations.
 export const workbenchExecutions = pgTable(
   "workbench_executions",
   {
@@ -93,7 +94,7 @@ export const workbenchExecutions = pgTable(
       .references(() => snapshots.id),
     scriptId: uuid("script_id").references(() => workbenchScripts.id),
     scriptVersion: integer("script_version"),
-    language: text("language", { enum: ["r"] }).notNull(),
+    language: text("language", { enum: ["r", "python"] }).notNull(),
     content: text("content").notNull(),
     status: text("status", { enum: ["succeeded", "failed"] }).notNull(),
     stdout: text("stdout"),

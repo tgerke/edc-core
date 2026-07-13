@@ -137,9 +137,9 @@ The path to a defensible database lock, in system terms:
 4. Publish a snapshot: an immutable, version-pinned dataset that interim or
    final analysis references (traceability row E6-07).
 
-Analysis-side, [workbench](guide/analytics.qmd) SQL and R executions record
-their snapshot version, full code, logs, and outputs — data extraction is
-documented by construction (§4.2.6(c)).
+Analysis-side, [workbench](guide/analytics.qmd) SQL, R, and Python executions
+record their snapshot version, full code, logs, and outputs — data extraction
+is documented by construction (§4.2.6(c)).
 
 **Yours to decide:** what "data of sufficient quality" means for each
 analysis (§4.2.6(a)), and the pre-specified checklist of finalisation

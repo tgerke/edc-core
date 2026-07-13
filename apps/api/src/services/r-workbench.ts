@@ -16,24 +16,46 @@ import { WorkbenchError } from "./workbench.js";
 
 const EXECUTION_TIMEOUT_MS = 60_000;
 
-function rEngineUrl(): string {
-  return process.env.R_ENGINE_URL ?? "http://localhost:8000";
+export type EngineLanguage = "r" | "python";
+
+const ENGINES: Record<
+  EngineLanguage,
+  { label: string; urlEnv: string; catalogEnv: string; lakeEnv: string; defaultUrl: string }
+> = {
+  r: {
+    label: "R",
+    urlEnv: "R_ENGINE_URL",
+    catalogEnv: "R_ENGINE_CATALOG_URL",
+    lakeEnv: "R_ENGINE_LAKE_PATH",
+    defaultUrl: "http://localhost:8000",
+  },
+  python: {
+    label: "Python",
+    urlEnv: "PY_ENGINE_URL",
+    catalogEnv: "PY_ENGINE_CATALOG_URL",
+    lakeEnv: "PY_ENGINE_LAKE_PATH",
+    defaultUrl: "http://localhost:8001",
+  },
+};
+
+function engineUrl(language: EngineLanguage): string {
+  return process.env[ENGINES[language].urlEnv] ?? ENGINES[language].defaultUrl;
 }
 
-// The R engine may see Postgres and the lake at different addresses/paths
+// An engine may see Postgres and the lake at different addresses/paths
 // than the API (it runs in its own container): compose sets these; local
 // dev against a host-run engine falls back to the API's own view.
-function engineCatalogUri(): string {
-  return process.env.R_ENGINE_CATALOG_URL ?? databaseUrl();
+function engineCatalogUri(language: EngineLanguage): string {
+  return process.env[ENGINES[language].catalogEnv] ?? databaseUrl();
 }
-function engineLakePath(catalogSchema: string): string {
-  return path.join(process.env.R_ENGINE_LAKE_PATH ?? lakeDataPath(), catalogSchema);
+function engineLakePath(language: EngineLanguage, catalogSchema: string): string {
+  return path.join(process.env[ENGINES[language].lakeEnv] ?? lakeDataPath(), catalogSchema);
 }
 
 export interface SavedScript {
   id: string;
   name: string;
-  language: "r" | "sql";
+  language: "r" | "python" | "sql";
   version: number;
   content: string;
   updatedBy: string;
@@ -43,7 +65,13 @@ export interface SavedScript {
 /** Saving is append-only: same name → new version row (E6-04 traceability). */
 export async function saveScript(
   db: Db,
-  input: { studyId: string; name: string; language: "r" | "sql"; content: string; actorId: string },
+  input: {
+    studyId: string;
+    name: string;
+    language: "r" | "python" | "sql";
+    content: string;
+    actorId: string;
+  },
 ): Promise<SavedScript> {
   return db.transaction(async (tx) => {
     let [script] = await tx
@@ -133,17 +161,18 @@ interface EngineResponse {
 }
 
 /**
- * Run an R script against a pinned snapshot in the r-engine sidecar and
- * persist the full execution record — exact content, snapshot, logs,
- * outputs (E6-04). The engine applies the same containment as the SQL
- * workbench: study-scoped READ_ONLY lake, version-pinned views, locked
- * DuckDB session, fresh subprocess per run.
+ * Run an R or Python script against a pinned snapshot in the matching
+ * engine sidecar and persist the full execution record — exact content,
+ * snapshot, logs, outputs (E6-04). Both engines apply the same containment
+ * as the SQL workbench: study-scoped READ_ONLY lake, version-pinned views,
+ * locked DuckDB session, fresh subprocess per run.
  */
-export async function executeR(
+export async function executeScript(
   db: Db,
   input: {
     studyId: string;
     snapshotId: string;
+    language: EngineLanguage;
     content: string;
     scriptId?: string | undefined;
     scriptVersion?: number | undefined;
@@ -162,13 +191,13 @@ export async function executeR(
   let engine: EngineResponse;
   const started = Date.now();
   try {
-    const res = await fetch(`${rEngineUrl()}/execute`, {
+    const res = await fetch(`${engineUrl(input.language)}/execute`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         script: input.content,
-        catalogUri: engineCatalogUri(),
-        dataPath: engineLakePath(manifest.schema),
+        catalogUri: engineCatalogUri(input.language),
+        dataPath: engineLakePath(input.language, manifest.schema),
         metadataSchema: manifest.schema,
         version: Number(snapshot.lakeVersion),
         tables: manifest.tables.map((t) => t.table),
@@ -180,7 +209,7 @@ export async function executeR(
   } catch (err) {
     throw new WorkbenchError(
       "engine",
-      `R engine unreachable at ${rEngineUrl()}: ${err instanceof Error ? err.message : String(err)}`,
+      `${ENGINES[input.language].label} engine unreachable at ${engineUrl(input.language)}: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
   const elapsedMs = engine.elapsedMs ?? Date.now() - started;
@@ -200,7 +229,7 @@ export async function executeR(
         snapshotId: input.snapshotId,
         scriptId: input.scriptId ?? null,
         scriptVersion: input.scriptVersion ?? null,
-        language: "r",
+        language: input.language,
         content: input.content,
         status: engine.ok ? "succeeded" : "failed",
         stdout: engine.stdout ?? null,
@@ -218,7 +247,7 @@ export async function executeR(
       entityType: "workbench_execution",
       entityId: execution.id,
       newValue: {
-        language: "r",
+        language: input.language,
         snapshotId: input.snapshotId,
         lakeVersion: String(snapshot.lakeVersion),
         status: execution.status,
