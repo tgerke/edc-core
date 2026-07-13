@@ -13,7 +13,15 @@ import {
   studyMetadataVersions,
   subjects,
 } from "../db/schema/index.js";
-import { blindedItemOids, canUnblind, maskItemValues } from "../services/blinding.js";
+import {
+  blindedItemOids,
+  breakBlind,
+  canUnblind,
+  listUnblindings,
+  maskItemValues,
+  UNBLINDING_CATEGORIES,
+  unblindedSubjectIds,
+} from "../services/blinding.js";
 import {
   CaptureError,
   enrollSubject,
@@ -43,6 +51,10 @@ const enrollSchema = z.object({
 const subjectTransitionSchema = z.object({
   action: z.enum(Object.keys(SUBJECT_TRANSITIONS) as [SubjectTransitionAction]),
   reason: z.string().min(1).optional(),
+});
+const unblindSchema = z.object({
+  category: z.enum(UNBLINDING_CATEGORIES),
+  reason: z.string().min(1),
 });
 const ensureFormSchema = z.object({
   eventOid: z.string().min(1),
@@ -170,6 +182,55 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  // The explicit break-the-blind event (E6(R3) Annex 1 §4.1.4). Gated by
+  // data.unblind: whoever breaks the blind sees treatment by definition, so
+  // the act rides the same audited grant workflow as unblinded access.
+  // Recording only — masking of blinded values is unchanged.
+  app.post("/subjects/:subjectId/unblind", async (request, reply) => {
+    const { subjectId } = request.params as { subjectId: string };
+    const parsed = unblindSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+
+    const [subject] = await app.db
+      .select({ studyId: subjects.studyId, siteId: subjects.siteId })
+      .from(subjects)
+      .where(eq(subjects.id, subjectId))
+      .limit(1);
+    if (!subject) return reply.code(404).send({ error: "subject not found" });
+    const user = await guard(request, reply, "data.unblind", {
+      studyId: subject.studyId,
+      siteId: subject.siteId,
+    });
+    if (!user) return;
+
+    try {
+      const event = await breakBlind(app.db, {
+        studyId: subject.studyId,
+        subjectId,
+        category: parsed.data.category,
+        reason: parsed.data.reason,
+        actorId: user.id,
+      });
+      return reply.code(201).send(event);
+    } catch (err) {
+      return sendCaptureError(reply, err);
+    }
+  });
+
+  // The events carry no treatment values (who/when/why the blind was
+  // broken), so they are member-visible like the team grant history.
+  app.get("/subjects/:subjectId/unblindings", async (request, reply) => {
+    const { subjectId } = request.params as { subjectId: string };
+    const [subject] = await app.db
+      .select({ studyId: subjects.studyId })
+      .from(subjects)
+      .where(eq(subjects.id, subjectId))
+      .limit(1);
+    if (!subject) return reply.code(404).send({ error: "subject not found" });
+    if (!(await member(request, reply, subject.studyId))) return;
+    return listUnblindings(app.db, subject.studyId, subjectId);
+  });
+
   app.get("/studies/:studyId/subjects", async (request, reply) => {
     const { studyId } = request.params as { studyId: string };
     if (!(await member(request, reply, studyId))) return;
@@ -223,6 +284,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       .orderBy(subjects.subjectKey);
 
     const subjectIds = subjectRows.map((s) => s.id);
+    const unblinded = await unblindedSubjectIds(app.db, subjectIds);
     const instanceRows = subjectIds.length
       ? await app.db
           .select({
@@ -253,6 +315,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       events,
       subjects: subjectRows.map((subject) => ({
         ...subject,
+        unblinded: unblinded.has(subject.id),
         cells: Object.fromEntries(
           events.flatMap((event) =>
             event.forms.map((form) => [

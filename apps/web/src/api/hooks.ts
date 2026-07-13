@@ -135,7 +135,10 @@ export interface MatrixCell {
 export interface Matrix {
   buildVersion: number | null;
   events: { oid: string; name: string; forms: { oid: string; name: string }[] }[];
-  subjects: (SubjectSummary & { cells: Record<string, MatrixCell | null> })[];
+  subjects: (SubjectSummary & {
+    unblinded: boolean;
+    cells: Record<string, MatrixCell | null>;
+  })[];
 }
 
 export interface FormValue {
@@ -221,6 +224,18 @@ export function useTransitionSubject(studyId: string) {
           action: input.action,
           ...(input.reason !== undefined ? { reason: input.reason } : {}),
         }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["matrix", studyId] }),
+  });
+}
+
+export function useBreakBlind(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { subjectId: string; category: string; reason: string }) =>
+      api<{ id: string }>(`/subjects/${input.subjectId}/unblind`, {
+        method: "POST",
+        body: JSON.stringify({ category: input.category, reason: input.reason }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["matrix", studyId] }),
   });

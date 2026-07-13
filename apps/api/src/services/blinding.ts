@@ -1,9 +1,9 @@
 import type { MetaDataVersion } from "@edc-core/odm";
-import { inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { hasPermission, type PermissionScope } from "../auth/rbac.js";
 import type { Db } from "../db/client.js";
-import { itemValueVersions } from "../db/schema/index.js";
-import { latestMetadataVersion } from "./capture.js";
+import { auditEvents, itemValueVersions, subjectUnblindings, users } from "../db/schema/index.js";
+import { CaptureError, latestMetadataVersion } from "./capture.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
 
 /**
@@ -83,4 +83,82 @@ export async function maskBlindedAuditRows<T extends AuditLikeRow>(
       ? { ...row, oldValue: mask(row.oldValue), newValue: mask(row.newValue) }
       : row,
   );
+}
+
+// E6(R3) Annex 1 §4.1.4 taxonomy: planned, or unplanned (inadvertent,
+// emergency); "other" covers unplanned unblinding that is neither.
+export const UNBLINDING_CATEGORIES = ["emergency", "inadvertent", "planned", "other"] as const;
+export type UnblindingCategory = (typeof UNBLINDING_CATEGORIES)[number];
+
+/**
+ * The explicit break-the-blind event. Recording only, deliberately: the
+ * record documents that the blind was broken for this subject (by whom,
+ * when, why), while in-system visibility of blinded values stays governed
+ * by data.unblind grants — an emergency unblinding of one investigator
+ * must not unmask the subject for every other viewer.
+ */
+export async function breakBlind(
+  db: Db,
+  input: {
+    studyId: string;
+    subjectId: string;
+    category: UnblindingCategory;
+    reason: string;
+    actorId: string;
+  },
+) {
+  const reason = input.reason.trim();
+  if (!reason) throw new CaptureError("invalid", "a reason is required to break the blind");
+
+  return db.transaction(async (tx) => {
+    const [event] = await tx
+      .insert(subjectUnblindings)
+      .values({
+        studyId: input.studyId,
+        subjectId: input.subjectId,
+        category: input.category,
+        reason,
+        createdBy: input.actorId,
+      })
+      .returning();
+    if (!event) throw new Error("unblinding insert returned no row");
+    await tx.insert(auditEvents).values({
+      actorId: input.actorId,
+      studyId: input.studyId,
+      action: "subject.unblinded",
+      entityType: "subject",
+      entityId: input.subjectId,
+      newValue: { category: input.category, unblindingId: event.id },
+      reason,
+    });
+    return event;
+  });
+}
+
+/** Unblinding events for one subject, oldest first, with the actor's name. */
+export async function listUnblindings(db: Db, studyId: string, subjectId: string) {
+  return db
+    .select({
+      id: subjectUnblindings.id,
+      category: subjectUnblindings.category,
+      reason: subjectUnblindings.reason,
+      actorName: users.fullName,
+      createdAt: subjectUnblindings.createdAt,
+    })
+    .from(subjectUnblindings)
+    .innerJoin(users, eq(subjectUnblindings.createdBy, users.id))
+    .where(
+      and(eq(subjectUnblindings.studyId, studyId), eq(subjectUnblindings.subjectId, subjectId)),
+    )
+    .orderBy(asc(subjectUnblindings.createdAt));
+}
+
+/** Whether each of the given subjects has at least one unblinding event. */
+export async function unblindedSubjectIds(db: Db, subjectIds: string[]): Promise<Set<string>> {
+  if (subjectIds.length === 0) return new Set();
+  const rows = await db
+    .selectDistinct({ subjectId: subjectUnblindings.subjectId })
+    .from(subjectUnblindings)
+    .where(inArray(subjectUnblindings.subjectId, subjectIds));
+  return new Set(rows.map((r) => r.subjectId));
 }
