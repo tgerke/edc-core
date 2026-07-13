@@ -25,7 +25,7 @@ study builds can be file-driven, code-driven, and LLM-assisted — and the visua
 builder writes through exactly the same versioned-metadata API.
 
 **Self-service analytics, in the EDC.** Data managers query published study
-snapshots with real SQL and real R — not a bespoke, vendor-locked reporting
+snapshots with real SQL, R, and Python — not a bespoke, vendor-locked reporting
 layer. Every execution is read-only, sandboxed, version-pinned, and audited.
 
 **Compliance by construction.** Append-only audit trails enforced at the

@@ -96,6 +96,10 @@ images, automatic TLS via Caddy, and the hardening variables wired in
 [deployment guide](https://tgerke.github.io/edc-core/deployment.html) for
 encryption at rest, paired backups, and retention.
 
+To run edc-core and [ctms-core](https://github.com/tgerke/ctms-core) together
+on one host (shared Keycloak SSO, one Postgres, one Caddy), start from
+[clinical-stack](https://github.com/tgerke/clinical-stack) instead.
+
 ## What's here
 
 - Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned

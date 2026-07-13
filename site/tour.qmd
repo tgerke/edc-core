@@ -85,9 +85,10 @@ Run SQL against the pinned snapshot:
 
 ![](images/workbench-sql.png){.screenshot fig-alt="SQL workbench with query results"}
 
-Or switch to the **R** tab — scripts execute server-side in a sandboxed
-container with `lake_read()` / `lake_query()` helpers, and every execution is
-recorded with its code, logs, and results:
+Or switch to the **R** or **Python** tab — scripts execute server-side in
+sandboxed containers with `lake_read()` / `lake_query()` helpers (data.frames
+in R, pandas DataFrames in Python), and every execution is recorded with its
+code, logs, and results:
 
 ![](images/workbench-r.png){.screenshot fig-alt="R workbench with console output and execution history"}
 
