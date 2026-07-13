@@ -1,7 +1,8 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { type DuckDBConnection, DuckDBInstance } from "@duckdb/node-api";
-import { databaseUrl } from "../db/client.js";
+import { sql } from "drizzle-orm";
+import { type Db, databaseUrl } from "../db/client.js";
 
 /**
  * DuckLake access for the analytics layer (ADR: Postgres doubles as the
@@ -54,6 +55,7 @@ export function sqlName(oid: string): string {
 async function connectLake(
   ref: LakeRef,
   readOnly: boolean,
+  automaticMigration = false,
 ): Promise<{
   instance: DuckDBInstance;
   conn: DuckDBConnection;
@@ -65,7 +67,7 @@ async function connectLake(
   await conn.run(
     `ATTACH ${lit(`ducklake:postgres:${databaseUrl()}`)} AS lake ` +
       `(DATA_PATH ${lit(ref.dataDir)}, METADATA_SCHEMA ${lit(ref.catalogSchema)}` +
-      `${readOnly ? ", READ_ONLY" : ""})`,
+      `${readOnly ? ", READ_ONLY" : ""}${automaticMigration ? ", AUTOMATIC_MIGRATION TRUE" : ""})`,
   );
   return { instance, conn };
 }
@@ -73,6 +75,52 @@ async function connectLake(
 // Publishes are serialized so DuckLake snapshot versions stay strictly
 // ordered relative to our `snapshots` bookkeeping rows.
 let writerQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Attach one study's catalog writable with AUTOMATIC_MIGRATION, upgrading a
+ * catalog written by an older DuckLake spec (0.3, DuckDB 1.4.x) to the spec
+ * the current engine writes. Idempotent: an already-current catalog attaches
+ * unchanged. READ_ONLY attaches cannot migrate, so readers (workbench,
+ * r-engine, exports) fail on stale catalogs until this has run.
+ */
+export async function migrateLakeCatalog(ref: LakeRef): Promise<void> {
+  const run = writerQueue.then(async () => {
+    const { instance, conn } = await connectLake(ref, false, true);
+    conn.closeSync();
+    instance.closeSync();
+  });
+  writerQueue = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Boot sweep: migrate every study catalog in the database. Enumerates
+ * `ducklake_%` schemas from Postgres rather than the `snapshots` table so
+ * catalogs from deleted or half-published studies are covered too. Failures
+ * are collected, not fatal — one broken catalog shouldn't keep the API (and
+ * every other study) down; that study's readers keep failing as before.
+ */
+export async function migrateAllLakeCatalogs(
+  db: Db,
+): Promise<{ migrated: string[]; failed: { schema: string; error: string }[] }> {
+  const rows = await db.execute<{ schema_name: string }>(
+    sql`SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'ducklake\\_%'`,
+  );
+  const migrated: string[] = [];
+  const failed: { schema: string; error: string }[] = [];
+  for (const row of rows) {
+    try {
+      await migrateLakeCatalog(lakeRef(row.schema_name));
+      migrated.push(row.schema_name);
+    } catch (err) {
+      failed.push({
+        schema: row.schema_name,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return { migrated, failed };
+}
 
 /**
  * Run `fn` with one study's lake writable plus the transactional Postgres
