@@ -81,6 +81,15 @@ pack** — the [regulatory traceability matrix](docs/regulatory-traceability.md)
 joined to that release's automated test results (regenerate locally with
 `pnpm validation-pack`).
 
+## Deploying
+
+`infra/compose.prod.yaml` is the supported production shape: pinned release
+images, automatic TLS via Caddy, and the hardening variables wired in
+(ADR-0011). Copy `infra/.env.example`, set a domain and a database password,
+`docker compose -f infra/compose.prod.yaml up -d` — then work through the
+[deployment guide](https://tgerke.github.io/edc-core/deployment.html) for
+encryption at rest, paired backups, and retention.
+
 ## What's here
 
 - Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned

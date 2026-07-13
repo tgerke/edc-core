@@ -1,0 +1,11 @@
+# TLS termination for the production stack (compose.prod.yaml). Caddy
+# provisions and renews Let's Encrypt certificates automatically once
+# EDC_DOMAIN resolves to this host; for a domainless smoke test set
+# EDC_DOMAIN=localhost and Caddy issues an internal certificate instead.
+#
+# All routing lives in the web container's nginx (including /api/*);
+# Caddy's only jobs are TLS and HTTP->HTTPS redirection.
+{$EDC_DOMAIN} {
+	encode gzip
+	reverse_proxy web:5173
+}

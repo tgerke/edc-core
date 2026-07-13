@@ -1,0 +1,118 @@
+# Production single-VM stack (ADR-0011). Pinned GHCR images, TLS at Caddy,
+# nothing else published to the host. Copy infra/.env.example to .env beside
+# this file and work through site/deployment.qmd before clinical data touches
+# the system.
+#
+#   docker compose -f compose.prod.yaml up -d
+#
+# Profiles (COMPOSE_PROFILES in .env):
+#   local-db — the bundled PostgreSQL. Drop it when DATABASE_URL points at a
+#              managed Postgres.
+#   engines  — the R/Python analytics sidecars. Drop them on small hosts if
+#              the analytics workbench is not in use.
+
+name: edc-core
+
+x-database-url: &database-url ${DATABASE_URL:-postgres://edc:${POSTGRES_PASSWORD}@postgres:5432/edc}
+
+services:
+  caddy:
+    image: docker.io/library/caddy:2-alpine
+    restart: unless-stopped
+    # The only service with published ports.
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      EDC_DOMAIN: ${EDC_DOMAIN:?set EDC_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  postgres:
+    image: docker.io/library/postgres:16
+    profiles: ["local-db"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: edc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: edc
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edc -d edc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # MUST run as exactly one instance: the notification/anomaly scheduler is
+  # in-process and assumes it (site/installation.qmd). Never `--scale api=2`.
+  api:
+    image: ghcr.io/tgerke/edc-core-api:${EDC_VERSION:?pin EDC_VERSION in .env}
+    restart: unless-stopped
+    # Optional configuration (OIDC, SMTP, session knobs, ...) flows in from
+    # .env; variables left commented out there simply don't exist in the
+    # container, which is what the API's feature toggles expect.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # The published image does not set NODE_ENV; Secure session cookies
+      # depend on it.
+      NODE_ENV: production
+      DATABASE_URL: *database-url
+      PORT: "3000"
+      LAKE_DATA_PATH: /var/lib/edc/lake
+      EDC_BASE_URL: https://${EDC_DOMAIN}
+      # Exactly one proxy layer (Caddy) fronts the API; the access log and
+      # session records take the client address from X-Forwarded-For.
+      EDC_TRUST_PROXY: "1"
+      R_ENGINE_URL: http://r-engine:8000
+      R_ENGINE_CATALOG_URL: *database-url
+      R_ENGINE_LAKE_PATH: /var/lib/edc/lake
+      PY_ENGINE_URL: http://py-engine:8000
+      PY_ENGINE_CATALOG_URL: *database-url
+      PY_ENGINE_LAKE_PATH: /var/lib/edc/lake
+    volumes:
+      - lakedata:/var/lib/edc/lake
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false # absent when the local-db profile is off
+
+  web:
+    image: ghcr.io/tgerke/edc-core-web:${EDC_VERSION}
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://api:3000
+    depends_on:
+      - api
+
+  # init: the engine servers run as PID 1 and kill timed-out script
+  # subprocesses; anything those scripts spawned reparents to PID 1 and
+  # would sit as a zombie without an init to reap it. The engines execute
+  # analyst code by design and must never be reachable from outside the
+  # container network.
+  r-engine:
+    image: ghcr.io/tgerke/edc-core-r-engine:${EDC_VERSION}
+    profiles: ["engines"]
+    restart: unless-stopped
+    init: true
+    volumes:
+      - lakedata:/var/lib/edc/lake:ro
+
+  py-engine:
+    image: ghcr.io/tgerke/edc-core-py-engine:${EDC_VERSION}
+    profiles: ["engines"]
+    restart: unless-stopped
+    init: true
+    volumes:
+      - lakedata:/var/lib/edc/lake:ro
+
+volumes:
+  pgdata:
+  lakedata:
+  caddy_data:
+  caddy_config:
