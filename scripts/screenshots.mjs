@@ -565,6 +565,18 @@ async function main() {
         },
       },
       {
+        name: "workbench-python",
+        context: dmCtx,
+        async run(page) {
+          await page.goto(`/studies/${demoStudy.id}/workbench`);
+          await page.locator("#snapshot-select").waitFor();
+          await page.getByRole("button", { name: "Python", exact: true }).click();
+          await page.locator("textarea").fill(PY_EXAMPLE);
+          await page.getByRole("button", { name: "Run (⌘⏎)" }).click();
+          await page.getByText("succeeded ·").first().waitFor({ timeout: 180_000 });
+        },
+      },
+      {
         name: "users-admin",
         context: adminCtx,
         async run(page) {
