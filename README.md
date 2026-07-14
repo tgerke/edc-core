@@ -2,14 +2,14 @@
 
 **A modern, open-source Electronic Data Capture (EDC) system for clinical research.**
 
-Commercial EDC platforms are expensive, closed, and dated. The open-source alternatives run on legacy stacks. `edc-core` is a from-scratch EDC built on modern web technology, an analytics-native data architecture, and CDISC standards — designed so that regulatory expectations (21 CFR Part 11, ICH E6(R3)) are structural properties of the system, not afterthoughts.
+Commercial EDC platforms are expensive, closed, and dated. The open-source alternatives run on legacy stacks. `edc-core` is a from-scratch EDC built on modern web technology, an analytics-native data architecture, and CDISC standards, designed so that regulatory expectations (21 CFR Part 11, ICH E6(R3)) are structural properties of the system rather than afterthoughts.
 
 > **Status: alpha (v0.4.0).** The full feature set below is released as [v0.4.0](https://github.com/tgerke/edc-core/releases/tag/v0.4.0), but edc-core has not yet been used in a production study. See the [changelog](CHANGELOG.md) and the [user guide](https://tgerke.github.io/edc-core/).
 
 ## Why
 
 - **No vendor lock-in.** AGPL-3.0: nobody can take this code and sell it back to you as a closed platform.
-- **Programmable study builds.** First-class CDISC ODM v2.0 import/export means builds can be file-driven, code-driven, and LLM-assisted — with a sleek point-and-click designer that hits exactly the same API.
+- **Programmable study builds.** First-class CDISC ODM v2.0 import/export means builds can be file-driven, code-driven, and LLM-assisted, with a point-and-click designer that hits exactly the same API.
 - **Modern UX.** A fast browser SPA that looks and feels like software people use in 2026.
 - **Analytics-native.** PostgreSQL is the transactional system of record; DuckDB/DuckLake provides versioned, point-in-time analysis snapshots. R runs server-side as a first-class citizen for clinical programmers.
 - **Compliance by construction.** Append-only audit trails enforced at the database level, Part 11 e-signatures, audit-trail review tooling, and a shipped validation pack.
@@ -83,7 +83,7 @@ pnpm --filter @edc-core/api db:seed-demo   # see examples/README.md
 
 Tagged releases publish versioned images to GHCR
 (`ghcr.io/tgerke/edc-core-{api,web,r-engine,py-engine}`) along with a **validation
-pack** — the [regulatory traceability matrix](docs/regulatory-traceability.md)
+pack**: the [regulatory traceability matrix](docs/regulatory-traceability.md)
 joined to that release's automated test results (regenerate locally with
 `pnpm validation-pack`).
 
@@ -92,9 +92,13 @@ joined to that release's automated test results (regenerate locally with
 `infra/compose.prod.yaml` is the supported production shape: pinned release
 images, automatic TLS via Caddy, and the hardening variables wired in
 (ADR-0011). Copy `infra/.env.example`, set a domain and a database password,
-`docker compose -f infra/compose.prod.yaml up -d` — then work through the
+`docker compose -f infra/compose.prod.yaml up -d`, then work through the
 [deployment guide](https://tgerke.github.io/edc-core/deployment.html) for
 encryption at rest, paired backups, and retention.
+
+To run edc-core and [ctms-core](https://github.com/tgerke/ctms-core) together
+on one host (shared Keycloak SSO, one Postgres, one Caddy), start from
+[clinical-stack](https://github.com/tgerke/clinical-stack) instead.
 
 ## What's here
 
@@ -131,7 +135,7 @@ encryption at rest, paired backups, and retention.
 ## Roadmap
 
 Every row of the [traceability matrix](docs/regulatory-traceability.md)
-currently maps to an implemented, tested mechanism — new requirements enter
+currently maps to an implemented, tested mechanism; new requirements enter
 there before they are claimed. Two boundaries are deliberate rather than
 pending: randomization/RTSM stays an **integration point, not a build**
 (edc-core consumes assignments from external systems rather than
@@ -142,4 +146,4 @@ analytics surface.
 
 ## License
 
-[AGPL-3.0](LICENSE). Clinical research infrastructure should stay open — including when it's offered as a service.
+[AGPL-3.0](LICENSE). Clinical research infrastructure should stay open, including when it's offered as a service.
