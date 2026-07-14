@@ -12,6 +12,7 @@ import {
   startMigration,
 } from "../services/amendments.js";
 import { CaptureError } from "../services/capture.js";
+import { etmfConfig, fileToEtmf } from "../services/etmf-filing.js";
 import { exportStudyBuild, importStudyBuild } from "../services/study-builds.js";
 
 const importRequestSchema = z.object({
@@ -34,6 +35,9 @@ async function requireMembership(request: FastifyRequest): Promise<boolean> {
 }
 
 export const studyBuildRoutes: FastifyPluginAsync = async (app) => {
+  // Misconfiguration should fail boot, not surface per-request.
+  const etmf = etmfConfig();
+
   app.post(
     "/studies/:studyId/metadata-versions",
     { preHandler: requirePermission("study.manage", studyScope) },
@@ -51,6 +55,30 @@ export const studyBuildRoutes: FastifyPluginAsync = async (app) => {
       });
       if (!result.ok) {
         return reply.code(400).send({ error: "ODM import failed", issues: result.issues });
+      }
+      if (etmf) {
+        // Best-effort, off the request path: the study definition (metadata
+        // only — the blank CRF, no subject data) files into the eTMF as the
+        // canonical ODM XML rendering.
+        const version = result.version;
+        void exportStudyBuild(app.db, { studyId, version, serialization: "xml" }).then(
+          (odm) => {
+            if (!odm) return;
+            return fileToEtmf(
+              etmf,
+              {
+                kind: "study_build",
+                title: `Study build v${version} (ODM metadata)`,
+                fileName: `study-build-v${version}.xml`,
+                mimeType: "application/xml",
+                content: odm,
+                sourceRef: `study-build:${studyId}:v${version}`,
+              },
+              app.log,
+            );
+          },
+          (err) => app.log.warn({ err }, "eTMF filing failed: ODM export errored"),
+        );
       }
       return reply
         .code(201)

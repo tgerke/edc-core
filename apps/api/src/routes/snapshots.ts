@@ -3,6 +3,7 @@ import { z } from "zod";
 import { hasPermission } from "../auth/rbac.js";
 import { auditEvents } from "../db/schema/index.js";
 import { buildStudyArchive } from "../services/archive.js";
+import { etmfConfig, fileToEtmf } from "../services/etmf-filing.js";
 import { ExportError, exportSnapshotTable } from "../services/exports.js";
 import {
   getSnapshot,
@@ -34,6 +35,9 @@ function serialize<T extends { lakeVersion: bigint | null; manifest: unknown }>(
  * exports (`export.data`): admin + data_manager by default.
  */
 export const snapshotRoutes: FastifyPluginAsync = async (app) => {
+  // Misconfiguration should fail boot, not surface per-request.
+  const etmf = etmfConfig();
+
   app.post("/studies/:studyId/snapshots", async (request, reply) => {
     const { studyId } = request.params as { studyId: string };
     if (!request.user) return reply.code(401).send({ error: "authentication required" });
@@ -49,7 +53,27 @@ export const snapshotRoutes: FastifyPluginAsync = async (app) => {
         actorId: request.user.id,
       });
       if (!snapshot) return reply.code(500).send({ error: "publish returned no row" });
-      return reply.code(201).send(serialize(snapshot));
+      const body = serialize(snapshot);
+      if (etmf) {
+        // Best-effort, off the request path: the snapshot manifest (dataset
+        // names, row counts, lake version — no subject data) documents the
+        // point-in-time publish in the eTMF.
+        void fileToEtmf(
+          etmf,
+          {
+            kind: "snapshot",
+            title: `Data snapshot ${body.lakeVersion ?? snapshot.id}${
+              parsed.data.note ? ` — ${parsed.data.note}` : ""
+            }`,
+            fileName: `snapshot-${snapshot.id}.json`,
+            mimeType: "application/json",
+            content: JSON.stringify(body, null, 2),
+            sourceRef: `snapshot:${studyId}:${body.lakeVersion ?? snapshot.id}`,
+          },
+          app.log,
+        );
+      }
+      return reply.code(201).send(body);
     } catch (err) {
       if (err instanceof SnapshotError) {
         const status = err.code === "invalid" ? 409 : 500;

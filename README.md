@@ -40,7 +40,7 @@ Commercial EDC platforms are expensive, closed, and dated. The open-source alter
                         └─────────────────────────────┘
 ```
 
-See [docs/architecture.md](docs/architecture.md) and the [architecture decision records](docs/adr/) for rationale, and [docs/regulatory-traceability.md](docs/regulatory-traceability.md) for how regulatory requirements map to system features.
+See [docs/architecture.md](docs/architecture.md) and the [architecture decision records](docs/adr/) for rationale, and [docs/regulatory-traceability.md](docs/regulatory-traceability.md) for how regulatory requirements map to system features. Study-level artifacts (build definitions, snapshot manifests) can file automatically into an eTMF — see [docs/etmf-filing.md](docs/etmf-filing.md) for the reference integration with [ctms-core](https://github.com/tgerke/ctms-core).
 
 ## Repository layout
 
