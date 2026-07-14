@@ -8,8 +8,8 @@ toc: false
 Commercial EDC platforms are expensive, closed, and dated. The open-source
 alternatives run on legacy stacks. **edc-core** is a from-scratch EDC built on
 modern web technology, an analytics-native data architecture, and CDISC
-standards — designed so that regulatory expectations (21 CFR Part 11,
-ICH E6(R3)) are structural properties of the system, not afterthoughts.
+standards, designed so that regulatory expectations (21 CFR Part 11,
+ICH E6(R3)) are structural properties of the system rather than afterthoughts.
 :::
 
 ![The analytics workbench: self-service SQL over an immutable, version-pinned
@@ -21,11 +21,11 @@ study snapshot.](images/workbench-sql.png){.screenshot}
 it back to you as a closed platform.
 
 **Programmable study builds.** First-class CDISC ODM v2.0 import/export means
-study builds can be file-driven, code-driven, and LLM-assisted — and the visual
+study builds can be file-driven, code-driven, and LLM-assisted. The visual
 builder writes through exactly the same versioned-metadata API.
 
 **Self-service analytics, in the EDC.** Data managers query published study
-snapshots with real SQL and real R — not a bespoke, vendor-locked reporting
+snapshots with real SQL, R, and Python, not a bespoke, vendor-locked reporting
 layer. Every execution is read-only, sandboxed, version-pinned, and audited.
 
 **Compliance by construction.** Append-only audit trails enforced at the
@@ -48,8 +48,8 @@ self-contained study archive that outlives the running system.
 : {tbl-colwidths="[30,70]"}
 
 ::: {.callout-note}
-**Status: alpha.** The full workflow — build, capture, clean, code, sign,
-snapshot, analyze (SQL, R, and Python), export — is released as
+**Status: alpha.** The full workflow (build, capture, clean, code, sign,
+snapshot, analyze with SQL, R, and Python, export) is released as
 [v0.4.0](https://github.com/tgerke/edc-core/releases/tag/v0.4.0), but
 edc-core has not yet been used in a production study. Follow progress on
 [GitHub](https://github.com/tgerke/edc-core).

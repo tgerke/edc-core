@@ -10,14 +10,14 @@ works identically.
 ## Requirements
 
 - **Podman** (or Docker) with the compose plugin
-- **Node ≥ 22** and **pnpm ≥ 9** — for the one-time setup scripts and local development
+- **Node ≥ 22** and **pnpm ≥ 9** for the one-time setup scripts and local development
 - ~2 GB free disk for images and volumes
 
 ## Try it with zero install
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tgerke/edc-core?quickstart=1)
 
-The badge boots the full dev stack in a free GitHub Codespace — no local
+The badge boots the full dev stack in a free GitHub Codespace; no local
 tools needed, just a GitHub account. After ~3 minutes the web UI opens on
 the forwarded port; sign in as `admin` / `edc-demo-admin`, or as any seeded
 clinical-role user with the password `edc-demo-users` and take the
@@ -38,8 +38,8 @@ podman compose -f infra/compose.yaml up --build
 The API applies database migrations automatically on startup. When the stack
 is up:
 
-- **Web UI** — <http://localhost:5173>
-- **API** — <http://localhost:3000/health>
+- **Web UI**: <http://localhost:5173>
+- **API**: <http://localhost:3000/health>
 
 ### Create the first admin
 
@@ -59,7 +59,7 @@ pnpm --filter @edc-core/api db:seed-demo
 ```
 
 This creates a complete, CDASH-aligned demo study (`ST.CDASH.DEMO`) with two
-sites, one user per clinical role, enrolled subjects, and an open data query —
+sites, one user per clinical role, enrolled subjects, and an open data query:
 everything the [five-minute tour](tour.qmd) uses. The script prints the shared
 demo password (override it with the `EDC_DEMO_PASSWORD` environment variable)
 and is idempotent: it exits without changes if the demo study already exists.
@@ -68,7 +68,7 @@ and is idempotent: it exits without changes if the demo study already exists.
 
 edc-core signs users in with a local username and password by default, and can
 additionally (or exclusively) use your organization's identity provider via
-OpenID Connect — Microsoft Entra ID, Okta, and Keycloak all work with the
+OpenID Connect; Microsoft Entra ID, Okta, and Keycloak all work with the
 standard authorization-code flow. Configure it with environment variables on
 the API container:
 
@@ -82,8 +82,8 @@ the API container:
 | `EDC_OIDC_ONLY` | Set to `1` to disable password login entirely. |
 | `EDC_OIDC_REAUTH_MAX_AGE_SECONDS` | Freshness window for signature re-authentication (default 120). |
 
-First-time SSO users are provisioned automatically — matched to an existing
-account by verified email when one exists, created otherwise — but arrive with
+First-time SSO users are provisioned automatically (matched to an existing
+account by verified email when one exists, created otherwise) but arrive with
 **no study roles**: an administrator grants those in the app, exactly as for
 local accounts. SSO accounts never receive system administration from the
 identity provider.
@@ -94,7 +94,7 @@ the identity provider (`prompt=login`), verified against the token's
 `auth_time`.
 
 If `EDC_OIDC_ONLY` is set and the identity provider is misconfigured, recovery
-is to unset the variable and restart the API — password login resumes.
+is to unset the variable and restart the API; password login resumes.
 
 ## Notifications and email
 
@@ -105,7 +105,7 @@ on the API container:
 | Variable | Meaning |
 |---|---|
 | `EDC_NOTIFY_SCAN_MINUTES` | Minutes between background scans (default 15; `0` disables the scheduler). |
-| `EDC_FORM_OVERDUE_DAYS` | Days after a visit is created before an unfinished form counts as overdue (default `0` = off). A deliberately crude signal — enable it once the cadence suits your protocol. |
+| `EDC_FORM_OVERDUE_DAYS` | Days after a visit is created before an unfinished form counts as overdue (default `0` = off). A deliberately crude signal; enable it once the cadence suits your protocol. |
 | `EDC_SMTP_HOST` / `EDC_SMTP_PORT` / `EDC_SMTP_SECURE` | SMTP relay; setting the host enables email delivery of notifications. |
 | `EDC_SMTP_USER` / `EDC_SMTP_PASS` | SMTP credentials, if the relay needs them. |
 | `EDC_SMTP_FROM` | From address, e.g. `edc-core <no-reply@example.org>`. |
@@ -126,13 +126,13 @@ ghcr.io/tgerke/edc-core-r-engine
 ghcr.io/tgerke/edc-core-py-engine
 ```
 
-Each release also attaches a **validation pack** — the regulatory traceability
+Each release also attaches a **validation pack**: the regulatory traceability
 matrix joined to that exact release's automated test results. See
 [Compliance](compliance.qmd).
 
 ## Production install
 
-For a networked deployment, don't harden the dev stack — use the production
+For a networked deployment, don't harden the dev stack; use the production
 one. On any host with Docker (or Podman) and a DNS name pointed at it:
 
 ```sh
@@ -146,8 +146,8 @@ docker compose -f compose.prod.yaml exec api pnpm --filter @edc-core/api db:boot
 `compose.prod.yaml` runs the pinned release images from GHCR, terminates TLS
 at Caddy (certificates are provisioned and renewed automatically), publishes
 nothing else, and sets the production hardening variables for you. The
-remaining operational work — encrypted volumes, paired backups, retention
-policy — is the [deployment guide](deployment.qmd).
+remaining operational work (encrypted volumes, paired backups, retention
+policy) is the [deployment guide](deployment.qmd).
 
 ### Provisioning the VM
 
@@ -174,9 +174,21 @@ obtains the certificate on its own, and the first admin is created with the
 
 Prefer infrastructure-as-code? `infra/terraform/{aws,azure,digitalocean}`
 are three self-contained Terraform roots with an identical variable
-contract — each provisions the VM, firewall (SSH restricted to your admin
+contract. Each provisions the VM, firewall (SSH restricted to your admin
 CIDR), static IP, and encrypted disk, and delegates the install to the same
 cloud-init file. Each directory's README is a complete walkthrough.
+
+::: {.callout-tip}
+## Running edc-core alongside ctms-core
+
+Everything on this page installs edc-core on its own. To co-deploy it with
+[ctms-core](https://github.com/tgerke/ctms-core) (the eTMF/regulatory-document
+sibling) on one host, with shared Keycloak single sign-on, one Postgres, and
+one Caddy for all hostnames, use the
+[clinical-stack](https://github.com/tgerke/clinical-stack) repo instead. Its
+install walkthrough covers the combined topology and the pre-wired EDC-to-eTMF
+filing credential.
+:::
 
 ::: {.callout-warning}
 ## The dev stack is not a deployment
@@ -199,5 +211,5 @@ pnpm validation-pack    # regenerate the validation pack locally
 ```
 
 See [CONTRIBUTING.md](https://github.com/tgerke/edc-core/blob/main/CONTRIBUTING.md)
-for ground rules — most importantly, every clinical-data write path goes
+for ground rules, most importantly that every clinical-data write path goes
 through the audit layer.

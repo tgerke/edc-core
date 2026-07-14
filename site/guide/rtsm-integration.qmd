@@ -2,7 +2,7 @@
 title: "RTSM integration"
 ---
 
-edc-core does not randomize subjects — randomization and trial supply
+edc-core does not randomize subjects: randomization and trial supply
 management (RTSM/IRT) is deliberately an external system. What edc-core
 provides is the receiving end: the RTSM posts each subject's treatment-arm
 assignment to a study-scoped endpoint, and the arm lands on an ordinary
@@ -18,7 +18,7 @@ Both steps live in the study page's *RTSM integration* panel and require
 the `study.manage` permission.
 
 **1. Point the intake at an item.** The configuration names the event,
-form, item group, and item OID where the arm lands — typically a
+form, item group, and item OID where the arm lands, typically a
 dedicated randomization form with a text item for the arm. OIDs are
 validated against the latest study build when you save, and every change
 is audited with the full before/after. For a blinded trial, mark the arm
@@ -26,8 +26,8 @@ item `edc:Blinded="Yes"` in the build: masking then applies everywhere
 by construction (see the blinding guide).
 
 **2. Mint an API key.** The RTSM authenticates with a study-scoped
-bearer token (`edcrtsm_…`). The raw token is shown exactly once at mint —
-edc-core stores only a hash — and can be revoked at any time. Keys are
+bearer token (`edcrtsm_…`). The raw token is shown exactly once at mint
+(edc-core stores only a hash) and can be revoked at any time. Keys are
 bound to a per-study service account that holds the `rtsm_agent` role;
 the key can reach exactly one route (the assignment POST) and can never
 read data, so the service account's `data.unblind` grant is write-only
@@ -59,13 +59,13 @@ Outcomes map to HTTP statuses the RTSM can branch on:
 | Status | Outcome | Meaning |
 |---|---|---|
 | 201 | `applied` | Arm written; form auto-created and started if needed |
-| 200 | `duplicate` | Identical assignment already recorded — replays are safe |
-| 409 | `conflict` | A *different* value is already recorded; nothing written — resolve in the EDC |
+| 200 | `duplicate` | Identical assignment already recorded; replays are safe |
+| 409 | `conflict` | A *different* value is already recorded and nothing was written; resolve in the EDC |
 | 422 | `rejected` | Not applied: unknown or withdrawn/screen-failed subject, intake disabled/unconfigured, or an invalid arm value |
 
 Assignments **never overwrite**, and no response ever echoes the arm.
-Unknown subjects are rejected rather than auto-enrolled — enrollment is a
-site act — and the rejected event (below) is the discrepancy signal for
+Unknown subjects are rejected rather than auto-enrolled (enrollment is a
+site act), and the rejected event (below) is the discrepancy signal for
 reconciliation. Withdrawn and screen-failed subjects are rejected too:
 a subject who is out of the study must not silently accept an
 assignment, and [reinstatement](data-capture.qmd#subject-lifecycle) is
@@ -83,7 +83,7 @@ stays out of the analytics lake.
 
 ## Limits
 
-- One assignment item per study, on repeat key 1 — studies randomizing
+- One assignment item per study, on repeat key 1; studies randomizing
   inside repeating events are not supported.
 - No outbound sync: edc-core does not push enrollments to the RTSM.
-- No emergency unblinding workflow — that stays in the RTSM.
+- No emergency unblinding workflow; that stays in the RTSM.

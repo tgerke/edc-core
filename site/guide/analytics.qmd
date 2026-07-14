@@ -10,10 +10,10 @@ against versioned, analysis-ready study datasets.
 
 Capture happens in PostgreSQL; analysis happens on **snapshots** published
 into a per-study [DuckLake](https://ducklake.select) lake (Parquet files, with
-the same Postgres serving as catalog — no extra server).
+the same Postgres serving as catalog; no extra server).
 
 Publishing a snapshot pivots the live, append-only capture data into typed
-tables at the CDISC dataset grain — one table per ODM item group (`ig_vs`,
+tables at the CDISC dataset grain: one table per ODM item group (`ig_vs`,
 `ig_ae`, …) with columns typed from the item definitions, plus `subjects` and
 `queries`. Each snapshot is pinned to a lake version: an **immutable,
 point-in-time dataset**. Interim analyses and database locks reference a
@@ -27,7 +27,7 @@ with DuckDB SQL:
 ![](../images/workbench-sql.png){.screenshot fig-alt="SQL workbench"}
 
 Every run executes in a locked-down, read-only session that can only see the
-selected study's snapshot (isolation is physical, at attach time — not a
+selected study's snapshot (isolation is physical, at attach time, not a
 convention). Results are capped at 5,000 rows with a 30-second timeout, are
 downloadable as CSV, and **every execution is audited with its SQL text**.
 
@@ -49,13 +49,15 @@ lake_query("SELECT ...")     # arbitrary DuckDB SQL, as a DataFrame
 
 Console output, the last data-frame result, and timing come back to the
 browser; scripts can be **saved and versioned** per study, and the execution
-history — code, logs, outputs, who and when — is retained and audited. This
+history (code, logs, outputs, who and when) is retained and audited. This
 directly serves ICH E6(R3)'s expectation of traceable data transformations.
 
 ![](../images/workbench-r.png){.screenshot fig-alt="R workbench with execution history"}
 
+![](../images/workbench-python.png){.screenshot fig-alt="Python workbench with a pandas result grid"}
+
 ::: {.callout-note}
-The workbench is for *operational* analytics — data cleaning status, accrual,
+The workbench is for *operational* analytics: data cleaning status, accrual,
 query aging, dataset review. It is deliberately not a validated statistical
 compute environment: statistical deliverables should be produced in your
 organization's validated environment from exported snapshot data.
@@ -65,10 +67,10 @@ organization's validated environment from exported snapshot data.
 
 Any snapshot table exports as:
 
-- **Dataset-JSON v1.1** — the FDA-accepted, CDISC-standard exchange format
+- **Dataset-JSON v1.1**, the FDA-accepted, CDISC-standard exchange format
 - **CSV** and **Parquet**
 
-Every subject also has a **PDF casebook** — a human-readable rendering of all
+Every subject also has a **PDF casebook**: a human-readable rendering of all
 captured forms with current values, per-occurrence repeating groups, correction
 markers (version and reason for change), queries, and the signature manifest.
 Download it from the subject matrix (with `export.data`), or `GET
