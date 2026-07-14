@@ -1,0 +1,27 @@
+{
+  "name": "edc-core",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "hostRequirements": {
+    "cpus": 4
+  },
+  "containerEnv": {
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",
+    // Demo-only credentials for an ephemeral, single-user codespace; the
+    // seeded study is fictional. Production bootstraps generate a secret.
+    "EDC_ADMIN_PASSWORD": "edc-demo-admin",
+    "EDC_DEMO_PASSWORD": "edc-demo-users"
+  },
+  "forwardPorts": [5173, 3000],
+  "portsAttributes": {
+    "5173": { "label": "edc-core web", "onAutoForward": "openBrowser" },
+    "3000": { "label": "edc-core api", "onAutoForward": "silent" }
+  },
+  // Postgres in Docker; api and web run on the host for fast startup. The
+  // R/Python analytics engines are not built here (heavy images) — the
+  // workbench pages will report them unavailable.
+  "postCreateCommand": "corepack enable && pnpm install && docker compose -f infra/compose.yaml up -d postgres && pnpm --filter @edc-core/api db:bootstrap-admin && pnpm --filter @edc-core/api db:seed-demo",
+  "postStartCommand": "docker compose -f infra/compose.yaml up -d postgres && nohup pnpm dev > /tmp/edc-dev.log 2>&1 &"
+}
