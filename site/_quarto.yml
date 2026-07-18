@@ -34,7 +34,9 @@ website:
     - title: "User guide"
       style: floating
       contents:
+        - guide/why-protocol-first.qmd
         - guide/study-builds.qmd
+        - guide/protocol-import.qmd
         - guide/data-capture.qmd
         - guide/lab-import.qmd
         - guide/rtsm-integration.qmd
