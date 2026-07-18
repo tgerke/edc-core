@@ -5,6 +5,8 @@ import {
   type MetaDataVersion,
   type ResolvedGroup,
   resolveGroup,
+  resolveVariantForm,
+  siteFormVariantDefinitionSchema,
 } from "@edc-core/odm";
 import { compileEditChecks, type ItemValueRow, runChecksOverRows } from "@edc-core/rules";
 import { Link, useParams } from "@tanstack/react-router";
@@ -188,7 +190,13 @@ function EntryGroup({
       <div className="divide-y divide-zinc-100">
         {group.children.map((child, index) => {
           if (child.kind === "item") {
-            const key = fieldKey(group.def.oid, repeatKey, child.def.oid);
+            // Variant layouts are presentation-only: writes key on the item's
+            // canonical build group so the data shape stays identical.
+            const key = fieldKey(
+              child.canonicalGroupOid ?? group.def.oid,
+              repeatKey,
+              child.def.oid,
+            );
             const isBlinded = blinded.has(child.def.oid);
             const label =
               displayText(child.def.question) ??
@@ -673,10 +681,16 @@ export function FormEntryPage() {
   const build = useStudyBuild(data?.context.studyId ?? "", data?.buildVersion ?? 0);
 
   const mdv = build.data?.study?.metaDataVersions[0];
-  const resolved = useMemo(
-    () => (mdv && data ? resolveGroup(mdv, data.context.formOid) : null),
-    [mdv, data],
-  );
+  const resolved = useMemo(() => {
+    if (!mdv || !data) return null;
+    if (data.context.formOid.startsWith("V.") && data.variantDefinition) {
+      const definition = siteFormVariantDefinitionSchema.safeParse(data.variantDefinition);
+      if (definition.success) {
+        return resolveVariantForm(mdv, definition.data, data.context.formOid);
+      }
+    }
+    return resolveGroup(mdv, data.context.formOid);
+  }, [mdv, data]);
 
   if (isPending || build.isPending) return <Spinner />;
   if (isError || !data || !mdv || !resolved) return <ErrorNote>Failed to load form.</ErrorNote>;
