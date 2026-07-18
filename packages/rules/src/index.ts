@@ -36,6 +36,19 @@ export interface CompiledCheck {
 
 export const JSONATA_CONTEXT = "jsonata";
 
+/**
+ * Compile-time syntax check for an authored jsonata expression; null when it
+ * parses. Powers instant feedback in the builder's rule-authoring UI.
+ */
+export function expressionSyntaxError(code: string): string | null {
+  try {
+    jsonata(code);
+    return null;
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
 export function compileCheck(input: {
   oid: string;
   expression: string;

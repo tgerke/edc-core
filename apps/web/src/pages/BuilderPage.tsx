@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { useImportOdm, usePermissions, useStudyBuild } from "../api/hooks.js";
 import { FormEditor } from "../components/FormEditor.js";
 import { FormPreview } from "../components/FormPreview.js";
+import { RulesPanel } from "../components/RulesPanel.js";
 import { Badge, Button, Card, ErrorNote, Input, PageTitle, Spinner } from "../components/ui.js";
 
 function EventTree({
@@ -273,6 +274,11 @@ export function BuilderPage() {
           )}
         </Card>
       </div>
+
+      <Card className="mt-6 p-6">
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900">Conditions &amp; methods</h2>
+        <RulesPanel mdv={mdv} editing={editing} onChange={applyEdit} />
+      </Card>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   buildRuleContext,
   compileCheck,
   compileEditChecks,
+  expressionSyntaxError,
   repeatingGroupOids,
   runChecks,
   runChecksOverRows,
@@ -55,6 +56,16 @@ const mdv: MetaDataVersion = {
   ],
   methodDefs: [],
 };
+
+describe("expressionSyntaxError", () => {
+  it("returns null for a valid expression", () => {
+    expect(expressionSyntaxError("`IT.WEIGHT` / $power(`IT.HEIGHT` / 100, 2)")).toBeNull();
+  });
+
+  it("returns the parser message for a broken expression", () => {
+    expect(expressionSyntaxError("`IT.WEIGHT` >")).toMatch(/./);
+  });
+});
 
 describe("compileEditChecks", () => {
   it("extracts jsonata conditions, excluding collection exceptions and other contexts", () => {
