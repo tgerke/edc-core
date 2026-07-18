@@ -250,6 +250,34 @@ async function ensureRptStudy(admin, coord) {
   return form.id;
 }
 
+// Demographics for dynamic-fields.png (ADR-0014): record a pregnancy test
+// while the subject is female, then correct sex to male — leaving the
+// retained value in its "not collected" state with the residual system
+// query open. Idempotent: a stored IT.DM.PREG value means a prior run
+// already staged the state.
+async function ensureDynamicFieldsForm(coord, studyId) {
+  const subjects = await coord.get(`/studies/${studyId}/subjects`);
+  const subject = subjects.find((s) => s.subjectKey === "DEMO-002");
+  if (!subject) throw new Error("seeded subject DEMO-002 not found");
+  const form = await coord.post(`/subjects/${subject.id}/forms`, {
+    eventOid: "SE.SCREENING",
+    formOid: "FO.DM",
+  });
+  const { values } = await coord.get(`/forms/${form.id}`);
+  if (!values.some((v) => v.item_oid === "IT.DM.PREG" && v.value !== null)) {
+    log("staging DEMO-002 demographics (retained pregnancy value → not collected)");
+    const writes = [
+      { itemOid: "IT.DM.SEX", value: "2" },
+      { itemOid: "IT.DM.PREG", value: "1" },
+      { itemOid: "IT.DM.SEX", value: "1", reasonForChange: "transcription error" },
+    ];
+    for (const write of writes) {
+      await coord.put(`/forms/${form.id}/items`, { itemGroupOid: "IG.DM", ...write });
+    }
+  }
+  return form.id;
+}
+
 async function ensureSnapshot(dm, demoStudyId) {
   const { snapshots } = await dm.get(`/studies/${demoStudyId}/snapshots`);
   const published = snapshots.filter((s) => s.status === "published");
@@ -425,6 +453,7 @@ async function main() {
     const site1 = sites.find((s) => s.oid === "SITE.001");
 
     await ensureDemoSubject(coord, demoStudy.id, site1.id);
+    const dynFormId = await ensureDynamicFieldsForm(coord, demoStudy.id);
     const rptFormId = await ensureRptStudy(admin, coord);
     // Coding before the snapshot so the snapshot's codings table has rows.
     await ensureCodingRun(dm, demoStudy.id);
@@ -500,6 +529,14 @@ async function main() {
         async run(page) {
           await page.goto(`/forms/${vsFormId}`);
           await page.getByText("open query").first().waitFor();
+        },
+      },
+      {
+        name: "dynamic-fields",
+        context: coordCtx,
+        async run(page) {
+          await page.goto(`/forms/${dynFormId}`);
+          await page.getByText("not collected").first().waitFor();
         },
       },
       {

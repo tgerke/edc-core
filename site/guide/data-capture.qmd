@@ -58,6 +58,34 @@ same audited write path; see [Lab data import](lab-import.qmd). Verbatim
 AE and medication terms entered here are standardized later by data
 management; see [Medical coding](medical-coding.qmd).
 
+## Conditional and computed fields
+
+Builds that use [dynamic fields](study-builds.qmd#dynamic-fields) change the
+form as answers land, evaluated instantly in the browser and re-checked by the
+server on every write:
+
+- **Skipped fields disappear.** A field whose collection exception is true is
+  simply not shown; a section whose every field is skipped hides entirely.
+  Change the controlling answer back and the field returns.
+- **Values already saved are never silently deleted.** If a saved value's
+  field becomes skipped (say, sex is corrected after a pregnancy test was
+  recorded), the value stays visible read-only with a **not collected** badge
+  and a **Clear** button, and a system query stays open until the site either
+  clears the value (a normal audited correction, reason required) or changes
+  the controlling answer back. The server rejects any other write into a
+  skipped field.
+- **Dependent options narrow.** Options excluded under the current responses
+  drop out of the choice list. A saved value whose option was later excluded
+  stays visible, marked "no longer available", rather than leaving the field
+  blank.
+- **Computed fields are read-only.** Derived items show a live preview with a
+  **computed** badge as you type their inputs; the stored value is always the
+  server's own calculation, written through the audit trail as
+  `item_value.derived`. Entering into a computed field is rejected — on every
+  path, including lab import and RTSM intake.
+
+![](../images/dynamic-fields.png){.screenshot fig-alt="Demographics form where selecting Male hides the pregnancy-test field, and a retained value shows a not-collected badge with a Clear button"}
+
 ## Repeating item groups
 
 Item groups marked `Repeating` in the study build (e.g. multiple blood-pressure
