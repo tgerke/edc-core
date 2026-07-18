@@ -96,6 +96,10 @@ export function StudyPage() {
               <Link to="/studies/$studyId/workbench" params={{ studyId }} className="underline">
                 analytics
               </Link>
+              {" · "}
+              <Link to="/studies/$studyId/protocol" params={{ studyId }} className="underline">
+                protocol
+              </Link>
             </>
           }
         >
@@ -162,6 +166,12 @@ export function StudyPage() {
             <Button variant="secondary" onClick={startFromScratch} disabled={importOdm.isPending}>
               start point-and-click in the builder
             </Button>
+          </p>
+          <p className="mt-2">
+            or derive the build from a structured protocol:{" "}
+            <Link to="/studies/$studyId/protocol" params={{ studyId }} className="underline">
+              import a USDM protocol
+            </Link>
           </p>
         </Card>
       ) : null}

@@ -37,7 +37,10 @@
 2. **Metadata-driven everything.** A study build is a versioned, ODM v2.0-shaped study
    definition. CRFs, edit checks, visit schedules, and codelists all render from metadata.
    The point-and-click study builder and file/API-driven builds (ODM upload, scripts, LLM
-   agents) write through exactly the same versioned-metadata API. See ADR-0003.
+   agents) write through exactly the same versioned-metadata API. See ADR-0003. A fourth
+   path ingests a CDISC USDM v4 protocol package: the protocol's schedule of activities and
+   biomedical concepts compile into a candidate build through the same API, with field-level
+   traceability back to the protocol. See ADR-0012.
 
 3. **Append-only audit as a structural property.** Clinical data values are never destructively
    updated. Each change inserts an immutable version row (who, when, old→new, reason-for-change)
@@ -46,8 +49,9 @@
    [regulatory-traceability.md](regulatory-traceability.md).
 
 4. **Standards as the interface.** ODM v2.0 (XML + JSON) for study metadata exchange,
-   Dataset-JSON v1.1 for data exchange, CDASH-aligned example CRFs. The archive format of a
-   study must outlive the running system.
+   USDM v4 (JSON) for protocol ingestion, Dataset-JSON v1.1 for data exchange,
+   CDASH-aligned example CRFs. The archive format of a study must outlive the running
+   system.
 
 5. **Analysis code is a first-class, audited artifact.** R and Python scripts execute
    server-side in isolated containers against read-only snapshots; scripts, logs, and outputs

@@ -1401,3 +1401,116 @@ export function useChangePassword() {
     onSuccess: () => queryClient.refetchQueries({ queryKey: ["me"] }),
   });
 }
+
+// --- Protocol-first build path (USDM) --------------------------------------
+
+export interface ProtocolVersionSummary {
+  id: string;
+  version: number;
+  usdmVersion: string;
+  note: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ProtocolConceptStatus {
+  usdmId: string;
+  name: string;
+  conceptCode?: string;
+  kind: "concept" | "surrogate";
+  status: "resolved" | "draft";
+  itemOids: string[];
+}
+
+export interface ProtocolSoaSummary {
+  encounters: { usdmId: string; label: string; timingLabel?: string; windowLabel?: string }[];
+  rows: {
+    usdmId: string;
+    label: string;
+    isGroupHeading: boolean;
+    encounterIds: string[];
+    concepts: ProtocolConceptStatus[];
+  }[];
+  warnings: { severity: string; path: string; message: string }[];
+  unresolvedCount: number;
+}
+
+export interface ProtocolVersionDetail extends ProtocolVersionSummary {
+  package: unknown;
+  compilation: {
+    id: string;
+    status: "in_review" | "published" | "discarded";
+    unresolvedCount: number;
+    publishedMetadataVersionId: string | null;
+    candidate: unknown;
+    warnings: unknown[];
+  } | null;
+  soa: ProtocolSoaSummary | null;
+}
+
+export function useProtocolVersions(studyId: string) {
+  return useQuery<ProtocolVersionSummary[]>({
+    queryKey: ["protocol-versions", studyId],
+    queryFn: () => api<ProtocolVersionSummary[]>(`/studies/${studyId}/protocol-versions`),
+  });
+}
+
+export function useProtocolVersion(studyId: string, version: string) {
+  return useQuery<ProtocolVersionDetail>({
+    queryKey: ["protocol-version", studyId, version],
+    queryFn: () => api<ProtocolVersionDetail>(`/studies/${studyId}/protocol-versions/${version}`),
+  });
+}
+
+export function useImportProtocol(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { content: string; note?: string }) =>
+      api<{
+        id: string;
+        version: number;
+        compilationId: string;
+        unresolvedCount: number;
+        warnings: unknown[];
+      }>(`/studies/${studyId}/protocol-versions`, { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["protocol-versions", studyId] }),
+  });
+}
+
+export interface DraftItemResolution {
+  itemOid: string;
+  name?: string;
+  question?: string;
+  dataType?: string;
+  length?: number | null;
+  mandatory?: boolean;
+  codeListTerms?: { codedValue: string; decode?: string }[];
+}
+
+export function useResolveDraftItems(studyId: string, version: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { resolutions: DraftItemResolution[] }) =>
+      api<{ unresolvedCount: number }>(
+        `/studies/${studyId}/protocol-versions/${version}/compilation`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["protocol-version", studyId, version] }),
+  });
+}
+
+export function usePublishCompilation(studyId: string, version: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api<{ metadataVersionId: string; buildVersion: number }>(
+        `/studies/${studyId}/protocol-versions/${version}/compilation/publish`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["protocol-version", studyId, version] });
+      queryClient.invalidateQueries({ queryKey: ["metadata-versions", studyId] });
+    },
+  });
+}
