@@ -1,0 +1,649 @@
+{
+  "packVersion": "1.0.0",
+  "sources": {
+    "cosmos": {
+      "repository": "https://github.com/cdisc-org/COSMoS",
+      "license": "MIT",
+      "sha": "d861de9e18a0b568a8eac7b60ae843b42af0634e",
+      "packageDates": ["2026-06-30"]
+    },
+    "cdashigCrossChecked": true,
+    "cdashigVersion": "v2.3"
+  },
+  "concepts": {
+    "C164634": {
+      "shortName": "Height (Denormalized)",
+      "crfGroup": "HEIGHT_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "Date of Assessment",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "Height",
+          "dataType": "decimal",
+          "length": 4,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C168688",
+          "question": "Height Unit",
+          "dataType": "text",
+          "length": 2,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": [
+              {
+                "codedValue": "cm"
+              },
+              {
+                "codedValue": "in"
+              },
+              {
+                "codedValue": "m"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        }
+      ]
+    },
+    "C174446": {
+      "shortName": "Temperature (Denormalized)",
+      "crfGroup": "TEMP_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "Date of Assessment",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "Temperature",
+          "dataType": "decimal",
+          "length": 4,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C44276",
+          "question": "Temperature Unit",
+          "dataType": "text",
+          "length": 2,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": [
+              {
+                "codedValue": "C"
+              },
+              {
+                "codedValue": "F"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        },
+        {
+          "variable": "VSLOC",
+          "decCode": "C13717",
+          "question": "Anatomical Location",
+          "dataType": "text",
+          "length": 11,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C74456",
+            "terms": [
+              {
+                "codedValue": "AXILLA"
+              },
+              {
+                "codedValue": "EAR"
+              },
+              {
+                "codedValue": "FOREHEAD"
+              },
+              {
+                "codedValue": "ORAL CAVITY"
+              },
+              {
+                "codedValue": "RECTUM"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSLOC"
+          }
+        }
+      ]
+    },
+    "C25298": {
+      "shortName": "Systolic Blood Pressure (Denormalized)",
+      "crfGroup": "SYSBP_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "What was the date of the measurement?",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSPOS",
+          "decCode": "C62164",
+          "question": "What was the position of the subject during the Systolic Blood Pressure measurement?",
+          "dataType": "text",
+          "length": 50,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C71148",
+            "terms": [
+              {
+                "codedValue": "PRONE"
+              },
+              {
+                "codedValue": "SEMI-RECUMBENT"
+              },
+              {
+                "codedValue": "SITTING"
+              },
+              {
+                "codedValue": "STANDING"
+              },
+              {
+                "codedValue": "SUPINE"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSPOS"
+          }
+        },
+        {
+          "variable": "VSLOC",
+          "decCode": "C13717",
+          "question": "What was the location of the subject during the Systolic Blood Pressure measurement?",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C74456",
+            "terms": [
+              {
+                "codedValue": "BRACHIAL ARTERY"
+              },
+              {
+                "codedValue": "FEMORAL ARTERY"
+              },
+              {
+                "codedValue": "PERIPHERAL ARTERY"
+              },
+              {
+                "codedValue": "RADIAL ARTERY"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSLOC"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "What was the result of the Systolic Blood Pressure measurement?",
+          "dataType": "integer",
+          "length": 3,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C49669",
+          "question": "What was the unit of the Systolic Blood Pressure measurement?",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": []
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        }
+      ]
+    },
+    "C25299": {
+      "shortName": "Diastolic Blood Pressure (Denormalized)",
+      "crfGroup": "DIABP_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "What was the date of the measurement?",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSPOS",
+          "decCode": "C62164",
+          "question": "What was the position of the subject during the Diastolic Blood Pressure measurement?",
+          "dataType": "text",
+          "length": 50,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C71148",
+            "terms": [
+              {
+                "codedValue": "PRONE"
+              },
+              {
+                "codedValue": "SEMI-RECUMBENT"
+              },
+              {
+                "codedValue": "SITTING"
+              },
+              {
+                "codedValue": "STANDING"
+              },
+              {
+                "codedValue": "SUPINE"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSPOS"
+          }
+        },
+        {
+          "variable": "VSLOC",
+          "decCode": "C13717",
+          "question": "What was the position of the subject during the Diastolic Blood Pressure measurement?",
+          "dataType": "text",
+          "length": 50,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C74456",
+            "terms": [
+              {
+                "codedValue": "BRACHIAL ARTERY"
+              },
+              {
+                "codedValue": "FEMORAL ARTERY"
+              },
+              {
+                "codedValue": "PERIPHERAL ARTERY"
+              },
+              {
+                "codedValue": "RADIAL ARTERY"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSLOC"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "What was the result of the Diastolic Blood Pressure measurement?",
+          "dataType": "integer",
+          "length": 3,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C49669",
+          "question": "What was the unit of the Diastolic Blood Pressure measurement?",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": []
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        }
+      ]
+    },
+    "C28421": {
+      "shortName": "SEX",
+      "crfGroup": "SEX",
+      "items": [
+        {
+          "variable": "DMDAT",
+          "decCode": "C82515",
+          "question": "Collection Date",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "DM",
+            "variable": "DMDTC"
+          }
+        },
+        {
+          "variable": "SEX",
+          "decCode": "C28421",
+          "question": "What is the sex of the subject?",
+          "dataType": "text",
+          "length": 100,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66731",
+            "terms": [
+              {
+                "codedValue": "F"
+              },
+              {
+                "codedValue": "M"
+              },
+              {
+                "codedValue": "U"
+              },
+              {
+                "codedValue": "INTERSEX"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "DM",
+            "variable": "SEX"
+          }
+        }
+      ]
+    },
+    "C49677": {
+      "shortName": "Heart Rate (Denormalized)",
+      "crfGroup": "HR_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "Date of Assessment",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSPOS",
+          "decCode": "C62164",
+          "question": "Position",
+          "dataType": "text",
+          "length": 50,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C71148",
+            "terms": [
+              {
+                "codedValue": "PRONE"
+              },
+              {
+                "codedValue": "SEMI-RECUMBENT"
+              },
+              {
+                "codedValue": "SITTING"
+              },
+              {
+                "codedValue": "STANDING"
+              },
+              {
+                "codedValue": "SUPINE"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSPOS"
+          }
+        },
+        {
+          "variable": "VSLOC",
+          "decCode": "C13717",
+          "question": "Anatomical Location",
+          "dataType": "text",
+          "length": 50,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C74456",
+            "terms": [
+              {
+                "codedValue": "BRACHIAL ARTERY"
+              },
+              {
+                "codedValue": "FEMORAL ARTERY"
+              },
+              {
+                "codedValue": "PERIPHERAL ARTERY"
+              },
+              {
+                "codedValue": "RADIAL ARTERY"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSLOC"
+          }
+        },
+        {
+          "variable": "VSLAT",
+          "decCode": "C25185",
+          "question": "Side",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": false,
+          "codeList": {
+            "nciCode": "C99073",
+            "terms": [
+              {
+                "codedValue": "LEFT"
+              },
+              {
+                "codedValue": "RIGHT"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSLAT"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "Heart Rate",
+          "dataType": "integer",
+          "length": 3,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C73688",
+          "question": "Heart Rate Unit",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": []
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        }
+      ]
+    },
+    "C49678": {
+      "shortName": "Respiratory Rate (Denormalized)",
+      "crfGroup": "RESP_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "Date of Assessment",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "Respiratory Rate",
+          "dataType": "integer",
+          "length": 2,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C73688",
+          "question": "Respiratory Rate Unit",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": []
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        }
+      ]
+    },
+    "C81328": {
+      "shortName": "Weight (Denormalized)",
+      "crfGroup": "WEIGHT_DENORMALIZED",
+      "items": [
+        {
+          "variable": "VSDAT",
+          "decCode": "C82515",
+          "question": "Date of Assessment",
+          "dataType": "date",
+          "length": 10,
+          "mandatory": false,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSDTC"
+          }
+        },
+        {
+          "variable": "VSORRES",
+          "decCode": "C70856",
+          "question": "Weight",
+          "dataType": "decimal",
+          "length": 4,
+          "mandatory": true,
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRES"
+          }
+        },
+        {
+          "variable": "VSORRESU",
+          "decCode": "C48208",
+          "question": "Weight Unit",
+          "dataType": "text",
+          "length": 10,
+          "mandatory": true,
+          "codeList": {
+            "nciCode": "C66770",
+            "terms": [
+              {
+                "codedValue": "LB"
+              },
+              {
+                "codedValue": "g"
+              },
+              {
+                "codedValue": "kg"
+              }
+            ]
+          },
+          "sdtm": {
+            "domain": "VS",
+            "variable": "VSORRESU"
+          }
+        }
+      ]
+    }
+  }
+}
