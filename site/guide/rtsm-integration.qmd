@@ -23,7 +23,9 @@ dedicated randomization form with a text item for the arm. OIDs are
 validated against the latest study build when you save, and every change
 is audited with the full before/after. For a blinded trial, mark the arm
 item `edc:Blinded="Yes"` in the build: masking then applies everywhere
-by construction (see the blinding guide).
+by construction (see the [blinding guide](blinding.qmd)).
+
+![](../images/rtsm-panel.png){.screenshot fig-alt="The RTSM integration panel: intake configuration pointing at the arm item, API-key management, and the transfer log with an applied assignment"}
 
 **2. Mint an API key.** The RTSM authenticates with a study-scoped
 bearer token (`edcrtsm_…`). The raw token is shown exactly once at mint

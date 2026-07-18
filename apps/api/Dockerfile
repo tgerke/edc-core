@@ -9,11 +9,13 @@ COPY apps/api/package.json apps/api/
 COPY packages/schemas/package.json packages/schemas/
 COPY packages/odm/package.json packages/odm/
 COPY packages/rules/package.json packages/rules/
+COPY packages/usdm/package.json packages/usdm/
 RUN pnpm install --frozen-lockfile --filter @edc-core/api...
 
 COPY packages/schemas packages/schemas
 COPY packages/odm packages/odm
 COPY packages/rules packages/rules
+COPY packages/usdm packages/usdm
 COPY apps/api apps/api
 # db:seed-demo loads the CDASH demo study from here; shipping it keeps the
 # one-command demo seed available in containerized deployments.
