@@ -34,7 +34,10 @@ as data entry will render it.
 With the `study.manage` permission, **Edit build** switches the builder into a
 point-and-click editor: rename forms and sections, add or delete events, forms,
 sections, and items, reorder items, change questions, data types, and lengths,
-assign codelists, and toggle required/repeating flags. Nothing is persisted
+assign codelists, toggle required/repeating flags, and wire skip conditions
+and derivation methods to fields and sections. A rules panel below the form
+editor manages the conditions and methods themselves; JSONata expressions are
+syntax-checked as you type. Nothing is persisted
 while you work. **Save as new build** validates the draft and writes it
 through the same import path as a file, creating the next immutable version.
 A study with no builds yet offers a **start from scratch** shortcut that
@@ -127,7 +130,9 @@ demo study computes BMI from height and weight. A derivation may read other
 derived items; circular chains are rejected at validation time.
 
 Conditions and methods referenced this way are collection logic, never edit
-checks: they gate what is collected instead of raising queries. What happens
+checks: they gate what is collected instead of raising queries. All of it can
+be authored in the builder's rules panel and item editors, or imported inside
+an ODM file; both land in the same build. What happens
 at the point of entry — fields appearing and disappearing, retained values
 that need clearing, read-only computed fields — is covered in
 [Data capture](data-capture.qmd).

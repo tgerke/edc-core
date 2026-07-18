@@ -21,6 +21,13 @@
 - The demo study now exercises all three: a pregnancy-test item skipped
   for male subjects, a conditional "Not performed" option, and a BMI item
   derived from height and weight
+- The study builder authors these constructs directly: a rules panel on
+  the build page creates, edits, and deletes conditions and methods
+  (jsonata expressions are syntax-checked as you type, and a rule in use
+  cannot be deleted), and each field's item editor wires a skip condition
+  or derivation method to the field, with sections gaining a skip
+  condition of their own; assigning a derivation clears the required
+  flag, since derived items are system-written
 
 ## v0.5.0 — Protocol-first builds and site form layouts (2026-07)
 
