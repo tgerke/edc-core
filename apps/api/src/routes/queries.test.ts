@@ -51,13 +51,15 @@ describe.skipIf(!dbAvailable)("manual query lifecycle", () => {
   const suffix = randomUUID().slice(0, 8);
   const fx = {
     studyId: "",
+    siteId: "",
     formId: "",
     monitorToken: "",
     entryToken: "",
+    siteEntryToken: "",
     queryId: "",
   };
 
-  async function makeUser(name: string, roleName: string, studyId: string) {
+  async function makeUser(name: string, roleName: string, studyId: string, siteId?: string) {
     const [user] = await db
       .insert(users)
       .values({
@@ -69,7 +71,13 @@ describe.skipIf(!dbAvailable)("manual query lifecycle", () => {
       .returning();
     const [role] = await db.select().from(roles).where(eq(roles.name, roleName));
     if (!user || !role) throw new Error("fixture failed");
-    await grantRole(db, { userId: user.id, studyId, roleId: role.id, grantedBy: user.id });
+    await grantRole(db, {
+      userId: user.id,
+      studyId,
+      roleId: role.id,
+      ...(siteId ? { siteId } : {}),
+      grantedBy: user.id,
+    });
     const token = (
       await server.inject({
         method: "POST",
@@ -99,8 +107,11 @@ describe.skipIf(!dbAvailable)("manual query lifecycle", () => {
 
     const monitor = await makeUser("mon", "monitor", study.id);
     const entry = await makeUser("ent", "data_entry", study.id);
+    const siteEntry = await makeUser("site-ent", "data_entry", study.id, site.id);
+    fx.siteId = site.id;
     fx.monitorToken = monitor.token;
     fx.entryToken = entry.token;
+    fx.siteEntryToken = siteEntry.token;
 
     const imported = await importStudyBuild(db, {
       studyId: study.id,
@@ -284,5 +295,21 @@ describe.skipIf(!dbAvailable)("manual query lifecycle", () => {
     const entry = await act(fx.entryToken, "GET", `/studies/${fx.studyId}/permissions`);
     expect(entry.json().permissions).toContain("query.answer");
     expect(entry.json().permissions).not.toContain("query.manage");
+  });
+
+  it("scopes effective permissions: site grants confer nothing at study scope", async () => {
+    // The contract the matrix UI depends on — a site-scoped coordinator's
+    // grants only surface when the query names their site.
+    const studyScope = await act(fx.siteEntryToken, "GET", `/studies/${fx.studyId}/permissions`);
+    expect(studyScope.json().permissions).toEqual([]);
+
+    const siteScope = await act(
+      fx.siteEntryToken,
+      "GET",
+      `/studies/${fx.studyId}/permissions?siteId=${fx.siteId}`,
+    );
+    expect(siteScope.json().permissions).toContain("subject.enroll");
+    expect(siteScope.json().permissions).toContain("data.enter");
+    expect(siteScope.json().permissions).not.toContain("query.manage");
   });
 });
