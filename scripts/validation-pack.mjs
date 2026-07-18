@@ -23,6 +23,7 @@ const evidenceDir = path.join(outDir, "evidence");
 const PACKAGES = [
   { name: "@edc-core/schemas", dir: "packages/schemas" },
   { name: "@edc-core/odm", dir: "packages/odm" },
+  { name: "@edc-core/usdm", dir: "packages/usdm" },
   { name: "@edc-core/rules", dir: "packages/rules" },
   { name: "@edc-core/api", dir: "apps/api" },
 ];
