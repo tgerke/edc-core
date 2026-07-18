@@ -12,6 +12,7 @@ import {
 } from "../db/schema/index.js";
 import { notifyPermissionHolders } from "./notifications.js";
 import { invalidateLiveSignatures } from "./signatures.js";
+import { effectiveVariantVersion } from "./site-forms.js";
 
 export type FormStatus =
   | "not_started"
@@ -203,6 +204,7 @@ export interface FormContext {
   formOid: string;
   status: FormStatus;
   metadataVersionId: string;
+  siteFormVariantVersionId: string | null;
   subjectId: string;
   subjectKey: string;
   studyId: string;
@@ -221,6 +223,7 @@ export async function resolveFormContext(
       formOid: formInstances.formOid,
       status: formInstances.status,
       metadataVersionId: formInstances.metadataVersionId,
+      siteFormVariantVersionId: formInstances.siteFormVariantVersionId,
       subjectId: subjects.id,
       subjectKey: subjects.subjectKey,
       studyId: subjects.studyId,
@@ -264,6 +267,28 @@ export async function ensureFormInstance(
 
   const mdv = await latestMetadataVersion(db, subject.studyId);
   if (!mdv) throw new CaptureError("invalid", "study has no published build");
+
+  // Variant forms (V.* namespace) pin the approved site layout that defines
+  // them; the underlying data stays keyed on build item/group OIDs, so the
+  // captured shape is identical to a standard-form site.
+  let siteFormVariantVersionId: string | null = null;
+  if (input.formOid.startsWith("V.")) {
+    const effective = await effectiveVariantVersion(db, {
+      studyId: subject.studyId,
+      siteId: subject.siteId,
+      metadataVersionId: mdv.id,
+    });
+    const defined = effective?.definition.events.some((event) =>
+      event.forms.some((form) => form.oid === input.formOid),
+    );
+    if (!effective || !defined) {
+      throw new CaptureError(
+        "invalid",
+        `no approved site form variant defines "${input.formOid}" for this site and build`,
+      );
+    }
+    siteFormVariantVersionId = effective.id;
+  }
 
   return db.transaction(async (tx) => {
     let [event] = await tx
@@ -316,6 +341,7 @@ export async function ensureFormInstance(
           formOid: input.formOid,
           repeatKey: formRepeatKey,
           metadataVersionId: mdv.id,
+          siteFormVariantVersionId,
         })
         .returning();
       if (!form) throw new Error("form insert returned no row");
