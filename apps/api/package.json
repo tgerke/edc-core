@@ -20,6 +20,7 @@
     "@edc-core/odm": "workspace:*",
     "@edc-core/rules": "workspace:*",
     "@edc-core/schemas": "workspace:*",
+    "@edc-core/usdm": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@node-rs/argon2": "^2.0.2",
     "drizzle-orm": "^0.45.2",
