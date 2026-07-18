@@ -13,9 +13,10 @@ export interface ItemValueWrite {
   /** Required when changing an existing value (clinical correction convention). */
   reasonForChange?: string;
   /** Set by machine write paths: the audit trail records the value as
-   * item_value.imported (lab import) or item_value.integrated (RTSM intake)
-   * so data origin is permanently distinguishable. */
-  origin?: "import" | "integration";
+   * item_value.imported (lab import), item_value.integrated (RTSM intake),
+   * or item_value.derived (MethodDef computation) so data origin is
+   * permanently distinguishable. */
+  origin?: "import" | "integration" | "derivation";
 }
 
 /**
@@ -69,13 +70,18 @@ export async function appendItemValue(db: Db, write: ItemValueWrite) {
     await tx.insert(auditEvents).values({
       actorId: write.actorId,
       studyId: write.studyId,
-      action: latest
-        ? "item_value.changed"
-        : write.origin === "import"
-          ? "item_value.imported"
-          : write.origin === "integration"
-            ? "item_value.integrated"
-            : "item_value.entered",
+      // Derivations stay item_value.derived even on change: the audit trail
+      // must always show the value as system-computed, never user-corrected.
+      action:
+        write.origin === "derivation"
+          ? "item_value.derived"
+          : latest
+            ? "item_value.changed"
+            : write.origin === "import"
+              ? "item_value.imported"
+              : write.origin === "integration"
+                ? "item_value.integrated"
+                : "item_value.entered",
       entityType: "item_value",
       entityId: inserted.id,
       oldValue: latest ? { value: latest.value } : null,

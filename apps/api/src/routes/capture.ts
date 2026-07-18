@@ -38,8 +38,8 @@ import {
   writeItemValue,
 } from "../services/capture.js";
 import { generateSubjectCasebook } from "../services/casebook.js";
-import { evaluateFormChecks } from "../services/checks.js";
 import { ExportError } from "../services/exports.js";
+import { assertWriteAllowed, loadFormState, runPostWritePipeline } from "../services/form-state.js";
 import { listFormSignatures, SignatureError, signForm } from "../services/signatures.js";
 import type { StudyBuildDefinition } from "../services/study-builds.js";
 
@@ -549,6 +549,17 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
     }
 
     try {
+      // Dynamic-field gate (ADR-0014): no writes to derived items, skipped
+      // fields (except clearing), or currently excluded code list options.
+      const formState = await loadFormState(app.db, context);
+      if (formState) {
+        assertWriteAllowed(formState, {
+          itemGroupOid: parsed.data.itemGroupOid,
+          itemGroupRepeatKey: parsed.data.itemGroupRepeatKey,
+          itemOid: parsed.data.itemOid,
+          value: parsed.data.value,
+        });
+      }
       const version = await writeItemValue(app.db, context, {
         itemGroupOid: parsed.data.itemGroupOid,
         itemOid: parsed.data.itemOid,
@@ -559,7 +570,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
           : {}),
         ...(parsed.data.reasonForChange ? { reasonForChange: parsed.data.reasonForChange } : {}),
       });
-      const findings = await evaluateFormChecks(app.db, context, user.id);
+      const findings = await runPostWritePipeline(app.db, context, user.id);
       return reply.code(201).send({ ...version, findings });
     } catch (err) {
       if (err instanceof Error && /reasonForChange is required/.test(err.message)) {
