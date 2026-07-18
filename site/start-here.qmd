@@ -43,17 +43,23 @@ versioned ODM builds, rules, and what happens after go-live. Work as
 
 1. [Study builds](guide/study-builds.qmd): the versioned, immutable build
    model everything else renders from, and the three ways to author one.
-2. [Why protocol-first?](guide/why-protocol-first.qmd) and
+2. [Rules and derivations](guide/rules-and-derivations.qmd): edit checks,
+   skip logic, and computed values, with a JSONata primer.
+3. [Why protocol-first?](guide/why-protocol-first.qmd) and
    [Protocol import](guide/protocol-import.qmd): deriving a build from a
    USDM protocol package instead of hand-built forms.
-3. [Site form layouts](guide/site-forms.qmd): letting sites adapt form
+4. [Mid-study amendments](guide/amendments.qmd): diff, impact analysis, and
+   audited migration once the protocol changes under live data.
+5. [Site form layouts](guide/site-forms.qmd): letting sites adapt form
    presentation while you keep one data shape across the study.
-4. [Lab data import](guide/lab-import.qmd): batch central-lab results
-   through the same audited write path as typed data.
-5. [RTSM integration](guide/rtsm-integration.qmd): receiving treatment-arm
-   assignments, and why the arm is just another audited item.
-6. [Analytics workbench](guide/analytics.qmd): snapshots, and R and Python
-   against them, for cleaning metrics and dataset review.
+6. [Lab data import](guide/lab-import.qmd) and
+   [RTSM integration](guide/rtsm-integration.qmd): external data through
+   the same audited write path as typed entry.
+7. [Blinding](guide/blinding.qmd): item-level masking, who sees what, and
+   the break-the-blind record.
+8. [Analytics workbench](guide/analytics.qmd) and
+   [Exports and the study archive](guide/exports-and-archive.qmd):
+   snapshots, R and Python against them, and every path data takes out.
 
 ## CRO and sponsor leadership {#leadership}
 
@@ -71,9 +77,8 @@ requires touching a form.
 4. [User administration](guide/user-admin.qmd): account lifecycle, per-study
    role grants, the access log, and security anomaly review, which is the
    access-control story an auditor will ask about.
-5. [Analytics workbench](guide/analytics.qmd): the exports and study-archive
-   section describes the exit path, because your data outliving the system
-   is part of the decision.
+5. [Exports and the study archive](guide/exports-and-archive.qmd): the exit
+   path, because your data outliving the system is part of the decision.
 6. [Deployment](deployment.qmd): what running this in production actually
    involves, whether or not you operate it yourself.
 
@@ -92,9 +97,10 @@ site-facing surfaces. Follow along as `demo-coord` (coordinator) and
    around your clinic's flow without changing what the study collects.
 4. [Review workflows](guide/review.qmd): answering queries, what the monitor
    is doing when a form shows *verified*, and what signing commits you to.
-5. [RTSM integration](guide/rtsm-integration.qmd): where a randomization
-   assignment lands, and why some staff see the arm while others see
-   `[BLINDED]`.
+5. [Notifications](guide/notifications.qmd): how query and signature work
+   finds you instead of waiting on a dashboard.
+6. [Blinding](guide/blinding.qmd): why some staff see the arm while others
+   see a masked field, and what breaking the blind records.
 
 If none of these fit, the [user guide sidebar](guide/study-builds.qmd) lists
 every page by topic, and the [glossary](glossary.qmd) covers the vocabulary.

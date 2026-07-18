@@ -12,6 +12,14 @@ This is the site half of the same idea as the
 [protocol-first path](why-protocol-first.qmd): the protocol (or the sponsor's
 build) governs the data; presentation is adaptable per stakeholder.
 
+A concrete example, using the demo study: Tampa General's screening visit
+runs across two rooms, so the coordinator builds a "Clinic flow" layout that
+regroups the sponsor's screening forms in the order their clinic actually
+moves, renames "Demographics" to the wording on their intake sheet, and
+submits it. The sponsor sees a layout that is provably collecting the same
+data and approves the workflow change. That loop is what this page walks
+through.
+
 ## For site coordinators
 
 Open **site forms** from the study page (you need the site-scoped
@@ -26,6 +34,9 @@ Open **site forms** from the study page (you need the site-scoped
    same fields, with at least the same required flags. Anything that would
    drop, add, or weaken a field is flagged immediately; you cannot submit
    until it's clean.
+
+   ![](../images/site-forms-editor.png){.screenshot fig-alt="The site form layout editor with a draft layout open and the live data-equivalence panel confirming the layout still collects the sponsor's fields"}
+
 3. **Submit for approval.** The sponsor sees your layout with the equivalence
    check already passed, so the review is about workflow, not data. You'll
    get it back approved or with a change note.
@@ -45,6 +56,8 @@ sensitive events (consent, endpoint assessments).
 already passed structural data-equivalence validation (the badge is
 machine-checked, not self-declared), so the decision is whether the workflow
 is acceptable, with an optional note back to the site.
+
+![](../images/approval-queue.png){.screenshot fig-alt="The sponsor's layout approval queue with a submitted site layout awaiting an approve or request-changes decision"}
 
 The part that matters for data management: captured values are identical in
 shape regardless of layout. Value rows key on the build's canonical field and

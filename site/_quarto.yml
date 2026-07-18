@@ -41,20 +41,25 @@ website:
             - guide/why-protocol-first.qmd
             - guide/protocol-import.qmd
             - guide/study-builds.qmd
+            - guide/rules-and-derivations.qmd
             - guide/site-forms.qmd
+            - guide/amendments.qmd
         - section: "Capturing data"
           contents:
             - guide/data-capture.qmd
             - guide/lab-import.qmd
             - guide/rtsm-integration.qmd
+            - guide/blinding.qmd
         - section: "Review and oversight"
           contents:
             - guide/review.qmd
             - guide/medical-coding.qmd
+            - guide/notifications.qmd
             - guide/user-admin.qmd
         - section: "Analytics and exports"
           contents:
             - guide/analytics.qmd
+            - guide/exports-and-archive.qmd
         - section: "Reference"
           contents:
             - glossary.qmd

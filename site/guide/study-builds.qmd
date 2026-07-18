@@ -35,9 +35,11 @@ With the `study.manage` permission, **Edit build** switches the builder into a
 point-and-click editor: rename forms and sections, add or delete events, forms,
 sections, and items, reorder items, change questions, data types, and lengths,
 assign codelists, toggle required/repeating flags, and wire skip conditions
-and derivation methods to fields and sections. A rules panel below the form
-editor manages the conditions and methods themselves; JSONata expressions are
-syntax-checked as you type. Nothing is persisted
+and derivation methods to fields and sections. The **Conditions & methods**
+panel below the form editor manages the rules themselves; JSONata expressions
+are syntax-checked as you type, and
+[Rules and derivations](rules-and-derivations.qmd) is the full authoring
+guide. Nothing is persisted
 while you work. **Save as new build** validates the draft and writes it
 through the same import path as a file, creating the next immutable version.
 A study with no builds yet offers a **start from scratch** shortcut that
@@ -62,30 +64,13 @@ round-tripping is a tested property.
 ## Mid-study amendments
 
 When a protocol amendment lands mid-study, import (or build) the new version,
-then use the **Amendments** panel on the study page:
-
-1. **Diff:** compare any two builds for items added/removed/changed (data
-   type, codelist, length, mandatory), edit checks, events, forms, and
-   codelists.
-2. **Analyze impact:** how many in-flight forms would migrate (by status and
-   by current build), values orphaned by removed items, values that will not
-   cast to a changed data type, and which checks will re-run.
-3. **Execute:** each eligible form is re-pointed to the new build and its
-   edit checks re-run, one transaction per form: newly firing checks open
-   system queries, checks that no longer exist auto-close theirs, and every
-   re-point is audited (`form.migrated`).
-
-Two rules are deliberate:
-
-- **Signed and locked forms never migrate.** Their signature hashes bind to
-  the build they were signed under; re-signing after an amendment is an
-  explicit, separate act.
-- **Orphaned values are never deleted.** A value captured against an item the
-  amendment removed stays in the append-only history and the audit trail; it
-  just stops rendering and stops appearing in analytics snapshots.
-
-Executing again after a partial run is safe: already-migrated forms are no
-longer eligible.
+then use the **Amendments** panel on the study page: **diff** the builds,
+**analyze the impact** on in-flight forms, and **execute** an audited
+migration. Two rules are deliberate: signed and locked forms never migrate
+(their signatures bind to the build they were signed under), and values
+orphaned by removed items are never deleted. The full walkthrough, with the
+impact report explained line by line, is on the
+[amendments page](amendments.qmd).
 
 ## Edit checks
 

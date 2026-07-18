@@ -7,6 +7,10 @@ regulation, half from CDISC standards, and the rest from whatever the last
 EDC vendor called things. This page defines the terms as edc-core uses them,
 in plain language, with a link to the guide page that treats each one fully.
 
+**Amendment.** A mid-study change to the study definition, made as a new
+immutable build followed by an explicit, audited migration of in-flight
+forms. See [Mid-study amendments](guide/amendments.qmd).
+
 **Audit trail.** The permanent record of every create, change, and state
 transition in a study: who, when, what changed, and why. In edc-core the
 audit tables are append-only at the database level, so history cannot be
@@ -17,9 +21,9 @@ blood pressure") that a protocol schedules and a build turns into concrete
 fields. Used by the [protocol import](guide/protocol-import.qmd) path.
 
 **Blinded item.** A field flagged so that only roles with the `data.unblind`
-permission can see its value; everyone else sees a locked `[BLINDED]` field.
+permission can see its value; everyone else sees a locked, masked field.
 Typically the treatment arm in a blinded trial. See
-[Data capture](guide/data-capture.qmd#blinded-items).
+[Blinding](guide/blinding.qmd).
 
 **Build** (also *study build*, *metadata version*). A versioned, immutable
 snapshot of the study definition: events, forms, item groups, items,
@@ -28,7 +32,7 @@ comes from a build. See [Study builds](guide/study-builds.qmd).
 
 **Casebook.** A PDF rendering of one subject's complete captured data:
 current values, correction markers, queries, and the signature manifest.
-See [Analytics workbench](guide/analytics.qmd#exports-and-the-study-archive).
+See [Exports and the study archive](guide/exports-and-archive.qmd).
 
 **CDASH.** CDISC's standard for how data collection fields should be named
 and structured on CRFs. The demo study's forms are CDASH-aligned.
@@ -44,7 +48,7 @@ across forms.
 **ConditionDef.** The ODM construct holding a named true/false expression.
 edc-core uses ConditionDefs for both edit checks and skip logic; which job
 one does depends on where it is referenced. See
-[Study builds](guide/study-builds.qmd#edit-checks).
+[Rules and derivations](guide/rules-and-derivations.qmd).
 
 **CRF / eCRF.** Case report form: the form on which a subject's study data
 is collected, "e" for electronic. In edc-core, CRFs render directly from the
@@ -56,12 +60,12 @@ least the same required flags. See [Site form layouts](guide/site-forms.qmd).
 
 **Dataset-JSON.** The CDISC exchange format (v1.1) for tabular study data,
 accepted by FDA. One of the three snapshot export formats. See
-[Analytics workbench](guide/analytics.qmd#exports-and-the-study-archive).
+[Exports and the study archive](guide/exports-and-archive.qmd).
 
 **Derived value.** A field the server computes from other answers (BMI from
 height and weight) instead of accepting entry. Stored through the audited
 write path and permanently marked as derived. See
-[Study builds](guide/study-builds.qmd#dynamic-fields).
+[Rules and derivations](guide/rules-and-derivations.qmd).
 
 **Dictionary.** A licensed medical coding vocabulary loaded into edc-core:
 MedDRA for adverse events, WHODrug for medications. See
@@ -70,7 +74,7 @@ MedDRA for adverse events, WHODrug for medications. See
 **Edit check.** A rule that inspects saved data and flags implausible or
 inconsistent values (systolic below 70, end date before start date). A
 failing check warns during entry and opens a system query on save. See
-[Study builds](guide/study-builds.qmd#edit-checks).
+[Rules and derivations](guide/rules-and-derivations.qmd).
 
 **Electronic signature.** A signature applied inside the system, requiring
 credential re-entry at the moment of signing and bound by hash to the exact
@@ -79,7 +83,8 @@ record versions signed. See
 
 **eTMF.** Electronic trial master file: the system holding a trial's
 essential documents. edc-core can file build definitions and snapshot
-manifests into an external eTMF automatically.
+manifests into an external eTMF automatically. See
+[Exports and the study archive](guide/exports-and-archive.qmd#automatic-etmf-filing).
 
 **Event** (also *visit*). A scheduled point in the study (screening, week 4)
 that groups the forms collected there. Columns in the subject matrix.
@@ -116,7 +121,7 @@ terminology used to code adverse events. See
 
 **MethodDef.** The ODM construct holding a computation. An item that
 references a MethodDef is a derived value. See
-[Study builds](guide/study-builds.qmd#dynamic-fields).
+[Rules and derivations](guide/rules-and-derivations.qmd).
 
 **ODM.** CDISC's Operational Data Model, the standard format for study
 definitions and clinical data. edc-core's builds are ODM v2.0 documents
@@ -160,7 +165,8 @@ forms: same fields, different grouping, order, and wording. See
 
 **Skip logic.** A rule that marks a field or section as *not collected*
 while a condition is true, so the pregnancy-test question disappears when
-sex is recorded male. See
+sex is recorded male. Authored on the
+[rules page](guide/rules-and-derivations.qmd); the entry-side behavior is in
 [Data capture](guide/data-capture.qmd#conditional-and-computed-fields).
 
 **Snapshot.** An immutable, point-in-time publication of a study's data
