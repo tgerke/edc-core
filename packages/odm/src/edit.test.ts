@@ -1,17 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
+  addConditionDef,
   addEvent,
   addForm,
   addItem,
+  addMethodDef,
   addSection,
   blankMetaDataVersion,
+  conditionReferenceCount,
   deleteGroup,
   generateOid,
+  jsonataExpression,
+  methodReferenceCount,
   moveItem,
+  removeConditionDef,
   removeItem,
+  removeMethodDef,
+  setGroupCollectionException,
+  setItemCollectionException,
   setItemMandatory,
+  setItemMethod,
+  updateConditionDef,
   updateItemDef,
   updateItemGroup,
+  updateMethodDef,
   withDisplayText,
 } from "./edit.js";
 import type { MetaDataVersion } from "./model.js";
@@ -248,6 +260,125 @@ describe("deleteGroup", () => {
     expect(vs?.itemGroupRefs).toEqual([]);
     expect(next.itemDefs.some((i) => i.oid === "IT.NESTED")).toBe(false);
     expect(errors(next)).toEqual([]);
+  });
+});
+
+describe("condition and method authoring", () => {
+  it("addConditionDef creates a def with a jsonata expression", () => {
+    const { mdv, conditionOid } = addConditionDef(fixture(), {
+      name: "Subject is male",
+      expression: "`IT.SYSBP` > 0",
+      description: "Skipped for male subjects",
+    });
+    expect(conditionOid).toBe("CD.SUBJECT_IS_MALE");
+    const def = mdv.conditionDefs.find((c) => c.oid === conditionOid);
+    expect(jsonataExpression(def ?? { formalExpressions: [] })).toBe("`IT.SYSBP` > 0");
+    expect(displayText(def?.description)).toBe("Skipped for male subjects");
+    expect(errors(mdv)).toEqual([]);
+  });
+
+  it("updateConditionDef replaces the jsonata expression, preserving other contexts", () => {
+    let { mdv, conditionOid } = addConditionDef(fixture(), { name: "C" });
+    mdv = {
+      ...mdv,
+      conditionDefs: mdv.conditionDefs.map((c) =>
+        c.oid === conditionOid
+          ? { ...c, formalExpressions: [{ context: "xpath", code: "//x" }] }
+          : c,
+      ),
+    };
+    const next = updateConditionDef(mdv, conditionOid, { expression: "true", name: "C2" });
+    const def = next.conditionDefs.find((c) => c.oid === conditionOid);
+    expect(def?.name).toBe("C2");
+    expect(def?.formalExpressions).toEqual([
+      { context: "xpath", code: "//x" },
+      { context: "jsonata", code: "true" },
+    ]);
+    expect(
+      jsonataExpression(
+        updateConditionDef(next, conditionOid, { expression: null }).conditionDefs[0] ?? {
+          formalExpressions: [],
+        },
+      ),
+    ).toBeUndefined();
+  });
+
+  it("setItemCollectionException wires and clears the skip condition", () => {
+    let { mdv, conditionOid } = addConditionDef(fixture(), { name: "C", expression: "true" });
+    mdv = setItemCollectionException(mdv, "FO.VS", "IT.DIABP", conditionOid);
+    expect(conditionReferenceCount(mdv, conditionOid)).toBe(1);
+    const ref = mdv.itemGroupDefs
+      .find((g) => g.oid === "FO.VS")
+      ?.itemRefs.find((r) => r.itemOid === "IT.DIABP");
+    expect(ref?.collectionExceptionConditionOid).toBe(conditionOid);
+    expect(errors(mdv)).toEqual([]);
+    const cleared = setItemCollectionException(mdv, "FO.VS", "IT.DIABP", null);
+    expect(conditionReferenceCount(cleared, conditionOid)).toBe(0);
+  });
+
+  it("setGroupCollectionException wires the section ref in its parent", () => {
+    let { mdv, conditionOid } = addConditionDef(fixture(), { name: "C", expression: "true" });
+    mdv = setGroupCollectionException(mdv, "FO.VS", "IG.SUB", conditionOid);
+    const ref = mdv.itemGroupDefs
+      .find((g) => g.oid === "FO.VS")
+      ?.itemGroupRefs.find((r) => r.itemGroupOid === "IG.SUB");
+    expect(ref?.collectionExceptionConditionOid).toBe(conditionOid);
+    expect(errors(mdv)).toEqual([]);
+    expect(
+      setGroupCollectionException(mdv, "FO.VS", "IG.SUB", null)
+        .itemGroupDefs.find((g) => g.oid === "FO.VS")
+        ?.itemGroupRefs.find((r) => r.itemGroupOid === "IG.SUB")?.collectionExceptionConditionOid,
+    ).toBeUndefined();
+  });
+
+  it("rejects wiring a condition that does not exist", () => {
+    expect(() => setItemCollectionException(fixture(), "FO.VS", "IT.DIABP", "CD.NOPE")).toThrow(
+      /not found/,
+    );
+  });
+
+  it("removeConditionDef refuses while referenced, then deletes", () => {
+    let { mdv, conditionOid } = addConditionDef(fixture(), { name: "C", expression: "true" });
+    mdv = setItemCollectionException(mdv, "FO.VS", "IT.DIABP", conditionOid);
+    expect(() => removeConditionDef(mdv, conditionOid)).toThrow(/referenced/);
+    const unwired = setItemCollectionException(mdv, "FO.VS", "IT.DIABP", null);
+    expect(removeConditionDef(unwired, conditionOid).conditionDefs).toEqual([]);
+  });
+
+  it("addMethodDef creates a Computation method", () => {
+    const { mdv, methodOid } = addMethodDef(fixture(), {
+      name: "BMI",
+      expression: "`IT.SYSBP` * 2",
+    });
+    expect(methodOid).toBe("MET.BMI");
+    expect(mdv.methodDefs[0]?.type).toBe("Computation");
+    expect(errors(mdv)).toEqual([]);
+  });
+
+  it("setItemMethod forces Mandatory=No and clears cleanly", () => {
+    let { mdv, methodOid } = addMethodDef(fixture(), { name: "M", expression: "1" });
+    mdv = setItemMethod(mdv, "FO.VS", "IT.SYSBP", methodOid);
+    const ref = mdv.itemGroupDefs
+      .find((g) => g.oid === "FO.VS")
+      ?.itemRefs.find((r) => r.itemOid === "IT.SYSBP");
+    expect(ref).toMatchObject({ methodOid, mandatory: "No" });
+    expect(methodReferenceCount(mdv, methodOid)).toBe(1);
+    expect(errors(mdv)).toEqual([]);
+    expect(() => removeMethodDef(mdv, methodOid)).toThrow(/referenced/);
+    const cleared = setItemMethod(mdv, "FO.VS", "IT.SYSBP", null);
+    expect(
+      cleared.itemGroupDefs
+        .find((g) => g.oid === "FO.VS")
+        ?.itemRefs.find((r) => r.itemOid === "IT.SYSBP")?.methodOid,
+    ).toBeUndefined();
+    expect(removeMethodDef(cleared, methodOid).methodDefs).toEqual([]);
+  });
+
+  it("updateMethodDef patches name and description", () => {
+    const { mdv, methodOid } = addMethodDef(fixture(), { name: "M" });
+    const next = updateMethodDef(mdv, methodOid, { name: "M2", description: "computes" });
+    expect(next.methodDefs[0]?.name).toBe("M2");
+    expect(displayText(next.methodDefs[0]?.description)).toBe("computes");
   });
 });
 

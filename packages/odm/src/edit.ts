@@ -1,7 +1,9 @@
 import type {
+  ConditionDef,
   ItemDef,
   ItemGroupDef,
   MetaDataVersion,
+  MethodDef,
   StudyEventDef,
   TranslatedText,
 } from "./model.js";
@@ -382,6 +384,273 @@ export function deleteGroup(mdv: MetaDataVersion, groupOid: string): MetaDataVer
       (i) => !descendantItems.has(i.oid) || referencedItems.has(i.oid),
     ),
   };
+}
+
+/** The jsonata FormalExpression code of a condition or method, if any. */
+export function jsonataExpression(def: {
+  formalExpressions: { context?: string | undefined; code: string }[];
+}): string | undefined {
+  return def.formalExpressions.find((e) => e.context === "jsonata")?.code;
+}
+
+/**
+ * Replace (or create) the jsonata FormalExpression, preserving expressions
+ * in other contexts (e.g. XPath from files authored elsewhere). null removes
+ * the jsonata entry, making the construct inert at runtime.
+ */
+function withJsonataExpression(
+  expressions: { context?: string | undefined; code: string }[],
+  code: string | null,
+): { context?: string | undefined; code: string }[] {
+  const others = expressions.filter((e) => e.context !== "jsonata");
+  if (code === null) return others;
+  return [...others, { context: "jsonata", code }];
+}
+
+export interface RuleDefInit {
+  name: string;
+  /** jsonata FormalExpression code. */
+  expression?: string;
+  description?: string;
+}
+
+export interface RuleDefPatch {
+  name?: string;
+  /** Display description (the query message when the condition is an edit check). */
+  description?: string;
+  /** jsonata FormalExpression code; null removes it (other contexts are kept). */
+  expression?: string | null;
+}
+
+/**
+ * Add a ConditionDef. Its role follows from references: a condition wired as
+ * a collection exception (item, group, or code list option) is skip logic;
+ * an unreferenced condition runs as an edit check (true raises a query).
+ */
+export function addConditionDef(
+  mdv: MetaDataVersion,
+  init: RuleDefInit,
+): { mdv: MetaDataVersion; conditionOid: string } {
+  const conditionOid = generateOid(
+    mdv.conditionDefs.map((c) => c.oid),
+    "CD",
+    init.name,
+  );
+  const def: ConditionDef = {
+    oid: conditionOid,
+    name: init.name,
+    ...(init.description !== undefined ? { description: [{ text: init.description }] } : {}),
+    formalExpressions:
+      init.expression !== undefined ? [{ context: "jsonata", code: init.expression }] : [],
+  };
+  return { mdv: { ...mdv, conditionDefs: [...mdv.conditionDefs, def] }, conditionOid };
+}
+
+export function updateConditionDef(
+  mdv: MetaDataVersion,
+  conditionOid: string,
+  patch: RuleDefPatch,
+): MetaDataVersion {
+  if (!mdv.conditionDefs.some((c) => c.oid === conditionOid)) {
+    throw new Error(`ConditionDef "${conditionOid}" not found`);
+  }
+  return {
+    ...mdv,
+    conditionDefs: mdv.conditionDefs.map((def) => {
+      if (def.oid !== conditionOid) return def;
+      const next: ConditionDef = { ...def };
+      if (patch.name !== undefined) next.name = patch.name;
+      if (patch.description !== undefined)
+        next.description = withDisplayText(def.description, patch.description);
+      if (patch.expression !== undefined)
+        next.formalExpressions = withJsonataExpression(def.formalExpressions, patch.expression);
+      return next;
+    }),
+  };
+}
+
+/** Where a ConditionDef is referenced as a collection exception. */
+export function conditionReferenceCount(mdv: MetaDataVersion, conditionOid: string): number {
+  let count = 0;
+  for (const event of mdv.studyEventDefs) {
+    for (const ref of event.itemGroupRefs) {
+      if (ref.collectionExceptionConditionOid === conditionOid) count++;
+    }
+  }
+  for (const group of mdv.itemGroupDefs) {
+    for (const ref of group.itemRefs) {
+      if (ref.collectionExceptionConditionOid === conditionOid) count++;
+    }
+    for (const ref of group.itemGroupRefs) {
+      if (ref.collectionExceptionConditionOid === conditionOid) count++;
+    }
+  }
+  for (const codeList of mdv.codeLists) {
+    for (const item of codeList.items) {
+      if (item.collectionExceptionConditionOid === conditionOid) count++;
+    }
+  }
+  return count;
+}
+
+/** Delete a ConditionDef; refuses while collection-exception refs point at it. */
+export function removeConditionDef(mdv: MetaDataVersion, conditionOid: string): MetaDataVersion {
+  if (!mdv.conditionDefs.some((c) => c.oid === conditionOid)) {
+    throw new Error(`ConditionDef "${conditionOid}" not found`);
+  }
+  const refs = conditionReferenceCount(mdv, conditionOid);
+  if (refs > 0) {
+    throw new Error(`ConditionDef "${conditionOid}" is referenced ${refs} time(s)`);
+  }
+  return { ...mdv, conditionDefs: mdv.conditionDefs.filter((c) => c.oid !== conditionOid) };
+}
+
+/** Add a MethodDef (Type="Computation") for derived values. */
+export function addMethodDef(
+  mdv: MetaDataVersion,
+  init: RuleDefInit,
+): { mdv: MetaDataVersion; methodOid: string } {
+  const methodOid = generateOid(
+    mdv.methodDefs.map((m) => m.oid),
+    "MET",
+    init.name,
+  );
+  const def: MethodDef = {
+    oid: methodOid,
+    name: init.name,
+    type: "Computation",
+    ...(init.description !== undefined ? { description: [{ text: init.description }] } : {}),
+    formalExpressions:
+      init.expression !== undefined ? [{ context: "jsonata", code: init.expression }] : [],
+  };
+  return { mdv: { ...mdv, methodDefs: [...mdv.methodDefs, def] }, methodOid };
+}
+
+export function updateMethodDef(
+  mdv: MetaDataVersion,
+  methodOid: string,
+  patch: RuleDefPatch,
+): MetaDataVersion {
+  if (!mdv.methodDefs.some((m) => m.oid === methodOid)) {
+    throw new Error(`MethodDef "${methodOid}" not found`);
+  }
+  return {
+    ...mdv,
+    methodDefs: mdv.methodDefs.map((def) => {
+      if (def.oid !== methodOid) return def;
+      const next: MethodDef = { ...def };
+      if (patch.name !== undefined) next.name = patch.name;
+      if (patch.description !== undefined)
+        next.description = withDisplayText(def.description, patch.description);
+      if (patch.expression !== undefined)
+        next.formalExpressions = withJsonataExpression(def.formalExpressions, patch.expression);
+      return next;
+    }),
+  };
+}
+
+export function methodReferenceCount(mdv: MetaDataVersion, methodOid: string): number {
+  let count = 0;
+  for (const group of mdv.itemGroupDefs) {
+    for (const ref of group.itemRefs) {
+      if (ref.methodOid === methodOid) count++;
+    }
+  }
+  return count;
+}
+
+/** Delete a MethodDef; refuses while ItemRefs point at it. */
+export function removeMethodDef(mdv: MetaDataVersion, methodOid: string): MetaDataVersion {
+  if (!mdv.methodDefs.some((m) => m.oid === methodOid)) {
+    throw new Error(`MethodDef "${methodOid}" not found`);
+  }
+  const refs = methodReferenceCount(mdv, methodOid);
+  if (refs > 0) {
+    throw new Error(`MethodDef "${methodOid}" is referenced ${refs} time(s)`);
+  }
+  return { ...mdv, methodDefs: mdv.methodDefs.filter((m) => m.oid !== methodOid) };
+}
+
+function mustFindConditionDef(mdv: MetaDataVersion, conditionOid: string): void {
+  if (!mdv.conditionDefs.some((c) => c.oid === conditionOid)) {
+    throw new Error(`ConditionDef "${conditionOid}" not found`);
+  }
+}
+
+/**
+ * Set (or clear, with null) the skip condition on an item within a group:
+ * the field is not collected when the condition evaluates true.
+ */
+export function setItemCollectionException(
+  mdv: MetaDataVersion,
+  groupOid: string,
+  itemOid: string,
+  conditionOid: string | null,
+): MetaDataVersion {
+  if (conditionOid !== null) mustFindConditionDef(mdv, conditionOid);
+  return replaceGroup(mdv, groupOid, (group) => ({
+    ...group,
+    itemRefs: group.itemRefs.map((ref) => {
+      if (ref.itemOid !== itemOid) return ref;
+      if (conditionOid === null) {
+        const { collectionExceptionConditionOid: _, ...rest } = ref;
+        return rest;
+      }
+      return { ...ref, collectionExceptionConditionOid: conditionOid };
+    }),
+  }));
+}
+
+/**
+ * Set (or clear, with null) the skip condition on a section's ref within its
+ * parent group. Event-level refs are visit scheduling and are not authored
+ * here (ADR-0014: not honored by form state).
+ */
+export function setGroupCollectionException(
+  mdv: MetaDataVersion,
+  parentOid: string,
+  groupOid: string,
+  conditionOid: string | null,
+): MetaDataVersion {
+  if (conditionOid !== null) mustFindConditionDef(mdv, conditionOid);
+  return replaceGroup(mdv, parentOid, (parent) => ({
+    ...parent,
+    itemGroupRefs: parent.itemGroupRefs.map((ref) => {
+      if (ref.itemGroupOid !== groupOid) return ref;
+      if (conditionOid === null) {
+        const { collectionExceptionConditionOid: _, ...rest } = ref;
+        return rest;
+      }
+      return { ...ref, collectionExceptionConditionOid: conditionOid };
+    }),
+  }));
+}
+
+/**
+ * Set (or clear, with null) the derivation method on an item within a group.
+ * Derived items are system-written, so setting a method forces Mandatory="No"
+ * (derived + mandatory is a publish-time validation error).
+ */
+export function setItemMethod(
+  mdv: MetaDataVersion,
+  groupOid: string,
+  itemOid: string,
+  methodOid: string | null,
+): MetaDataVersion {
+  if (methodOid !== null && !mdv.methodDefs.some((m) => m.oid === methodOid)) {
+    throw new Error(`MethodDef "${methodOid}" not found`);
+  }
+  return replaceGroup(mdv, groupOid, (group) => ({
+    ...group,
+    itemRefs: group.itemRefs.map((ref) => {
+      if (ref.itemOid !== itemOid) return ref;
+      if (methodOid === null) {
+        const { methodOid: _, ...rest } = ref;
+        return rest;
+      }
+      return { ...ref, methodOid, mandatory: "No" };
+    }),
+  }));
 }
 
 /** A minimal single-visit, single-form definition to start a build from scratch. */
