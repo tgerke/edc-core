@@ -22,6 +22,8 @@ import { CodingPage } from "./pages/CodingPage.js";
 import { FormEntryPage } from "./pages/FormEntryPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { MatrixPage } from "./pages/MatrixPage.js";
+import { ProtocolImportPage } from "./pages/ProtocolImportPage.js";
+import { ProtocolReviewPage } from "./pages/ProtocolReviewPage.js";
 import { QueriesPage } from "./pages/QueriesPage.js";
 import { ReauthCompletePage } from "./pages/ReauthCompletePage.js";
 import { StudiesPage } from "./pages/StudiesPage.js";
@@ -136,6 +138,18 @@ const builderRoute = createRoute({
   component: BuilderPage,
 });
 
+const protocolRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/protocol",
+  component: ProtocolImportPage,
+});
+
+const protocolReviewRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/protocol/$version",
+  component: ProtocolReviewPage,
+});
+
 const matrixRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/studies/$studyId/subjects",
@@ -216,6 +230,8 @@ const routeTree = rootRoute.addChildren([
     studiesRoute,
     studyRoute,
     builderRoute,
+    protocolRoute,
+    protocolReviewRoute,
     matrixRoute,
     queriesRoute,
     codingRoute,
