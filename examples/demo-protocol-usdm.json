@@ -1,0 +1,663 @@
+{
+  "usdmVersion": "4.0.0",
+  "systemName": "edc-core demo",
+  "systemVersion": "0.5.0",
+  "study": {
+    "id": "Study_1",
+    "name": "DEMO-PROT",
+    "label": "edc-core demo protocol",
+    "description": "Hand-built USDM v4 example mirroring examples/demo-study.xml, used by the protocol-first build path.",
+    "instanceType": "Study",
+    "versions": [
+      {
+        "id": "StudyVersion_1",
+        "versionIdentifier": "1.0",
+        "rationale": "Initial protocol",
+        "instanceType": "StudyVersion",
+        "titles": [
+          {
+            "id": "Title_1",
+            "text": "A Demonstration Study of Protocol-First Study Definition in edc-core",
+            "type": {
+              "id": "Code_TitleType",
+              "code": "C207616",
+              "codeSystem": "cdisc.org",
+              "codeSystemVersion": "2025-06-03",
+              "decode": "Official Study Title",
+              "instanceType": "Code"
+            },
+            "instanceType": "StudyTitle"
+          }
+        ],
+        "studyIdentifiers": [
+          {
+            "id": "StudyIdentifier_1",
+            "text": "DEMO-PROT",
+            "scopeId": "Organization_Sponsor",
+            "instanceType": "StudyIdentifier"
+          }
+        ],
+        "organizations": [
+          {
+            "id": "Organization_Sponsor",
+            "name": "Demo Sponsor",
+            "type": {
+              "id": "Code_SponsorRole",
+              "code": "C70793",
+              "codeSystem": "ncit.nci.nih.gov",
+              "codeSystemVersion": "2025-06-03",
+              "decode": "Clinical Study Sponsor",
+              "instanceType": "Code"
+            },
+            "identifierScheme": "DUNS",
+            "identifier": "000000000",
+            "instanceType": "Organization"
+          }
+        ],
+        "biomedicalConcepts": [
+          {
+            "id": "BC_SysBP",
+            "name": "Systolic Blood Pressure",
+            "synonyms": ["SYSBP"],
+            "reference": "https://www.cdisc.org/standards/real-world-data/biomedical-concepts",
+            "code": {
+              "id": "AliasCode_SysBP",
+              "standardCode": {
+                "id": "Code_SysBP",
+                "code": "C25298",
+                "codeSystem": "ncit.nci.nih.gov",
+                "codeSystemVersion": "2025-04-01",
+                "decode": "Systolic Blood Pressure",
+                "instanceType": "Code"
+              },
+              "instanceType": "AliasCode"
+            },
+            "properties": [
+              {
+                "id": "BCProp_SysBP_Result",
+                "name": "Systolic Blood Pressure Result",
+                "isRequired": true,
+                "isEnabled": true,
+                "datatype": "decimal",
+                "code": {
+                  "id": "AliasCode_SysBP_Result",
+                  "standardCode": {
+                    "id": "Code_SysBP_Result",
+                    "code": "C70856",
+                    "codeSystem": "ncit.nci.nih.gov",
+                    "codeSystemVersion": "2025-04-01",
+                    "decode": "Observation Result",
+                    "instanceType": "Code"
+                  },
+                  "instanceType": "AliasCode"
+                },
+                "responseCodes": [],
+                "instanceType": "BiomedicalConceptProperty"
+              },
+              {
+                "id": "BCProp_SysBP_Unit",
+                "name": "Unit of Pressure",
+                "isRequired": false,
+                "isEnabled": true,
+                "datatype": "string",
+                "code": {
+                  "id": "AliasCode_SysBP_Unit",
+                  "standardCode": {
+                    "id": "Code_SysBP_Unit",
+                    "code": "C49669",
+                    "codeSystem": "ncit.nci.nih.gov",
+                    "codeSystemVersion": "2025-04-01",
+                    "decode": "Unit of Pressure",
+                    "instanceType": "Code"
+                  },
+                  "instanceType": "AliasCode"
+                },
+                "responseCodes": [
+                  {
+                    "id": "ResponseCode_SysBP_mmHg",
+                    "name": "mmHg",
+                    "isEnabled": true,
+                    "code": {
+                      "id": "Code_mmHg_1",
+                      "code": "C49670",
+                      "codeSystem": "ncit.nci.nih.gov",
+                      "codeSystemVersion": "2025-04-01",
+                      "decode": "Millimeter of Mercury",
+                      "instanceType": "Code"
+                    },
+                    "instanceType": "ResponseCode"
+                  }
+                ],
+                "instanceType": "BiomedicalConceptProperty"
+              }
+            ],
+            "instanceType": "BiomedicalConcept"
+          },
+          {
+            "id": "BC_DiaBP",
+            "name": "Diastolic Blood Pressure",
+            "synonyms": ["DIABP"],
+            "reference": "https://www.cdisc.org/standards/real-world-data/biomedical-concepts",
+            "code": {
+              "id": "AliasCode_DiaBP",
+              "standardCode": {
+                "id": "Code_DiaBP",
+                "code": "C25299",
+                "codeSystem": "ncit.nci.nih.gov",
+                "codeSystemVersion": "2025-04-01",
+                "decode": "Diastolic Blood Pressure",
+                "instanceType": "Code"
+              },
+              "instanceType": "AliasCode"
+            },
+            "properties": [
+              {
+                "id": "BCProp_DiaBP_Result",
+                "name": "Diastolic Blood Pressure Result",
+                "isRequired": true,
+                "isEnabled": true,
+                "datatype": "decimal",
+                "code": {
+                  "id": "AliasCode_DiaBP_Result",
+                  "standardCode": {
+                    "id": "Code_DiaBP_Result",
+                    "code": "C70856",
+                    "codeSystem": "ncit.nci.nih.gov",
+                    "codeSystemVersion": "2025-04-01",
+                    "decode": "Observation Result",
+                    "instanceType": "Code"
+                  },
+                  "instanceType": "AliasCode"
+                },
+                "responseCodes": [],
+                "instanceType": "BiomedicalConceptProperty"
+              }
+            ],
+            "instanceType": "BiomedicalConcept"
+          },
+          {
+            "id": "BC_HeartRate",
+            "name": "Heart Rate",
+            "synonyms": ["HR", "Pulse Rate"],
+            "reference": "https://www.cdisc.org/standards/real-world-data/biomedical-concepts",
+            "code": {
+              "id": "AliasCode_HeartRate",
+              "standardCode": {
+                "id": "Code_HeartRate",
+                "code": "C49677",
+                "codeSystem": "ncit.nci.nih.gov",
+                "codeSystemVersion": "2025-04-01",
+                "decode": "Heart Rate",
+                "instanceType": "Code"
+              },
+              "instanceType": "AliasCode"
+            },
+            "properties": [
+              {
+                "id": "BCProp_HeartRate_Result",
+                "name": "Heart Rate Result",
+                "isRequired": true,
+                "isEnabled": true,
+                "datatype": "integer",
+                "code": {
+                  "id": "AliasCode_HeartRate_Result",
+                  "standardCode": {
+                    "id": "Code_HeartRate_Result",
+                    "code": "C70856",
+                    "codeSystem": "ncit.nci.nih.gov",
+                    "codeSystemVersion": "2025-04-01",
+                    "decode": "Observation Result",
+                    "instanceType": "Code"
+                  },
+                  "instanceType": "AliasCode"
+                },
+                "responseCodes": [],
+                "instanceType": "BiomedicalConceptProperty"
+              }
+            ],
+            "instanceType": "BiomedicalConcept"
+          },
+          {
+            "id": "BC_Weight",
+            "name": "Body Weight",
+            "synonyms": ["WEIGHT"],
+            "reference": "https://www.cdisc.org/standards/real-world-data/biomedical-concepts",
+            "code": {
+              "id": "AliasCode_Weight",
+              "standardCode": {
+                "id": "Code_Weight",
+                "code": "C81328",
+                "codeSystem": "ncit.nci.nih.gov",
+                "codeSystemVersion": "2025-04-01",
+                "decode": "Body Weight",
+                "instanceType": "Code"
+              },
+              "instanceType": "AliasCode"
+            },
+            "properties": [
+              {
+                "id": "BCProp_Weight_Result",
+                "name": "Body Weight Result",
+                "isRequired": true,
+                "isEnabled": true,
+                "datatype": "decimal",
+                "code": {
+                  "id": "AliasCode_Weight_Result",
+                  "standardCode": {
+                    "id": "Code_Weight_Result",
+                    "code": "C70856",
+                    "codeSystem": "ncit.nci.nih.gov",
+                    "codeSystemVersion": "2025-04-01",
+                    "decode": "Observation Result",
+                    "instanceType": "Code"
+                  },
+                  "instanceType": "AliasCode"
+                },
+                "responseCodes": [],
+                "instanceType": "BiomedicalConceptProperty"
+              }
+            ],
+            "instanceType": "BiomedicalConcept"
+          },
+          {
+            "id": "BC_Sex",
+            "name": "Sex",
+            "synonyms": [],
+            "reference": "https://www.cdisc.org/standards/real-world-data/biomedical-concepts",
+            "code": {
+              "id": "AliasCode_Sex",
+              "standardCode": {
+                "id": "Code_Sex",
+                "code": "C28421",
+                "codeSystem": "ncit.nci.nih.gov",
+                "codeSystemVersion": "2025-04-01",
+                "decode": "Sex",
+                "instanceType": "Code"
+              },
+              "instanceType": "AliasCode"
+            },
+            "properties": [
+              {
+                "id": "BCProp_Sex_Result",
+                "name": "Sex",
+                "isRequired": true,
+                "isEnabled": true,
+                "datatype": "string",
+                "code": {
+                  "id": "AliasCode_Sex_Result",
+                  "standardCode": {
+                    "id": "Code_Sex_Result",
+                    "code": "C28421",
+                    "codeSystem": "ncit.nci.nih.gov",
+                    "codeSystemVersion": "2025-04-01",
+                    "decode": "Sex",
+                    "instanceType": "Code"
+                  },
+                  "instanceType": "AliasCode"
+                },
+                "responseCodes": [
+                  {
+                    "id": "ResponseCode_Sex_M",
+                    "name": "Male",
+                    "isEnabled": true,
+                    "code": {
+                      "id": "Code_Sex_M",
+                      "code": "C20197",
+                      "codeSystem": "ncit.nci.nih.gov",
+                      "codeSystemVersion": "2025-04-01",
+                      "decode": "Male",
+                      "instanceType": "Code"
+                    },
+                    "instanceType": "ResponseCode"
+                  },
+                  {
+                    "id": "ResponseCode_Sex_F",
+                    "name": "Female",
+                    "isEnabled": true,
+                    "code": {
+                      "id": "Code_Sex_F",
+                      "code": "C16576",
+                      "codeSystem": "ncit.nci.nih.gov",
+                      "codeSystemVersion": "2025-04-01",
+                      "decode": "Female",
+                      "instanceType": "Code"
+                    },
+                    "instanceType": "ResponseCode"
+                  }
+                ],
+                "instanceType": "BiomedicalConceptProperty"
+              }
+            ],
+            "instanceType": "BiomedicalConcept"
+          }
+        ],
+        "bcCategories": [
+          {
+            "id": "BCCategory_VitalSigns",
+            "name": "Vital Signs",
+            "memberIds": ["BC_SysBP", "BC_DiaBP", "BC_HeartRate"],
+            "instanceType": "BiomedicalConceptCategory"
+          }
+        ],
+        "bcSurrogates": [
+          {
+            "id": "BCSurrogate_AE",
+            "name": "Adverse Events",
+            "description": "Adverse event term, onset, severity, and outcome; no library biomedical concept selected yet.",
+            "instanceType": "BiomedicalConceptSurrogate"
+          },
+          {
+            "id": "BCSurrogate_ConMeds",
+            "name": "Concomitant Medications",
+            "description": "Concomitant medication verbatim term, dose, and dates; no library biomedical concept selected yet.",
+            "instanceType": "BiomedicalConceptSurrogate"
+          },
+          {
+            "id": "BCSurrogate_ECG",
+            "name": "12-Lead ECG",
+            "description": "Standard 12-lead electrocardiogram interpretation.",
+            "reference": "https://www.cdisc.org/standards/foundational/cdash",
+            "instanceType": "BiomedicalConceptSurrogate"
+          }
+        ],
+        "studyDesigns": [
+          {
+            "id": "StudyDesign_1",
+            "name": "DEMO-PROT Design",
+            "label": "Single-arm demonstration design",
+            "instanceType": "InterventionalStudyDesign",
+            "epochs": [
+              {
+                "id": "Epoch_Screening",
+                "name": "SCREENING",
+                "label": "Screening",
+                "type": {
+                  "id": "Code_Epoch_Screening",
+                  "code": "C48262",
+                  "codeSystem": "ncit.nci.nih.gov",
+                  "codeSystemVersion": "2025-04-01",
+                  "decode": "Screening",
+                  "instanceType": "Code"
+                },
+                "nextId": "Epoch_Treatment",
+                "instanceType": "StudyEpoch"
+              },
+              {
+                "id": "Epoch_Treatment",
+                "name": "TREATMENT",
+                "label": "Treatment",
+                "type": {
+                  "id": "Code_Epoch_Treatment",
+                  "code": "C101526",
+                  "codeSystem": "ncit.nci.nih.gov",
+                  "codeSystemVersion": "2025-04-01",
+                  "decode": "Treatment",
+                  "instanceType": "Code"
+                },
+                "previousId": "Epoch_Screening",
+                "instanceType": "StudyEpoch"
+              }
+            ],
+            "arms": [
+              {
+                "id": "Arm_1",
+                "name": "Single Arm",
+                "instanceType": "StudyArm"
+              }
+            ],
+            "encounters": [
+              {
+                "id": "Encounter_Screening",
+                "name": "Screening",
+                "label": "Screening Visit",
+                "type": {
+                  "id": "Code_Visit_1",
+                  "code": "C25716",
+                  "codeSystem": "cdisc.org",
+                  "codeSystemVersion": "2025-06-03",
+                  "decode": "Visit",
+                  "instanceType": "Code"
+                },
+                "nextId": "Encounter_Baseline",
+                "scheduledAtId": "Timing_Screening",
+                "instanceType": "Encounter"
+              },
+              {
+                "id": "Encounter_Baseline",
+                "name": "Baseline",
+                "label": "Baseline Visit",
+                "type": {
+                  "id": "Code_Visit_2",
+                  "code": "C25716",
+                  "codeSystem": "cdisc.org",
+                  "codeSystemVersion": "2025-06-03",
+                  "decode": "Visit",
+                  "instanceType": "Code"
+                },
+                "previousId": "Encounter_Screening",
+                "nextId": "Encounter_Week4",
+                "scheduledAtId": "Timing_Baseline",
+                "instanceType": "Encounter"
+              },
+              {
+                "id": "Encounter_Week4",
+                "name": "Week 4",
+                "label": "Week 4 Visit",
+                "type": {
+                  "id": "Code_Visit_3",
+                  "code": "C25716",
+                  "codeSystem": "cdisc.org",
+                  "codeSystemVersion": "2025-06-03",
+                  "decode": "Visit",
+                  "instanceType": "Code"
+                },
+                "previousId": "Encounter_Baseline",
+                "scheduledAtId": "Timing_Week4",
+                "instanceType": "Encounter"
+              }
+            ],
+            "activities": [
+              {
+                "id": "Activity_Demographics",
+                "name": "Demographics",
+                "biomedicalConceptIds": ["BC_Sex"],
+                "nextId": "Activity_VitalSigns",
+                "instanceType": "Activity"
+              },
+              {
+                "id": "Activity_VitalSigns",
+                "name": "Vital Signs",
+                "biomedicalConceptIds": ["BC_Weight"],
+                "bcCategoryIds": ["BCCategory_VitalSigns"],
+                "previousId": "Activity_Demographics",
+                "nextId": "Activity_Safety",
+                "instanceType": "Activity"
+              },
+              {
+                "id": "Activity_Safety",
+                "name": "Safety",
+                "childIds": ["Activity_AdverseEvents", "Activity_ConMeds"],
+                "previousId": "Activity_VitalSigns",
+                "nextId": "Activity_ECG",
+                "instanceType": "Activity"
+              },
+              {
+                "id": "Activity_AdverseEvents",
+                "name": "Adverse Events",
+                "bcSurrogateIds": ["BCSurrogate_AE"],
+                "instanceType": "Activity"
+              },
+              {
+                "id": "Activity_ConMeds",
+                "name": "Concomitant Medications",
+                "bcSurrogateIds": ["BCSurrogate_ConMeds"],
+                "instanceType": "Activity"
+              },
+              {
+                "id": "Activity_ECG",
+                "name": "12-Lead ECG",
+                "bcSurrogateIds": ["BCSurrogate_ECG"],
+                "previousId": "Activity_Safety",
+                "instanceType": "Activity"
+              }
+            ],
+            "scheduleTimelines": [
+              {
+                "id": "Timeline_Main",
+                "name": "Main Timeline",
+                "mainTimeline": true,
+                "entryCondition": "Informed consent signed",
+                "entryId": "SAI_Screening",
+                "instanceType": "ScheduleTimeline",
+                "exits": [
+                  {
+                    "id": "TimelineExit_1",
+                    "instanceType": "ScheduleTimelineExit"
+                  }
+                ],
+                "instances": [
+                  {
+                    "id": "SAI_Screening",
+                    "name": "Screening Assessments",
+                    "encounterId": "Encounter_Screening",
+                    "epochId": "Epoch_Screening",
+                    "activityIds": ["Activity_Demographics", "Activity_VitalSigns"],
+                    "defaultConditionId": "SAI_Baseline",
+                    "instanceType": "ScheduledActivityInstance"
+                  },
+                  {
+                    "id": "SAI_Baseline",
+                    "name": "Baseline Assessments",
+                    "encounterId": "Encounter_Baseline",
+                    "epochId": "Epoch_Treatment",
+                    "activityIds": [
+                      "Activity_VitalSigns",
+                      "Activity_AdverseEvents",
+                      "Activity_ConMeds"
+                    ],
+                    "defaultConditionId": "SDI_Week4Gate",
+                    "instanceType": "ScheduledActivityInstance"
+                  },
+                  {
+                    "id": "SDI_Week4Gate",
+                    "name": "Continue to Week 4?",
+                    "description": "Subjects who discontinue before Week 4 proceed directly to end of study.",
+                    "conditionAssignments": [
+                      {
+                        "id": "ConditionAssignment_1",
+                        "condition": "Subject continues on study",
+                        "conditionTargetId": "SAI_Week4",
+                        "instanceType": "ConditionAssignment"
+                      }
+                    ],
+                    "defaultConditionId": "SAI_Week4",
+                    "instanceType": "ScheduledDecisionInstance"
+                  },
+                  {
+                    "id": "SAI_Week4",
+                    "name": "Week 4 Assessments",
+                    "encounterId": "Encounter_Week4",
+                    "epochId": "Epoch_Treatment",
+                    "activityIds": [
+                      "Activity_VitalSigns",
+                      "Activity_AdverseEvents",
+                      "Activity_ConMeds",
+                      "Activity_ECG"
+                    ],
+                    "timelineExitId": "TimelineExit_1",
+                    "instanceType": "ScheduledActivityInstance"
+                  }
+                ],
+                "timings": [
+                  {
+                    "id": "Timing_Baseline",
+                    "name": "BASELINE",
+                    "label": "Day 1",
+                    "type": {
+                      "id": "Code_Timing_Fixed",
+                      "code": "C201358",
+                      "codeSystem": "cdisc.org",
+                      "codeSystemVersion": "2025-06-03",
+                      "decode": "Fixed Reference",
+                      "instanceType": "Code"
+                    },
+                    "value": "P0D",
+                    "valueLabel": "Day 1",
+                    "relativeToFrom": {
+                      "id": "Code_S2S_1",
+                      "code": "C201355",
+                      "codeSystem": "cdisc.org",
+                      "codeSystemVersion": "2025-06-03",
+                      "decode": "Start to Start",
+                      "instanceType": "Code"
+                    },
+                    "relativeFromScheduledInstanceId": "SAI_Baseline",
+                    "instanceType": "Timing"
+                  },
+                  {
+                    "id": "Timing_Screening",
+                    "name": "SCREENING",
+                    "label": "Day -14 to Day -1",
+                    "type": {
+                      "id": "Code_Timing_Before",
+                      "code": "C201357",
+                      "codeSystem": "cdisc.org",
+                      "codeSystemVersion": "2025-06-03",
+                      "decode": "Before",
+                      "instanceType": "Code"
+                    },
+                    "value": "P14D",
+                    "valueLabel": "Day -14",
+                    "windowLower": "P0D",
+                    "windowUpper": "P13D",
+                    "windowLabel": "Day -14 to Day -1",
+                    "relativeToFrom": {
+                      "id": "Code_S2S_2",
+                      "code": "C201355",
+                      "codeSystem": "cdisc.org",
+                      "codeSystemVersion": "2025-06-03",
+                      "decode": "Start to Start",
+                      "instanceType": "Code"
+                    },
+                    "relativeFromScheduledInstanceId": "SAI_Screening",
+                    "relativeToScheduledInstanceId": "SAI_Baseline",
+                    "instanceType": "Timing"
+                  },
+                  {
+                    "id": "Timing_Week4",
+                    "name": "WEEK4",
+                    "label": "Day 29",
+                    "type": {
+                      "id": "Code_Timing_After",
+                      "code": "C201356",
+                      "codeSystem": "cdisc.org",
+                      "codeSystemVersion": "2025-06-03",
+                      "decode": "After",
+                      "instanceType": "Code"
+                    },
+                    "value": "P28D",
+                    "valueLabel": "Day 29",
+                    "windowLower": "P3D",
+                    "windowUpper": "P3D",
+                    "windowLabel": "±3 days",
+                    "relativeToFrom": {
+                      "id": "Code_S2S_3",
+                      "code": "C201355",
+                      "codeSystem": "cdisc.org",
+                      "codeSystemVersion": "2025-06-03",
+                      "decode": "Start to Start",
+                      "instanceType": "Code"
+                    },
+                    "relativeFromScheduledInstanceId": "SAI_Week4",
+                    "relativeToScheduledInstanceId": "SAI_Baseline",
+                    "instanceType": "Timing"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
