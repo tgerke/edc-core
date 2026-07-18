@@ -277,6 +277,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
         id: subjects.id,
         subjectKey: subjects.subjectKey,
         status: subjects.status,
+        siteId: subjects.siteId,
         siteName: sites.name,
       })
       .from(subjects)

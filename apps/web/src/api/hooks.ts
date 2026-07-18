@@ -136,6 +136,7 @@ export interface Matrix {
   buildVersion: number | null;
   events: { oid: string; name: string; forms: { oid: string; name: string }[] }[];
   subjects: (SubjectSummary & {
+    siteId: string;
     unblinded: boolean;
     cells: Record<string, MatrixCell | null>;
   })[];
@@ -186,6 +187,8 @@ export interface FormData {
   blindedItems: string[];
   openQueries: OpenQuery[];
   signatures: SignatureManifestEntry[];
+  /** Present when this instance was captured through a site form variant. */
+  variantDefinition: unknown | null;
 }
 
 export function useSites(studyId: string) {
@@ -1512,5 +1515,158 @@ export function usePublishCompilation(studyId: string, version: string) {
       queryClient.invalidateQueries({ queryKey: ["protocol-version", studyId, version] });
       queryClient.invalidateQueries({ queryKey: ["metadata-versions", studyId] });
     },
+  });
+}
+
+// --- Site form variants (BYOFW half B) -------------------------------------
+
+export interface VariantItemRef {
+  itemOid: string;
+  mandatory: boolean;
+  orderNumber: number;
+  displayLabel?: string;
+}
+
+export interface VariantForm {
+  oid: string;
+  name: string;
+  sections: { label?: string; itemRefs: VariantItemRef[] }[];
+}
+
+export interface SiteVariantDefinition {
+  events: { eventOid: string; forms: VariantForm[] }[];
+}
+
+export interface SiteVariantVersionSummary {
+  id: string;
+  version: number;
+  status: "draft" | "submitted" | "approved" | "changes_requested" | "retired" | "stale";
+  metadataVersionId: string;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+}
+
+export interface SiteVariant {
+  id: string;
+  name: string;
+  siteId: string;
+  versions: SiteVariantVersionSummary[];
+  latest: (SiteVariantVersionSummary & { definition: SiteVariantDefinition }) | null;
+}
+
+export interface VariantIssue {
+  severity: "error" | "warning";
+  path: string;
+  message: string;
+}
+
+export function useSiteVariants(studyId: string, siteId: string) {
+  return useQuery<SiteVariant[]>({
+    queryKey: ["site-variants", studyId, siteId],
+    queryFn: () => api<SiteVariant[]>(`/studies/${studyId}/sites/${siteId}/form-variants`),
+    enabled: siteId !== "",
+  });
+}
+
+export function useCreateVariant(studyId: string, siteId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; seedEventOids?: string[] }) =>
+      api<{
+        variantId: string;
+        versionId: string;
+        version: number;
+        definition: SiteVariantDefinition;
+        issues: VariantIssue[];
+      }>(`/studies/${studyId}/sites/${siteId}/form-variants`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["site-variants", studyId, siteId] }),
+  });
+}
+
+export function useSaveVariantVersion(studyId: string, siteId: string, variantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { definition: SiteVariantDefinition }) =>
+      api<{ versionId: string; version: number; issues: VariantIssue[] }>(
+        `/studies/${studyId}/sites/${siteId}/form-variants/${variantId}/versions`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["site-variants", studyId, siteId] }),
+  });
+}
+
+export function useSubmitVariantVersion(studyId: string, siteId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (versionId: string) =>
+      api<{ status: string }>(
+        `/studies/${studyId}/sites/${siteId}/form-variants/versions/${versionId}/submit`,
+        { method: "POST" },
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["site-variants", studyId, siteId] }),
+  });
+}
+
+export function useValidateVariant(studyId: string, siteId: string) {
+  return useMutation({
+    mutationFn: (body: { definition: SiteVariantDefinition }) =>
+      api<{ issues: VariantIssue[] }>(
+        `/studies/${studyId}/sites/${siteId}/form-variants/validate`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+  });
+}
+
+export interface VariantApproval {
+  versionId: string;
+  variantId: string;
+  name: string;
+  siteId: string;
+  version: number;
+  status: string;
+  submittedAt: string | null;
+  definition: SiteVariantDefinition;
+  metadataVersionId: string;
+}
+
+export function useVariantApprovals(studyId: string) {
+  return useQuery<VariantApproval[]>({
+    queryKey: ["variant-approvals", studyId],
+    queryFn: () => api<VariantApproval[]>(`/studies/${studyId}/form-variant-approvals`),
+  });
+}
+
+export function useVariantDecision(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      versionId: string;
+      action: "approve" | "request-changes" | "retire";
+      note?: string;
+    }) =>
+      api<{ status: string }>(
+        `/studies/${studyId}/form-variants/versions/${input.versionId}/${input.action}`,
+        { method: "POST", body: JSON.stringify({ note: input.note }) },
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["variant-approvals", studyId] }),
+  });
+}
+
+export function useEffectiveForms(studyId: string, siteId: string, eventOid: string) {
+  return useQuery<
+    | { source: "variant"; variantVersionId: string; forms: { oid: string; name: string }[] }
+    | { source: "standard" }
+  >({
+    queryKey: ["effective-forms", studyId, siteId, eventOid],
+    queryFn: () => api(`/studies/${studyId}/sites/${siteId}/effective-forms?eventOid=${eventOid}`),
+    enabled: siteId !== "" && eventOid !== "",
   });
 }
