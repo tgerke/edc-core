@@ -1,0 +1,13 @@
+{
+  "comment": "Concepts included in packages/usdm/src/mapping/pack.json. crfGroup pins the COSMoS CRF specialization group used for collection metadata so regeneration is deterministic.",
+  "concepts": [
+    { "code": "C25298", "crfGroup": "SYSBP_DENORMALIZED" },
+    { "code": "C25299", "crfGroup": "DIABP_DENORMALIZED" },
+    { "code": "C49677", "crfGroup": "HR_DENORMALIZED" },
+    { "code": "C81328", "crfGroup": "WEIGHT_DENORMALIZED" },
+    { "code": "C164634", "crfGroup": "HEIGHT_DENORMALIZED" },
+    { "code": "C174446", "crfGroup": "TEMP_DENORMALIZED" },
+    { "code": "C49678", "crfGroup": "RESP_DENORMALIZED" },
+    { "code": "C28421", "crfGroup": "SEX" }
+  ]
+}
