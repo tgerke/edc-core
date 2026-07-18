@@ -6,6 +6,7 @@
  * too (compile.ts) so that `packages/odm` stays USDM-ignorant.
  */
 
+export * from "./compile.js";
 export * from "./mapping/pack-schema.js";
 export * from "./mapping/resolver.js";
 export * from "./model.js";
