@@ -1,3 +1,4 @@
+import { isUnresolvedItem } from "./ext.js";
 import type { MetaDataVersion } from "./model.js";
 
 export interface ValidationIssue {
@@ -174,6 +175,19 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
           message: `references blinded item${referenced.length === 1 ? "" : "s"} ${referenced.join(", ")}: ensure the check message does not reveal blinded values`,
         });
       }
+    }
+  }
+
+  // Draft items from unresolved protocol concepts are review-workspace
+  // artifacts; a published build must be capture-ready, so they hard-fail.
+  for (const item of mdv.itemDefs) {
+    if (isUnresolvedItem(item)) {
+      issues.push({
+        severity: "error",
+        path: `ItemDef[${item.oid}]`,
+        message:
+          "is an unresolved protocol draft item: complete it in the protocol review before publishing",
+      });
     }
   }
 

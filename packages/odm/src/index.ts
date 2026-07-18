@@ -47,4 +47,5 @@ export function serializeOdm(file: OdmFile, serialization: OdmSerialization): st
   return JSON.stringify(file, null, 2);
 }
 export * from "./edit.js";
+export * from "./ext.js";
 export * from "./resolve.js";
