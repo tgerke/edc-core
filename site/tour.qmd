@@ -29,6 +29,8 @@ their key:
 
 ![](images/subject-matrix.png){.screenshot fig-alt="Subject matrix with form status per event"}
 
+*Full guide: [Data capture](guide/data-capture.qmd).*
+
 ## 2. Correct data and watch the query close itself
 
 DEMO-002's Vital Signs form is *in progress* with **1 open query**: the seeded
@@ -51,8 +53,11 @@ it — record male and it vanishes; and on Vital Signs, the BMI field carries a
 **computed** badge: it fills itself in from height and weight, and the server
 recomputes and audits it on every save. Try changing a saved sex from female
 to male: the recorded pregnancy result is kept, flagged **not collected**,
-and a system query stays open until you clear it. See
-[Data capture](guide/data-capture.qmd#conditional-and-computed-fields).
+and a system query stays open until you clear it.
+
+*Full guide: [Data capture](guide/data-capture.qmd#conditional-and-computed-fields)
+for the entry side, [Rules and derivations](guide/rules-and-derivations.qmd)
+for authoring the checks and computations themselves.*
 
 ## 3. Verify as a monitor
 
@@ -66,6 +71,9 @@ dashboard:
 
 ![](images/queries.png){.screenshot fig-alt="Study-wide query dashboard"}
 
+*Full guide: [Review workflows](guide/review.qmd) and
+[Notifications](guide/notifications.qmd).*
+
 ## 4. Sign as the investigator
 
 Sign in as **`demo-inv`**, open the completed form, and **sign** it. Part 11
@@ -73,6 +81,8 @@ signing requires re-entering your credentials at the moment of signature; the
 signature records name, date/time, and meaning, and is cryptographically bound
 (SHA-256) to the exact record versions signed. If the form is later reopened
 for editing, the signature is invalidated, visibly and irreversibly.
+
+*Full guide: [Review workflows](guide/review.qmd#electronic-signatures-21-cfr-part-11).*
 
 ## 5. Review the audit trail
 
@@ -82,6 +92,8 @@ to CSV. Append-only storage is enforced by database triggers, so history
 cannot be rewritten even by a buggy application path.
 
 ![](images/audit-trail.png){.screenshot fig-alt="Audit trail review UI with filters"}
+
+*Full guide: [Review workflows](guide/review.qmd#audit-trail-review).*
 
 ## 6. Publish a snapshot and analyze it
 
@@ -102,6 +114,8 @@ code, logs, and results:
 
 ![](images/workbench-r.png){.screenshot fig-alt="R workbench with console output and execution history"}
 
+*Full guide: [Analytics workbench](guide/analytics.qmd).*
+
 ## 7. Export and archive
 
 From the analytics page you can export any snapshot table as **Dataset-JSON
@@ -110,6 +124,10 @@ v1.1** (the FDA-accepted exchange format), CSV, or Parquet, or download the
 JSON), all datasets, the complete audit trail, the signature manifest, and a
 PDF casebook for every subject.
 
+*Full guide: [Exports, casebooks, and the study
+archive](guide/exports-and-archive.qmd).*
+
 That's the whole loop: capture → clean → verify → sign → snapshot → analyze →
 archive, with every step audited. For details on any piece, head to the
-[user guide](guide/study-builds.qmd).
+[user guide](guide/study-builds.qmd) or pick a
+[reading track for your role](start-here.qmd).

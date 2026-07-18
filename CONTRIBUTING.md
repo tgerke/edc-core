@@ -61,9 +61,13 @@ running, bootstraps the system admin and seeds the demo study, builds the
 remaining reference states (a DEMO-003 subject in screening, the
 repeating-groups demo study with an occurrence-level edit-check query, a
 published snapshot, SQL/R/Python workbench runs, an auto-coding run that
-leaves "stomach ake" uncoded, and a failed-login burst surfaced as security
-anomalies), then captures every page at 1440x900 with `deviceScaleFactor: 2`,
-full page — the 2880px-wide PNGs the site expects.
+leaves "stomach ake" uncoded, a failed-login burst surfaced as security
+anomalies, a manual query on DEMO-001's vitals, a draft and a submitted site
+form layout, a lab-import mapping, and three more isolated demo studies:
+`ST.AMD.DEMO` with a v2 build awaiting migration, `ST.BLD.DEMO` with a
+blinded arm delivered through the RTSM intake, and `ST.USDM.DEMO` with an
+unpublished protocol import), then captures every page at 1440x900 with
+`deviceScaleFactor: 2`, full page — the 2880px-wide PNGs the site expects.
 
 The state setup is idempotent, so the script can be re-run against a stack it
 already touched — useful with `--only name,name` to redo a subset (names are

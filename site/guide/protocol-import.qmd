@@ -42,6 +42,8 @@ biomedical concepts:
   carry it. Click the badge to complete it: name the item, set the question
   text, datatype, and optional codelist.
 
+![](../images/protocol-review.png){.screenshot fig-alt="The protocol review screen: the schedule of activities compiled from a USDM package, with per-concept resolution badges and the publish action"}
+
 **Publish build** stays disabled until every draft is completed, so a
 published build is always capture-ready. Publishing creates a normal study build (the
 same versioned store as ODM imports and the visual builder), records

@@ -14,6 +14,8 @@ website:
     left:
       - href: index.qmd
         text: Home
+      - href: start-here.qmd
+        text: Start here
       - href: installation.qmd
         text: Installation
       - href: deployment.qmd
@@ -34,17 +36,33 @@ website:
     - title: "User guide"
       style: floating
       contents:
-        - guide/why-protocol-first.qmd
-        - guide/study-builds.qmd
-        - guide/protocol-import.qmd
-        - guide/site-forms.qmd
-        - guide/data-capture.qmd
-        - guide/lab-import.qmd
-        - guide/rtsm-integration.qmd
-        - guide/user-admin.qmd
-        - guide/review.qmd
-        - guide/medical-coding.qmd
-        - guide/analytics.qmd
+        - section: "Building studies"
+          contents:
+            - guide/why-protocol-first.qmd
+            - guide/protocol-import.qmd
+            - guide/study-builds.qmd
+            - guide/rules-and-derivations.qmd
+            - guide/site-forms.qmd
+            - guide/amendments.qmd
+        - section: "Capturing data"
+          contents:
+            - guide/data-capture.qmd
+            - guide/lab-import.qmd
+            - guide/rtsm-integration.qmd
+            - guide/blinding.qmd
+        - section: "Review and oversight"
+          contents:
+            - guide/review.qmd
+            - guide/medical-coding.qmd
+            - guide/notifications.qmd
+            - guide/user-admin.qmd
+        - section: "Analytics and exports"
+          contents:
+            - guide/analytics.qmd
+            - guide/exports-and-archive.qmd
+        - section: "Reference"
+          contents:
+            - glossary.qmd
   page-footer:
     left: "edc-core is AGPL-3.0 · clinical research infrastructure should stay open"
     right:
