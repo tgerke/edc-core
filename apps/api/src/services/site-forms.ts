@@ -13,6 +13,7 @@ import {
   siteFormVariantVersions,
   studyMetadataVersions,
 } from "../db/schema/index.js";
+import { notifyPermissionHolders } from "./notifications.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
 
 /**
@@ -305,4 +306,128 @@ export async function effectiveFormsForEvent(
     variantVersionId: effective.id,
     forms: forms.map((f) => ({ oid: f.oid, name: f.name })),
   };
+}
+
+/**
+ * Amendment integration: when a new build publishes, every approved variant
+ * is revalidated against it. Data-equivalent variants are carried forward
+ * automatically (a cloned approved version targeting the new build, audited
+ * as a system action); the rest are marked stale — capture falls back to the
+ * standard forms until the site submits an updated layout — and both the
+ * site and the sponsor are notified. Runs inside the build-publish
+ * transaction so the outcome commits atomically with the amendment; variant
+ * problems never block the amendment itself.
+ */
+export async function revalidateVariantsForBuild(
+  db: Db,
+  input: { studyId: string; newMetadataVersionId: string; actorId: string },
+): Promise<{ carried: number; staled: number }> {
+  const newMdv = await buildDefinition(db, input.newMetadataVersionId);
+
+  const approvedRows = await db
+    .select({
+      versionId: siteFormVariantVersions.id,
+      variantId: siteFormVariantVersions.variantId,
+      version: siteFormVariantVersions.version,
+      metadataVersionId: siteFormVariantVersions.metadataVersionId,
+      definition: siteFormVariantVersions.definition,
+      siteId: siteFormVariants.siteId,
+      name: siteFormVariants.name,
+    })
+    .from(siteFormVariantVersions)
+    .innerJoin(siteFormVariants, eq(siteFormVariantVersions.variantId, siteFormVariants.id))
+    .where(
+      and(
+        eq(siteFormVariants.studyId, input.studyId),
+        eq(siteFormVariantVersions.status, "approved"),
+      ),
+    );
+
+  let carried = 0;
+  let staled = 0;
+  for (const row of approvedRows) {
+    if (row.metadataVersionId === input.newMetadataVersionId) continue;
+    const definition = siteFormVariantDefinitionSchema.parse(row.definition);
+    const issues = validateVariantCoverage(newMdv, definition).filter(
+      (i) => i.severity === "error",
+    );
+
+    if (issues.length === 0) {
+      const [latest] = await db
+        .select({ version: siteFormVariantVersions.version })
+        .from(siteFormVariantVersions)
+        .where(eq(siteFormVariantVersions.variantId, row.variantId))
+        .orderBy(desc(siteFormVariantVersions.version))
+        .limit(1);
+      const [carriedRow] = await db
+        .insert(siteFormVariantVersions)
+        .values({
+          variantId: row.variantId,
+          version: (latest?.version ?? row.version) + 1,
+          metadataVersionId: input.newMetadataVersionId,
+          definition: row.definition as object,
+          status: "approved",
+          decidedBy: input.actorId,
+          decidedAt: new Date(),
+          decisionNote: "carried forward on amendment (still data-equivalent)",
+          createdBy: input.actorId,
+        })
+        .returning();
+      // The superseded approval is retired so only one approval is live.
+      await db
+        .update(siteFormVariantVersions)
+        .set({ status: "retired" })
+        .where(eq(siteFormVariantVersions.id, row.versionId));
+      await db.insert(auditEvents).values({
+        actorId: input.actorId,
+        studyId: input.studyId,
+        action: "site_forms.carried_forward",
+        entityType: "site_form_variant_version",
+        entityId: carriedRow?.id ?? row.versionId,
+        newValue: { variantId: row.variantId, metadataVersionId: input.newMetadataVersionId },
+      });
+      carried++;
+      continue;
+    }
+
+    await db
+      .update(siteFormVariantVersions)
+      .set({ status: "stale" })
+      .where(eq(siteFormVariantVersions.id, row.versionId));
+    await db.insert(auditEvents).values({
+      actorId: input.actorId,
+      studyId: input.studyId,
+      action: "site_forms.staled",
+      entityType: "site_form_variant_version",
+      entityId: row.versionId,
+      newValue: {
+        variantId: row.variantId,
+        metadataVersionId: input.newMetadataVersionId,
+        issues: issues.map((i) => i.message).slice(0, 5),
+      },
+    });
+    const notification = {
+      studyId: input.studyId,
+      type: "site_forms.stale" as const,
+      title: `Site layout "${row.name}" needs an update`,
+      body: "A new study build changed the data this layout covers. Capture uses the standard forms until an updated layout is approved.",
+      payload: { variantId: row.variantId, siteId: row.siteId },
+      dedupeKey: `site_forms.stale:${row.versionId}`,
+    };
+    await notifyPermissionHolders(db, {
+      permission: "site.forms.manage",
+      scope: { studyId: input.studyId, siteId: row.siteId },
+      excludeUserId: input.actorId,
+      notification,
+    });
+    await notifyPermissionHolders(db, {
+      permission: "study.manage",
+      scope: { studyId: input.studyId },
+      excludeUserId: input.actorId,
+      notification,
+    });
+    staled++;
+  }
+
+  return { carried, staled };
 }

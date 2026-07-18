@@ -153,8 +153,8 @@ describe.skipIf(!dbAvailable)("site form variants (integration)", () => {
   });
 
   afterAll(async () => {
+    // The DB client is shared with the amendment suite below; it closes there.
     await server.close();
-    await client.end();
   });
 
   const auth = (token: string) => ({ authorization: `Bearer ${token}` });
@@ -342,5 +342,184 @@ describe.skipIf(!dbAvailable)("site form variants (integration)", () => {
       payload: { eventOid: "SE.SCREENING", formOid: fx.variantFormOid },
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe.skipIf(!dbAvailable)("amendment integration for variants (integration)", () => {
+  // Reuses the DB from the suite above via fresh fixtures.
+  let server: FastifyInstance;
+  const suffix = randomUUID().slice(0, 8);
+  const fx = { managerToken: "", coordToken: "", studyId: "", siteId: "", versionId: "" };
+
+  beforeAll(async () => {
+    await runMigrations();
+    server = await buildServer({ db });
+    await server.ready();
+
+    const passwordHash = await hashPassword(PASSWORD);
+    const mkUser = async (username: string, isSystemAdmin = false) => {
+      const [user] = await db
+        .insert(users)
+        .values({
+          username,
+          email: `${username}@example.com`,
+          fullName: username,
+          passwordHash,
+          isSystemAdmin,
+        })
+        .returning();
+      if (!user) throw new Error("fixture failed");
+      return user;
+    };
+    const manager = await mkUser(`amm-${suffix}`);
+    const coord = await mkUser(`amc-${suffix}`);
+    const admin = await mkUser(`amadm-${suffix}`, true);
+    const [study] = await db
+      .insert(studies)
+      .values({ oid: `ST.AM.${suffix}`, name: "Amendment Variants Study" })
+      .returning();
+    const [site] = await db
+      .insert(sites)
+      .values({ studyId: study?.id ?? "", oid: "SITE.AM", name: "Amendment Site" })
+      .returning();
+    if (!study || !site) throw new Error("fixture failed");
+    fx.studyId = study.id;
+    fx.siteId = site.id;
+
+    const roleId = async (name: string) => {
+      const [role] = await db.select().from(roles).where(eq(roles.name, name));
+      if (!role) throw new Error(`seeded role ${name} missing`);
+      return role.id;
+    };
+    await grantRole(db, {
+      userId: manager.id,
+      studyId: study.id,
+      roleId: await roleId("data_manager"),
+      grantedBy: admin.id,
+    });
+    await grantRole(db, {
+      userId: coord.id,
+      studyId: study.id,
+      roleId: await roleId("data_entry"),
+      siteId: site.id,
+      grantedBy: admin.id,
+    });
+
+    const login = async (username: string) => {
+      const res = await server.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: { username, password: PASSWORD },
+      });
+      return res.json().token as string;
+    };
+    fx.managerToken = await login(`amm-${suffix}`);
+    fx.coordToken = await login(`amc-${suffix}`);
+
+    const imported = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/metadata-versions`,
+      headers: { authorization: `Bearer ${fx.managerToken}` },
+      payload: { content: demoOdm, note: "baseline" },
+    });
+    if (imported.statusCode !== 201) throw new Error(`build import failed: ${imported.body}`);
+
+    // Approved screening variant.
+    const created = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/sites/${fx.siteId}/form-variants`,
+      headers: { authorization: `Bearer ${fx.coordToken}` },
+      payload: { name: "Clinic flow", seedEventOids: ["SE.SCREENING"] },
+    });
+    if (created.statusCode !== 201) throw new Error(`variant create failed: ${created.body}`);
+    fx.versionId = created.json().versionId;
+    await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/sites/${fx.siteId}/form-variants/versions/${fx.versionId}/submit`,
+      headers: { authorization: `Bearer ${fx.coordToken}` },
+    });
+    const approved = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/form-variants/versions/${fx.versionId}/approve`,
+      headers: { authorization: `Bearer ${fx.managerToken}` },
+      payload: {},
+    });
+    if (approved.statusCode !== 200) throw new Error(`approve failed: ${approved.body}`);
+  });
+
+  afterAll(async () => {
+    await server.close();
+    await client.end();
+  });
+
+  const auth = (token: string) => ({ authorization: `Bearer ${token}` });
+
+  it("carries an equivalent variant forward across an untouched amendment", async () => {
+    const res = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/metadata-versions`,
+      headers: auth(fx.managerToken),
+      payload: { content: demoOdm, note: "amendment without screening changes" },
+    });
+    expect(res.statusCode).toBe(201);
+
+    const effective = await server.inject({
+      method: "GET",
+      url: `/studies/${fx.studyId}/sites/${fx.siteId}/effective-forms?eventOid=SE.SCREENING`,
+      headers: auth(fx.coordToken),
+    });
+    expect(effective.json().source).toBe("variant");
+
+    const variants = await server.inject({
+      method: "GET",
+      url: `/studies/${fx.studyId}/sites/${fx.siteId}/form-variants`,
+      headers: auth(fx.coordToken),
+    });
+    const latest = variants.json()[0].latest;
+    expect(latest.status).toBe("approved");
+    expect(latest.decisionNote).toContain("carried forward");
+  });
+
+  it("stales the variant when the amendment changes its events, falling back to standard forms", async () => {
+    const amended = demoOdm
+      .replace(
+        '<ItemRef ItemOID="IT.DM.BRTHDTC" Mandatory="Yes"/>',
+        '<ItemRef ItemOID="IT.DM.BRTHDTC" Mandatory="Yes"/>\n        <ItemRef ItemOID="IT.DM.SITEREF" Mandatory="No"/>',
+      )
+      .replace(
+        '<ItemDef DataType="date" Name="Birth Date" OID="IT.DM.BRTHDTC">',
+        '<ItemDef DataType="text" Name="Referring Site" OID="IT.DM.SITEREF">\n        <Question><TranslatedText xml:lang="en" Type="text/plain">Referring site</TranslatedText></Question>\n      </ItemDef>\n      <ItemDef DataType="date" Name="Birth Date" OID="IT.DM.BRTHDTC">',
+      );
+    const res = await server.inject({
+      method: "POST",
+      url: `/studies/${fx.studyId}/metadata-versions`,
+      headers: auth(fx.managerToken),
+      payload: { content: amended, note: "amendment adding a screening item" },
+    });
+    expect(res.statusCode).toBe(201);
+
+    const effective = await server.inject({
+      method: "GET",
+      url: `/studies/${fx.studyId}/sites/${fx.siteId}/effective-forms?eventOid=SE.SCREENING`,
+      headers: auth(fx.coordToken),
+    });
+    expect(effective.json().source).toBe("standard");
+
+    const variants = await server.inject({
+      method: "GET",
+      url: `/studies/${fx.studyId}/sites/${fx.siteId}/form-variants`,
+      headers: auth(fx.coordToken),
+    });
+    const versions = variants.json()[0].versions as { status: string }[];
+    expect(versions.some((v) => v.status === "stale")).toBe(true);
+
+    const notifications = await server.inject({
+      method: "GET",
+      url: "/notifications",
+      headers: auth(fx.coordToken),
+    });
+    expect(notifications.statusCode).toBe(200);
+    const items = notifications.json().items ?? notifications.json();
+    expect(JSON.stringify(items).includes("needs an update")).toBe(true);
   });
 });
