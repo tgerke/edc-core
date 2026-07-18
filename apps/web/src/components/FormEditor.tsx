@@ -9,7 +9,10 @@ import {
   type ResolvedItem,
   removeItem,
   resolveGroup,
+  setGroupCollectionException,
+  setItemCollectionException,
   setItemMandatory,
+  setItemMethod,
   updateItemDef,
   updateItemGroup,
 } from "@edc-core/odm";
@@ -76,6 +79,8 @@ function ItemEditor({
         {item.ref.mandatory === "Yes" ? <span className="text-rose-500">*</span> : null}
         <Badge>{def.dataType}</Badge>
         {item.codeList ? <Badge tone="sky">codelist</Badge> : null}
+        {item.ref.methodOid ? <Badge tone="sky">computed</Badge> : null}
+        {item.ref.collectionExceptionConditionOid ? <Badge tone="amber">conditional</Badge> : null}
         <span className="ml-auto font-mono text-[11px] text-zinc-400">{def.oid}</span>
         <IconButton
           label="Move up"
@@ -183,10 +188,18 @@ function ItemEditor({
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 self-end pb-2 text-sm text-zinc-700">
+          <label
+            className="flex items-center gap-2 self-end pb-2 text-sm text-zinc-700"
+            title={
+              item.ref.methodOid
+                ? "Derived items are system-written and cannot be required"
+                : undefined
+            }
+          >
             <input
               type="checkbox"
               checked={item.ref.mandatory === "Yes"}
+              disabled={item.ref.methodOid !== undefined}
               onChange={(e) => onChange(setItemMandatory(mdv, groupOid, def.oid, e.target.checked))}
             />
             Required
@@ -224,6 +237,60 @@ function ItemEditor({
               <option value="WHODrug">WHODrug</option>
             </select>
           </label>
+          <label
+            className="grid gap-1 text-xs font-medium text-zinc-500"
+            title="The field is not collected when the selected condition evaluates true. Manage conditions in the rules panel below."
+          >
+            Skip when true
+            <select
+              className={selectClass}
+              value={item.ref.collectionExceptionConditionOid ?? ""}
+              onChange={(e) =>
+                onChange(
+                  setItemCollectionException(
+                    mdv,
+                    groupOid,
+                    def.oid,
+                    e.target.value === "" ? null : e.target.value,
+                  ),
+                )
+              }
+            >
+              <option value="">always collected</option>
+              {mdv.conditionDefs.map((c) => (
+                <option key={c.oid} value={c.oid}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label
+            className="grid gap-1 text-xs font-medium text-zinc-500"
+            title="The server computes this value from other fields; site entry is disabled. Manage methods in the rules panel below."
+          >
+            Derived by
+            <select
+              className={selectClass}
+              value={item.ref.methodOid ?? ""}
+              onChange={(e) =>
+                onChange(
+                  setItemMethod(
+                    mdv,
+                    groupOid,
+                    def.oid,
+                    e.target.value === "" ? null : e.target.value,
+                  ),
+                )
+              }
+            >
+              <option value="">entered by site</option>
+              {mdv.methodDefs.map((m) => (
+                <option key={m.oid} value={m.oid}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       ) : null}
     </div>
@@ -234,11 +301,14 @@ function GroupEditor({
   mdv,
   group,
   depth,
+  parentOid,
   onChange,
 }: {
   mdv: MetaDataVersion;
   group: ResolvedGroup;
   depth: number;
+  /** Enclosing group whose ItemGroupRef carries this section's skip condition. */
+  parentOid?: string;
   onChange: (mdv: MetaDataVersion) => void;
 }) {
   const items = group.children.filter((c): c is ResolvedItem => c.kind === "item");
@@ -264,6 +334,35 @@ function GroupEditor({
             repeating
           </label>
         ) : null}
+        {depth > 0 && parentOid !== undefined ? (
+          <label
+            className="flex items-center gap-1.5 text-xs text-zinc-600"
+            title="The whole section (and its descendants) is not collected when the selected condition evaluates true"
+          >
+            skip when
+            <select
+              className={selectClass}
+              value={group.ref.collectionExceptionConditionOid ?? ""}
+              onChange={(e) =>
+                onChange(
+                  setGroupCollectionException(
+                    mdv,
+                    parentOid,
+                    group.def.oid,
+                    e.target.value === "" ? null : e.target.value,
+                  ),
+                )
+              }
+            >
+              <option value="">never</option>
+              {mdv.conditionDefs.map((c) => (
+                <option key={c.oid} value={c.oid}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <span className="ml-auto font-mono text-[11px] text-zinc-400">{group.def.oid}</span>
         <Button variant="ghost" onClick={() => onChange(deleteGroup(mdv, group.def.oid))}>
           {depth === 0 ? "Delete form" : "Delete section"}
@@ -284,7 +383,13 @@ function GroupEditor({
             />
           ) : (
             <div key={child.def.oid} className={index > 0 ? "pt-3" : ""}>
-              <GroupEditor mdv={mdv} group={child} depth={depth + 1} onChange={onChange} />
+              <GroupEditor
+                mdv={mdv}
+                group={child}
+                depth={depth + 1}
+                parentOid={group.def.oid}
+                onChange={onChange}
+              />
             </div>
           ),
         )}
