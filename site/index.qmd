@@ -47,6 +47,17 @@ self-contained study archive that outlives the running system.
 
 : {tbl-colwidths="[30,70]"}
 
+## Start here by role
+
+| | |
+|---|---|
+| [New to EDC](start-here.qmd#entry-level) | Entry-level data managers: vocabulary first, then a guided loop through entry, review, coding, and analytics. |
+| [Study builders](start-here.qmd#study-builders) | Experienced data managers: versioned builds, protocol import, site layouts, and integrations. |
+| [CRO and sponsor leadership](start-here.qmd#leadership) | Compliance posture, oversight evidence, and the exit path, without touching a form. |
+| [Clinical operations](start-here.qmd#clinical-ops) | Site-facing workflows: subjects, entry, queries, and signatures. |
+
+: {tbl-colwidths="[30,70]"}
+
 ::: {.callout-note}
 **Status: alpha.** The full workflow (protocol-first or forms-first build,
 capture, clean, code, sign, snapshot, analyze with SQL, R, and Python,
