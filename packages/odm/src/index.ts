@@ -13,6 +13,7 @@ export * from "./diff.js";
 export * from "./model.js";
 export { isOdm13Xml, type Odm13ConversionResult, upconvertOdm13Xml } from "./odm13.js";
 export * from "./validate.js";
+export * from "./variants.js";
 export { ODM_V2_NAMESPACE, parseOdmXml, serializeOdmXml } from "./xml.js";
 
 export const SUPPORTED_ODM_VERSION = "2.0";
