@@ -100,6 +100,18 @@ export function StudyPage() {
               <Link to="/studies/$studyId/protocol" params={{ studyId }} className="underline">
                 protocol
               </Link>
+              {" · "}
+              <Link to="/studies/$studyId/site-forms" params={{ studyId }} className="underline">
+                site forms
+              </Link>
+              {" · "}
+              <Link
+                to="/studies/$studyId/site-form-approvals"
+                params={{ studyId }}
+                className="underline"
+              >
+                layout approvals
+              </Link>
             </>
           }
         >

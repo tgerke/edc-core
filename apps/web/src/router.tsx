@@ -15,6 +15,7 @@ import { AdminAccessLogPage } from "./pages/AdminAccessLogPage.js";
 import { AdminAnomaliesPage } from "./pages/AdminAnomaliesPage.js";
 import { AdminDictionariesPage } from "./pages/AdminDictionariesPage.js";
 import { AdminUsersPage } from "./pages/AdminUsersPage.js";
+import { ApprovalQueuePage } from "./pages/ApprovalQueuePage.js";
 import { AuditPage } from "./pages/AuditPage.js";
 import { BuilderPage } from "./pages/BuilderPage.js";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage.js";
@@ -26,6 +27,7 @@ import { ProtocolImportPage } from "./pages/ProtocolImportPage.js";
 import { ProtocolReviewPage } from "./pages/ProtocolReviewPage.js";
 import { QueriesPage } from "./pages/QueriesPage.js";
 import { ReauthCompletePage } from "./pages/ReauthCompletePage.js";
+import { SiteFormsPage } from "./pages/SiteFormsPage.js";
 import { StudiesPage } from "./pages/StudiesPage.js";
 import { StudyPage } from "./pages/StudyPage.js";
 import { TeamPage } from "./pages/TeamPage.js";
@@ -150,6 +152,18 @@ const protocolReviewRoute = createRoute({
   component: ProtocolReviewPage,
 });
 
+const siteFormsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/site-forms",
+  component: SiteFormsPage,
+});
+
+const approvalQueueRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/studies/$studyId/site-form-approvals",
+  component: ApprovalQueuePage,
+});
+
 const matrixRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/studies/$studyId/subjects",
@@ -232,6 +246,8 @@ const routeTree = rootRoute.addChildren([
     builderRoute,
     protocolRoute,
     protocolReviewRoute,
+    siteFormsRoute,
+    approvalQueueRoute,
     matrixRoute,
     queriesRoute,
     codingRoute,
