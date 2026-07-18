@@ -45,6 +45,15 @@ system query **closes automatically**.
 Edit checks are JSONata expressions defined in the study build. They run
 client-side for instant feedback and server-side as the source of truth.
 
+The demo study's forms are dynamic, too. On the Demographics form, the
+pregnancy-test question only appears while the subject's recorded sex allows
+it — record male and it vanishes; and on Vital Signs, the BMI field carries a
+**computed** badge: it fills itself in from height and weight, and the server
+recomputes and audits it on every save. Try changing a saved sex from female
+to male: the recorded pregnancy result is kept, flagged **not collected**,
+and a system query stays open until you clear it. See
+[Data capture](guide/data-capture.qmd#conditional-and-computed-fields).
+
 ## 3. Verify as a monitor
 
 Sign in as **`demo-cra`** and open the same form. Mark it **verified**. The

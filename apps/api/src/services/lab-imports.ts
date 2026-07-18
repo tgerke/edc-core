@@ -23,7 +23,7 @@ import {
   type SubjectStatus,
   writeItemValue,
 } from "./capture.js";
-import { evaluateFormChecks } from "./checks.js";
+import { assertWriteAllowed, loadFormState, runPostWritePipeline } from "./form-state.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
 
 /**
@@ -167,6 +167,7 @@ export const ROW_OUTCOMES = [
   "error_unknown_test",
   "error_bad_value",
   "skipped_pinned_build",
+  "skipped_not_collected",
   "error_write_failed",
 ] as const;
 export type RowOutcome = (typeof ROW_OUTCOMES)[number];
@@ -850,6 +851,11 @@ export async function runLabImportDriver(
               current.set(`${row.item_group_oid}:${row.item_oid}`, row.value);
             }
 
+            // Dynamic-field gate, evaluated once per form from pre-import
+            // values: an import must not fill derived or not-collected
+            // fields (ADR-0014).
+            const formState = await loadFormState(txDb, context);
+
             let wrote = false;
             for (const row of group.rows) {
               const { outcome, message, writes } = classifyRow(
@@ -857,6 +863,30 @@ export async function runLabImportDriver(
                 (t) => current.get(`${t.itemGroupOid}:${t.itemOid}`) ?? undefined,
                 () => {},
               );
+              if (formState && writes.length > 0) {
+                let blockedMessage: string | null = null;
+                for (const target of writes) {
+                  try {
+                    assertWriteAllowed(formState, {
+                      itemGroupOid: target.itemGroupOid,
+                      itemOid: target.itemOid,
+                      value: target.value,
+                    });
+                  } catch (err) {
+                    blockedMessage = err instanceof Error ? err.message : String(err);
+                    break;
+                  }
+                }
+                if (blockedMessage !== null) {
+                  collector.add("skipped_not_collected", {
+                    line: row.line,
+                    subjectKey: row.subjectKey,
+                    testCode: row.testCode,
+                    message: blockedMessage,
+                  });
+                  continue;
+                }
+              }
               for (const target of writes) {
                 await writeItemValue(txDb, context, {
                   itemGroupOid: target.itemGroupOid,
@@ -882,7 +912,7 @@ export async function runLabImportDriver(
               });
             }
 
-            if (wrote) await evaluateFormChecks(txDb, context, run.startedBy);
+            if (wrote) await runPostWritePipeline(txDb, context, run.startedBy);
           });
         } catch (err) {
           for (const row of group.rows) {

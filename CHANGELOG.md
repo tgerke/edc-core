@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Dynamic and linked fields (ADR-0014)
+- Skip logic: `CollectionExceptionConditionOID` on ItemRef and ItemGroupRef
+  is now enforced at runtime — skipped fields hide in capture, writes to
+  them are rejected on every intake path (UI, RTSM, lab import), and a
+  value already saved in a field that becomes skipped raises a system
+  query until the site clears it or the controlling answer changes back
+- Dependent option lists: a new `edc:CollectionExceptionConditionOID`
+  vendor extension on CodeListItem withdraws an option when its condition
+  is true; plain-ODM consumers see the full list
+- Derived values: `MethodDef` jsonata expressions now compute item values
+  server-side after every accepted write (audited as `item_value.derived`),
+  with a live read-only preview in form entry; direct writes to derived
+  items are rejected, and derivation cycles fail build validation
+- Edit checks are skip-aware (not-collected fields cannot fire them), and
+  the client and server evaluate one shared pipeline, extending the
+  ADR-0007 dual-evaluation pattern
+- The demo study now exercises all three: a pregnancy-test item skipped
+  for male subjects, a conditional "Not performed" option, and a BMI item
+  derived from height and weight
+
 ## v0.5.0 — Protocol-first builds and site form layouts (2026-07)
 
 Two halves of one idea (BYOFW: the sponsor governs the data, sites adapt

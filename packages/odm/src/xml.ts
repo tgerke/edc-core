@@ -122,11 +122,17 @@ function parseItemGroupRefs(node: XNode): ItemGroupRef[] {
     const n = asNode(raw);
     const mandatory = attr(n, "Mandatory");
     const orderNumber = intAttr(n, "OrderNumber");
-    const extra = collectExtra(n, ["ItemGroupOID", "Mandatory", "OrderNumber"], []);
+    const cec = attr(n, "CollectionExceptionConditionOID");
+    const extra = collectExtra(
+      n,
+      ["ItemGroupOID", "Mandatory", "OrderNumber", "CollectionExceptionConditionOID"],
+      [],
+    );
     return {
       itemGroupOid: requireAttr(n, "ItemGroupOID", "ItemGroupRef"),
       ...(mandatory !== undefined ? { mandatory } : {}),
       ...(orderNumber !== undefined ? { orderNumber } : {}),
+      ...(cec !== undefined ? { collectionExceptionConditionOid: cec } : {}),
       ...(extra ? { extra } : {}),
     };
   });
@@ -257,10 +263,16 @@ function parseCodeList(raw: unknown): CodeList {
   const items = ((n.CodeListItem as unknown[]) ?? []).map((rawItem): CodeListItem => {
     const item = asNode(rawItem);
     const decode = parseTranslatedTexts(item.Decode);
-    const extra = collectExtra(item, ["CodedValue"], ["Decode"]);
+    const cec = attr(item, "edc:CollectionExceptionConditionOID");
+    const extra = collectExtra(
+      item,
+      ["CodedValue", "edc:CollectionExceptionConditionOID"],
+      ["Decode"],
+    );
     return {
       codedValue: requireAttr(item, "CodedValue", "CodeListItem"),
       ...(decode ? { decode } : {}),
+      ...(cec !== undefined ? { collectionExceptionConditionOid: cec } : {}),
       ...(extra ? { extra } : {}),
     };
   });
@@ -432,6 +444,9 @@ function buildItemGroupRefs(refs: ItemGroupRef[]) {
         "@_ItemGroupOID": ref.itemGroupOid,
         ...(ref.mandatory !== undefined ? { "@_Mandatory": ref.mandatory } : {}),
         ...(ref.orderNumber !== undefined ? { "@_OrderNumber": String(ref.orderNumber) } : {}),
+        ...(ref.collectionExceptionConditionOid !== undefined
+          ? { "@_CollectionExceptionConditionOID": ref.collectionExceptionConditionOid }
+          : {}),
       },
       ref.extra,
     ),
@@ -575,6 +590,12 @@ export function serializeOdmXml(file: OdmFile): string {
                                 withExtra(
                                   {
                                     "@_CodedValue": item.codedValue,
+                                    ...(item.collectionExceptionConditionOid !== undefined
+                                      ? {
+                                          "@_edc:CollectionExceptionConditionOID":
+                                            item.collectionExceptionConditionOid,
+                                        }
+                                      : {}),
                                     ...(item.decode
                                       ? { Decode: buildTranslatedTexts(item.decode) }
                                       : {}),

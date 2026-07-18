@@ -10,7 +10,7 @@ import {
   subjects,
 } from "../db/schema/index.js";
 import { CaptureError, type FormStatus, resolveFormContext } from "./capture.js";
-import { evaluateFormChecks } from "./checks.js";
+import { runPostWritePipeline } from "./form-state.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
 
 /**
@@ -358,9 +358,10 @@ export async function runMigrationDriver(db: Db, runId: string): Promise<void> {
               oldValue: { metadataVersionId: context.metadataVersionId },
               newValue: { metadataVersionId: targetId, migrationRunId: runId },
             });
-            // Reconcile system queries against the new build: newly firing
-            // checks open queries; checks that vanished auto-close (audited).
-            await evaluateFormChecks(
+            // Reconcile against the new build: changed method expressions
+            // recompute derivations, then newly firing checks open queries
+            // and checks that vanished auto-close (audited).
+            await runPostWritePipeline(
               txDb,
               { ...context, metadataVersionId: targetId },
               run.startedBy,

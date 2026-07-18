@@ -8,7 +8,13 @@ import {
   resolveVariantForm,
   siteFormVariantDefinitionSchema,
 } from "@edc-core/odm";
-import { compileEditChecks, type ItemValueRow, runChecksOverRows } from "@edc-core/rules";
+import {
+  compileDerivations,
+  compileEditChecks,
+  evaluateFormState,
+  type ItemValueRow,
+  skipResidualMessages,
+} from "@edc-core/rules";
 import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -91,18 +97,26 @@ function EntryControl({
   codeList,
   value,
   disabled,
+  excludedValues,
   onChange,
 }: {
   def: ItemDef;
   codeList?: CodeList | undefined;
   value: string;
   disabled: boolean;
+  excludedValues?: Set<string> | undefined;
   onChange: (value: string) => void;
 }) {
   const base =
     "w-full max-w-sm rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-50 disabled:text-zinc-500";
 
   if (codeList) {
+    // Excluded options disappear from the choice list — except a saved value
+    // that has since become excluded, which stays visible and flagged rather
+    // than leaving the select silently blank.
+    const items = codeList.items.filter(
+      (item) => !excludedValues?.has(item.codedValue) || item.codedValue === value,
+    );
     return (
       <select
         className={base}
@@ -111,9 +125,10 @@ function EntryControl({
         onChange={(e) => onChange(e.target.value)}
       >
         <option value="">—</option>
-        {codeList.items.map((item) => (
+        {items.map((item) => (
           <option key={item.codedValue} value={item.codedValue}>
             {displayText(item.decode) ?? item.codedValue}
+            {excludedValues?.has(item.codedValue) ? " (no longer available)" : ""}
           </option>
         ))}
       </select>
@@ -157,14 +172,48 @@ function EntryControl({
   );
 }
 
+/** Client-side dynamic form state (ADR-0014), recomputed on every edit. */
+interface DynamicState {
+  /** Field occurrences not collected under the current responses. */
+  skipped: Set<string>;
+  /** Excluded code list options per field occurrence. */
+  excluded: Map<string, Set<string>>;
+  /** `${groupOid}:${itemOid}` pairs whose value is computed, never entered. */
+  derivedItems: Set<string>;
+  /** Locally computed derived values (preview; the server recomputes). */
+  derivedValues: Record<string, string>;
+}
+
+/** A section with nothing to show (every field skipped and empty) is hidden
+ *  entirely rather than rendered as an empty shell. */
+function groupHasVisibleContent(
+  group: ResolvedGroup,
+  repeatKey: number,
+  dynamic: DynamicState,
+  serverValues: Record<string, string>,
+): boolean {
+  return group.children.some((child) => {
+    if (child.kind === "item") {
+      const key = fieldKey(child.canonicalGroupOid ?? group.def.oid, repeatKey, child.def.oid);
+      return !dynamic.skipped.has(key) || (serverValues[key] ?? "") !== "";
+    }
+    // Repeating subgroups keep their own occurrence controls visible.
+    if (child.def.repeating && child.def.repeating !== "No") return true;
+    // Non-repeating subgroups always render at repeat key 1.
+    return groupHasVisibleContent(child, 1, dynamic, serverValues);
+  });
+}
+
 function EntryGroup({
   group,
   depth,
   repeatKey = 1,
   values,
+  serverValues,
   editable,
   blinded,
   added,
+  dynamic,
   onChange,
   onAddOccurrence,
 }: {
@@ -172,9 +221,11 @@ function EntryGroup({
   depth: number;
   repeatKey?: number;
   values: Record<string, string>;
+  serverValues: Record<string, string>;
   editable: boolean;
   blinded: Set<string>;
   added: Record<string, number>;
+  dynamic: DynamicState;
   onChange: (key: string, value: string) => void;
   onAddOccurrence: (groupOid: string) => void;
 }) {
@@ -192,12 +243,14 @@ function EntryGroup({
           if (child.kind === "item") {
             // Variant layouts are presentation-only: writes key on the item's
             // canonical build group so the data shape stays identical.
-            const key = fieldKey(
-              child.canonicalGroupOid ?? group.def.oid,
-              repeatKey,
-              child.def.oid,
-            );
+            const canonicalGroupOid = child.canonicalGroupOid ?? group.def.oid;
+            const key = fieldKey(canonicalGroupOid, repeatKey, child.def.oid);
             const isBlinded = blinded.has(child.def.oid);
+            const isDerived = dynamic.derivedItems.has(`${canonicalGroupOid}:${child.def.oid}`);
+            const isSkipped = dynamic.skipped.has(key);
+            const savedValue = serverValues[key] ?? "";
+            // A skipped field with nothing saved simply is not collected.
+            if (isSkipped && savedValue === "") return null;
             const label =
               displayText(child.def.question) ??
               displayText(child.def.description) ??
@@ -210,6 +263,8 @@ function EntryGroup({
                   </label>
                   {child.ref.mandatory === "Yes" ? <span className="text-rose-500">*</span> : null}
                   {isBlinded ? <Badge tone="amber">blinded</Badge> : null}
+                  {isDerived ? <Badge tone="sky">computed</Badge> : null}
+                  {isSkipped ? <Badge tone="amber">not collected</Badge> : null}
                   <span className="ml-auto font-mono text-[11px] text-zinc-400">
                     {child.def.oid}
                   </span>
@@ -221,12 +276,34 @@ function EntryGroup({
                       value="Blinded for your role"
                       disabled
                     />
+                  ) : isSkipped ? (
+                    // Retained value in a not-collected field: read-only, with
+                    // an explicit audited clear (prompts reason-for-change).
+                    <div className="flex max-w-sm items-center gap-2">
+                      <input
+                        className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-zinc-600"
+                        value={values[key] ?? savedValue}
+                        disabled
+                      />
+                      {editable && (values[key] ?? savedValue) !== "" ? (
+                        <Button variant="secondary" onClick={() => onChange(key, "")}>
+                          Clear
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : isDerived ? (
+                    <input
+                      className="w-full max-w-sm rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
+                      value={dynamic.derivedValues[key] ?? values[key] ?? ""}
+                      disabled
+                    />
                   ) : (
                     <EntryControl
                       def={child.def}
                       codeList={child.codeList}
                       value={values[key] ?? ""}
                       disabled={!editable}
+                      excludedValues={dynamic.excluded.get(key)}
                       onChange={(value) => onChange(key, value)}
                     />
                   )}
@@ -237,15 +314,18 @@ function EntryGroup({
 
           const childRepeats = child.def.repeating && child.def.repeating !== "No";
           if (!childRepeats) {
+            if (!groupHasVisibleContent(child, 1, dynamic, serverValues)) return null;
             return (
               <div key={child.def.oid} className={index > 0 ? "pt-3" : ""}>
                 <EntryGroup
                   group={child}
                   depth={depth + 1}
                   values={values}
+                  serverValues={serverValues}
                   editable={editable}
                   blinded={blinded}
                   added={added}
+                  dynamic={dynamic}
                   onChange={onChange}
                   onAddOccurrence={onAddOccurrence}
                 />
@@ -263,9 +343,11 @@ function EntryGroup({
                   depth={depth + 1}
                   repeatKey={occurrence}
                   values={values}
+                  serverValues={serverValues}
                   editable={editable}
                   blinded={blinded}
                   added={added}
+                  dynamic={dynamic}
                   onChange={onChange}
                   onAddOccurrence={onAddOccurrence}
                 />
@@ -296,7 +378,20 @@ function EntryForm({
   const transition = useTransitionForm(data.context.formInstanceId);
   const permissions = usePermissions(data.context.studyId, data.context.siteId);
   const checks = useMemo(() => compileEditChecks(mdv), [mdv]);
-  const checkMessages = useMemo(() => new Map(checks.map((c) => [c.oid, c.message])), [checks]);
+  // Skip-residual queries carry synthetic SKIP.* check OIDs; merge their
+  // display text so open queries never render as raw OIDs.
+  const checkMessages = useMemo(
+    () =>
+      new Map([
+        ...checks.map((c): [string, string] => [c.oid, c.message]),
+        ...skipResidualMessages(mdv),
+      ]),
+    [checks, mdv],
+  );
+  const derivedItems = useMemo(
+    () => new Set(compileDerivations(mdv).map((d) => `${d.itemGroupOid}:${d.itemOid}`)),
+    [mdv],
+  );
   const itemOptions = useMemo(() => collectItemOptions(form), [form]);
 
   const serverValues = useMemo(() => {
@@ -340,13 +435,19 @@ function EntryForm({
     });
   }, [serverValues]);
 
-  // Instant client-side evaluation of the same checks the server enforces,
-  // occurrence-aware for repeating item groups.
+  // Instant client-side evaluation of the same pipeline the server enforces
+  // (derivations → skip logic → option exclusions → checks), occurrence-aware
+  // for repeating item groups. The server recomputes authoritatively on write.
   const [findings, setFindings] = useState<
     { oid: string; message: string; repeatKey: number | null }[]
   >([]);
+  const [dynamic, setDynamic] = useState<DynamicState>({
+    skipped: new Set(),
+    excluded: new Map(),
+    derivedItems,
+    derivedValues: {},
+  });
   useEffect(() => {
-    if (checks.length === 0) return;
     let cancelled = false;
     const rows: ItemValueRow[] = Object.entries(values).map(([key, value]) => {
       const parsed = parseFieldKey(key);
@@ -357,21 +458,53 @@ function EntryForm({
         value: value === "" ? null : (value ?? null),
       };
     });
-    void runChecksOverRows(checks, mdv, rows).then((results) => {
+    void evaluateFormState(mdv, rows).then((state) => {
       if (cancelled) return;
       setFindings(
-        results.map((f) => ({ oid: f.checkOid, message: f.message, repeatKey: f.repeatKey })),
+        state.findings.map((f) => ({
+          oid: f.checkOid,
+          message: f.message,
+          repeatKey: f.repeatKey,
+        })),
       );
+      const derivedValues: Record<string, string> = {};
+      for (const entry of state.derived) {
+        derivedValues[fieldKey(entry.itemGroupOid, entry.itemGroupRepeatKey, entry.itemOid)] =
+          entry.value ?? "";
+      }
+      setDynamic({
+        skipped: state.skippedFields,
+        excluded: state.excludedOptions,
+        derivedItems,
+        derivedValues,
+      });
+      // Unsaved local edits in fields that just became skipped are dropped:
+      // nothing is persisted, and a hidden field must not hold a pending
+      // write. Saved values stay put (retain-and-flag, cleared explicitly).
+      setValues((current) => {
+        let changed = false;
+        const next = { ...current };
+        for (const key of state.skippedFields) {
+          if ((next[key] ?? "") !== "" && (prevServerRef.current[key] ?? "") === "") {
+            delete next[key];
+            changed = true;
+          }
+        }
+        return changed ? next : current;
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [values, checks, mdv]);
+  }, [values, mdv, derivedItems]);
 
   const editable = WRITABLE.has(data.context.status);
-  const dirtyKeys = Object.keys(values).filter(
-    (key) => (values[key] ?? "") !== (serverValues[key] ?? ""),
-  );
+  const dirtyKeys = Object.keys(values).filter((key) => {
+    if ((values[key] ?? "") === (serverValues[key] ?? "")) return false;
+    // Derived values are server-written; the client preview never saves them.
+    const parsed = parseFieldKey(key);
+    return !derivedItems.has(`${parsed.groupOid}:${parsed.itemOid}`);
+  });
   const needsReason = dirtyKeys.some((key) => key in serverValues);
 
   async function save() {
@@ -593,7 +726,7 @@ function EntryForm({
             {data.openQueries.map((query) => (
               <li key={query.id}>
                 {query.checkOid
-                  ? (checks.find((c) => c.oid === query.checkOid)?.message ?? query.checkOid)
+                  ? (checkMessages.get(query.checkOid) ?? query.checkOid)
                   : "Manual query"}
                 {query.itemGroupRepeatKey != null
                   ? ` (occurrence ${query.itemGroupRepeatKey})`
@@ -622,9 +755,11 @@ function EntryForm({
           group={form}
           depth={0}
           values={values}
+          serverValues={serverValues}
           editable={editable}
           blinded={new Set(data.blindedItems ?? [])}
           added={added}
+          dynamic={dynamic}
           onChange={(key, value) => {
             setSaved(false);
             setValues((prev) => ({ ...prev, [key]: value }));
