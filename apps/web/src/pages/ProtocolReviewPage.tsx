@@ -137,7 +137,7 @@ export function ProtocolReviewPage() {
                   {soa.encounters.map((encounter) => (
                     <td key={encounter.usdmId} className="px-3 py-2 text-center">
                       {row.encounterIds.includes(encounter.usdmId) ? (
-                        <span aria-label="scheduled" className="text-zinc-700">
+                        <span role="img" aria-label="scheduled" className="text-zinc-700">
                           ●
                         </span>
                       ) : null}
@@ -255,14 +255,22 @@ function ResolveDraftDialog({
           </div>
         ) : null}
         <div className="mt-4 grid gap-3">
-          <label className="grid gap-1 text-sm">
-            <span className="text-zinc-600">Item name (short, e.g. AETERM)</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-zinc-600">Question shown to sites</span>
-            <Input value={question} onChange={(e) => setQuestion(e.target.value)} />
-          </label>
+          <div className="grid gap-1 text-sm">
+            <label htmlFor="draft-item-name" className="text-zinc-600">
+              Item name (short, e.g. AETERM)
+            </label>
+            <Input id="draft-item-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid gap-1 text-sm">
+            <label htmlFor="draft-item-question" className="text-zinc-600">
+              Question shown to sites
+            </label>
+            <Input
+              id="draft-item-question"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
+          </div>
           <label className="grid gap-1 text-sm">
             <span className="text-zinc-600">Data type</span>
             <select
