@@ -26,6 +26,8 @@ export interface ResolvedTerm {
 export interface ResolvedBcItem {
   variable: string;
   decCode: string;
+  /** Id of the BC property that selected this item, when one matched. */
+  propertyId?: string;
   question: string;
   /** ODM v2.0 datatype (pack datatypes are mapped, e.g. decimal → float). */
   dataType: string;
@@ -129,6 +131,7 @@ function toResolvedItem(
   return {
     variable: item.variable,
     decCode: item.decCode,
+    ...(property ? { propertyId: property.id } : {}),
     question: item.question,
     dataType: odmDataType(property?.datatype ?? item.dataType),
     ...(item.length !== undefined ? { length: item.length } : {}),

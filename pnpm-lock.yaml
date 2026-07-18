@@ -195,6 +195,9 @@ importers:
 
   packages/usdm:
     dependencies:
+      '@edc-core/odm':
+        specifier: workspace:*
+        version: link:../odm
       zod:
         specifier: ^4.4.3
         version: 4.4.3
