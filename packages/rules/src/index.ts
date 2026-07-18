@@ -519,6 +519,40 @@ function descendantGroups(mdv: MetaDataVersion, oid: string): Set<string> {
   return found;
 }
 
+function residualMessage(itemName: string): string {
+  return `"${itemName}" has a value but is not collected under the current responses: clear it or revisit the controlling answer`;
+}
+
+/**
+ * Every skip-residual check OID a build can produce, with its display
+ * message — lets a client render readable text for open SKIP.* queries
+ * without re-deriving the addressing scheme.
+ */
+export function skipResidualMessages(mdv: MetaDataVersion): Map<string, string> {
+  const itemNames = new Map(mdv.itemDefs.map((i) => [i.oid, i.name]));
+  const groupsByOid = new Map(mdv.itemGroupDefs.map((g) => [g.oid, g]));
+  const message = (itemOid: string) => residualMessage(itemNames.get(itemOid) ?? itemOid);
+  const map = new Map<string, string>();
+  for (const group of mdv.itemGroupDefs) {
+    for (const ref of group.itemRefs) {
+      if (!ref.collectionExceptionConditionOid) continue;
+      map.set(skipCheckOid(ref.collectionExceptionConditionOid, ref.itemOid), message(ref.itemOid));
+    }
+    for (const ref of group.itemGroupRefs) {
+      if (!ref.collectionExceptionConditionOid) continue;
+      for (const groupOid of [ref.itemGroupOid, ...descendantGroups(mdv, ref.itemGroupOid)]) {
+        for (const itemRef of groupsByOid.get(groupOid)?.itemRefs ?? []) {
+          map.set(
+            skipCheckOid(ref.collectionExceptionConditionOid, itemRef.itemOid),
+            message(itemRef.itemOid),
+          );
+        }
+      }
+    }
+  }
+  return map;
+}
+
 /**
  * Full dynamic state of a form's data, byte-identical in the browser and on
  * the server (the ADR-0007 dual-evaluation pattern). Occurrence handling
@@ -683,7 +717,7 @@ export async function evaluateFormState(
       itemGroupOid: groupOid,
       itemOid,
       repeatKey: repeating.has(groupOid) ? repeatKey : null,
-      message: `"${itemNames.get(itemOid) ?? itemOid}" has a value but is not collected under the current responses: clear it or revisit the controlling answer`,
+      message: residualMessage(itemNames.get(itemOid) ?? itemOid),
     });
   }
 
