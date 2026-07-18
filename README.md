@@ -105,10 +105,11 @@ on one host (shared Keycloak SSO, one Postgres, one Caddy), start from
 - Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned
   and immutable, with mid-study amendment migration (build diff, impact
   analysis, batch re-pointing of unsigned forms)
-- Metadata-driven data capture with JSONata edit checks, repeating item
-  groups, a server-enforced entry workflow (in progress → complete → verified
-  → signed → locked), and an audited subject lifecycle (screening → enrolled →
-  completed / withdrawn, with reinstate)
+- Metadata-driven data capture with JSONata edit checks, dynamic fields
+  (skip logic, dependent code lists, server-computed derived values —
+  ADR-0014), repeating item groups, a server-enforced entry workflow (in
+  progress → complete → verified → signed → locked), and an audited subject
+  lifecycle (screening → enrolled → completed / withdrawn, with reinstate)
 - Append-only audit trail (database-enforced), threaded query management,
   Part 11 e-signatures, audit review UI
 - Access control: unique accounts with per-study/per-site role scoping, admin

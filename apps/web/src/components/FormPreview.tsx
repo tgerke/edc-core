@@ -25,17 +25,30 @@ function FieldControl({ def, codeList }: { def: ItemDef; codeList?: CodeList | u
             <span
               key={item.codedValue}
               className="flex cursor-default items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700"
+              title={
+                item.collectionExceptionConditionOid
+                  ? `Shown conditionally (${item.collectionExceptionConditionOid})`
+                  : undefined
+              }
             >
               <span className="size-3.5 rounded-full border border-zinc-300" />
               {displayText(item.decode) ?? item.codedValue}
+              {item.collectionExceptionConditionOid ? (
+                <span className="text-[10px] font-medium uppercase tracking-wide text-amber-600">
+                  cond
+                </span>
+              ) : null}
             </span>
           ))}
         </div>
       );
     }
+    const conditional = codeList.items.filter((i) => i.collectionExceptionConditionOid).length;
     return (
       <select className={base} disabled>
-        <option>{`Select… (${codeList.items.length} options)`}</option>
+        <option>
+          {`Select… (${codeList.items.length} options${conditional > 0 ? `, ${conditional} conditional` : ""})`}
+        </option>
       </select>
     );
   }
@@ -77,6 +90,8 @@ function ItemRow({ item }: { item: ResolvedItem }) {
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-zinc-800">{label}</span>
         {item.ref.mandatory === "Yes" ? <span className="text-rose-500">*</span> : null}
+        {item.ref.methodOid ? <Badge tone="sky">computed</Badge> : null}
+        {item.ref.collectionExceptionConditionOid ? <Badge tone="amber">conditional</Badge> : null}
         <span className="ml-auto font-mono text-[11px] text-zinc-400">{item.def.oid}</span>
       </div>
       <FieldControl def={item.def} codeList={item.codeList} />
@@ -92,6 +107,9 @@ function GroupSection({ group, depth }: { group: ResolvedGroup; depth: number })
         <div className="mb-2 flex items-center gap-2">
           <h3 className="text-sm font-semibold text-zinc-900">{group.def.name}</h3>
           {isRepeating ? <Badge tone="sky">repeating</Badge> : null}
+          {group.ref.collectionExceptionConditionOid ? (
+            <Badge tone="amber">conditional</Badge>
+          ) : null}
           <span className="ml-auto font-mono text-[11px] text-zinc-400">{group.def.oid}</span>
         </div>
       ) : null}

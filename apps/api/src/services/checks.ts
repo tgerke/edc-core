@@ -1,4 +1,4 @@
-import { compileEditChecks, type ItemValueRow, runChecksOverRows } from "@edc-core/rules";
+import { evaluateFormState, type ItemValueRow } from "@edc-core/rules";
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, queries, studyMetadataVersions } from "../db/schema/index.js";
@@ -17,6 +17,11 @@ export interface CheckFinding {
  * system queries: one open query per firing check, auto-closed when the data
  * problem is resolved. Runs after every accepted item write (E6-08 groundwork;
  * the manual query lifecycle lands in Phase 4).
+ *
+ * Skip-aware (ADR-0014): checks run with not-collected fields nulled out,
+ * and a stored value persisting in a skipped field raises its own system
+ * query under a synthetic SKIP.<condition>.<item> check OID, auto-closed
+ * when the site clears the value or the controlling answer changes back.
  */
 export async function evaluateFormChecks(
   db: Db,
@@ -30,9 +35,6 @@ export async function evaluateFormChecks(
     .limit(1);
   if (!mdvRow) return [];
   const mdv = (mdvRow.definition as unknown as StudyBuildDefinition).metaDataVersion;
-
-  const checks = compileEditChecks(mdv);
-  if (checks.length === 0) return [];
 
   // Latest value per (item, occurrence); the rules engine attributes each
   // finding either to the form or to a repeating-group occurrence.
@@ -53,7 +55,15 @@ export async function evaluateFormChecks(
     value: row.value,
   }));
 
-  const occurrenceFindings = await runChecksOverRows(checks, mdv, rows);
+  const state = await evaluateFormState(mdv, rows);
+  const occurrenceFindings = [
+    ...state.findings,
+    ...state.residuals.map((residual) => ({
+      checkOid: residual.checkOid,
+      message: residual.message,
+      repeatKey: residual.repeatKey,
+    })),
+  ];
 
   // "Active" includes answered: a site's answer must not let a still-failing
   // check open a duplicate query for the same problem. One query per

@@ -32,6 +32,9 @@ Open **site forms** from the study page (you need the site-scoped
 4. **Capture through it.** Once approved, the capture launcher on the same
    page opens your layout's forms for your site's subjects. Data entry,
    queries, signatures, and edit checks behave exactly as on standard forms.
+   So do [dynamic fields](data-capture.qmd#conditional-and-computed-fields):
+   skip logic and computed values are protocol semantics, not layout, and
+   follow each item into every variant.
 
 Some events may refuse layouts entirely: the sponsor can lock the layout of
 sensitive events (consent, endpoint assessments).

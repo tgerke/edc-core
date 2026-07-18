@@ -2,7 +2,10 @@
 <!-- edc-core demo study (SC-03): a small CDASH-aligned protocol exercising
      every core capability — demographics and vitals capture, an adverse
      event log and concomitant medications with medical-coding targets,
-     coded values, and JSONata edit checks that raise queries.
+     coded values, JSONata edit checks that raise queries, and dynamic
+     fields (ADR-0014): a pregnancy-test item skipped for male subjects,
+     a code list option shown conditionally, and a BMI value derived from
+     height and weight.
      Import via the UI ("Import ODM" on a study) or seed a complete demo
      environment with the api package's db:seed-demo script (examples/README.md). -->
 <ODM xmlns="http://www.cdisc.org/ns/odm/v2.0"
@@ -40,6 +43,8 @@
         <ItemRef ItemOID="IT.DM.SEX" Mandatory="Yes"/>
         <ItemRef ItemOID="IT.DM.ETHNIC" Mandatory="Yes"/>
         <ItemRef ItemOID="IT.DM.RACE" Mandatory="Yes"/>
+        <!-- Skip logic (ADR-0014): not collected while the subject is male. -->
+        <ItemRef ItemOID="IT.DM.PREG" Mandatory="No" CollectionExceptionConditionOID="CD.DM.MALE"/>
       </ItemGroupDef>
 
       <!-- Vital signs (CDASH VS) -->
@@ -54,6 +59,8 @@
         <ItemRef ItemOID="IT.VS.TEMP" Mandatory="No"/>
         <ItemRef ItemOID="IT.VS.HEIGHT" Mandatory="No"/>
         <ItemRef ItemOID="IT.VS.WEIGHT" Mandatory="No"/>
+        <!-- Derived value (ADR-0014): computed server-side, never entered. -->
+        <ItemRef ItemOID="IT.VS.BMI" Mandatory="No" MethodOID="MET.VS.BMI"/>
       </ItemGroupDef>
 
       <!-- Adverse events (CDASH AE) -->
@@ -94,6 +101,10 @@
         <Question><TranslatedText xml:lang="en" Type="text/plain">What is the race of the subject?</TranslatedText></Question>
         <CodeListRef CodeListOID="CL.RACE"/>
       </ItemDef>
+      <ItemDef DataType="integer" Length="1" Name="Pregnancy Test Result" OID="IT.DM.PREG">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the result of the pregnancy test?</TranslatedText></Question>
+        <CodeListRef CodeListOID="CL.PREGRES"/>
+      </ItemDef>
 
       <ItemDef DataType="date" Name="Vital Signs Date" OID="IT.VS.VSDTC">
         <Question><TranslatedText xml:lang="en" Type="text/plain">What was the date of the measurements?</TranslatedText></Question>
@@ -115,6 +126,9 @@
       </ItemDef>
       <ItemDef DataType="float" SignificantDigits="1" Name="Weight (kg)" OID="IT.VS.WEIGHT">
         <Question><TranslatedText xml:lang="en" Type="text/plain">What was the weight?</TranslatedText></Question>
+      </ItemDef>
+      <ItemDef DataType="float" SignificantDigits="1" Name="Body Mass Index (kg/m2)" OID="IT.VS.BMI">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">Body mass index (computed from height and weight)</TranslatedText></Question>
       </ItemDef>
 
       <ItemDef DataType="text" Length="200" Name="Reported Term" OID="IT.AE.AETERM" edc:CodingDictionary="MedDRA">
@@ -169,6 +183,14 @@
         <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Moderate</TranslatedText></Decode></CodeListItem>
         <CodeListItem CodedValue="3"><Decode><TranslatedText xml:lang="en" Type="text/plain">Severe</TranslatedText></Decode></CodeListItem>
       </CodeList>
+      <CodeList DataType="integer" Name="Pregnancy Test Result" OID="CL.PREGRES">
+        <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">Negative</TranslatedText></Decode></CodeListItem>
+        <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Positive</TranslatedText></Decode></CodeListItem>
+        <!-- Dependent option (ADR-0014, edc: extension): once the subject is
+             recorded female a result is expected, so "Not performed" is
+             withdrawn from the choice list. -->
+        <CodeListItem CodedValue="9" edc:CollectionExceptionConditionOID="CD.DM.FEMALE"><Decode><TranslatedText xml:lang="en" Type="text/plain">Not performed</TranslatedText></Decode></CodeListItem>
+      </CodeList>
       <CodeList DataType="integer" Name="Relationship" OID="CL.AEREL">
         <CodeListItem CodedValue="1"><Decode><TranslatedText xml:lang="en" Type="text/plain">Not Related</TranslatedText></Decode></CodeListItem>
         <CodeListItem CodedValue="2"><Decode><TranslatedText xml:lang="en" Type="text/plain">Possibly Related</TranslatedText></Decode></CodeListItem>
@@ -189,6 +211,23 @@
         <Description><TranslatedText xml:lang="en" Type="text/plain">The adverse event end date is before its start date.</TranslatedText></Description>
         <FormalExpression Context="jsonata">`IT.AE.AESTDTC` != null and `IT.AE.AEENDTC` != null and `IT.AE.AEENDTC` &lt; `IT.AE.AESTDTC`</FormalExpression>
       </ConditionDef>
+
+      <!-- Collection exceptions (ADR-0014): excluded-when-true conditions
+           referenced by ItemRefs, ItemGroupRefs, or (edc: extension)
+           CodeListItems. Never evaluated as edit checks. -->
+      <ConditionDef OID="CD.DM.MALE" Name="Subject is male">
+        <FormalExpression Context="jsonata">`IT.DM.SEX` = 1</FormalExpression>
+      </ConditionDef>
+      <ConditionDef OID="CD.DM.FEMALE" Name="Subject is female">
+        <FormalExpression Context="jsonata">`IT.DM.SEX` = 2</FormalExpression>
+      </ConditionDef>
+
+      <!-- Derivation (ADR-0014): recomputed on the server after every
+           accepted write; the client shows a live read-only preview. -->
+      <MethodDef OID="MET.VS.BMI" Name="BMI from height and weight" Type="Computation">
+        <Description><TranslatedText xml:lang="en" Type="text/plain">Weight (kg) divided by height (m) squared, from the same visit's measurements.</TranslatedText></Description>
+        <FormalExpression Context="jsonata">`IT.VS.WEIGHT` != null and `IT.VS.HEIGHT` &gt; 0 ? $round(`IT.VS.WEIGHT` / ((`IT.VS.HEIGHT` / 100) * (`IT.VS.HEIGHT` / 100)), 1) : null</FormalExpression>
+      </MethodDef>
     </MetaDataVersion>
   </Study>
 </ODM>

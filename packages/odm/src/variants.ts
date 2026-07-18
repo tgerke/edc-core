@@ -281,10 +281,26 @@ export function resolveVariantForm(
             ? codeListsByOid.get(def.codeListRef.codeListOid)
             : undefined;
           const canonicalGroupOid = governedByOid.get(ref.itemOid)?.canonicalGroupOid;
+          // Skip logic and derivations are protocol semantics, not layout:
+          // the canonical build ItemRef's method/exception follow the item
+          // into every variant.
+          const canonicalRef = mdv.itemGroupDefs
+            .find((g) => g.oid === canonicalGroupOid)
+            ?.itemRefs.find((r) => r.itemOid === ref.itemOid);
           return [
             {
               kind: "item" as const,
-              ref: { mandatory: ref.mandatory ? "Yes" : "No" },
+              ref: {
+                mandatory: ref.mandatory ? "Yes" : "No",
+                ...(canonicalRef?.methodOid !== undefined
+                  ? { methodOid: canonicalRef.methodOid }
+                  : {}),
+                ...(canonicalRef?.collectionExceptionConditionOid !== undefined
+                  ? {
+                      collectionExceptionConditionOid: canonicalRef.collectionExceptionConditionOid,
+                    }
+                  : {}),
+              },
               def: displayDef,
               ...(codeList ? { codeList } : {}),
               ...(canonicalGroupOid !== undefined ? { canonicalGroupOid } : {}),
