@@ -172,6 +172,18 @@ function EntryControl({
   );
 }
 
+/** Read-only rendering of a stored value: decode code list values and map
+ *  booleans to Yes/No, the same way the editable controls present them. */
+function readOnlyDisplayValue(def: ItemDef, codeList: CodeList | undefined, raw: string): string {
+  if (raw === "") return "";
+  if (codeList) {
+    const item = codeList.items.find((i) => i.codedValue === raw);
+    return item ? (displayText(item.decode) ?? item.codedValue) : raw;
+  }
+  if (def.dataType === "boolean") return raw === "true" || raw === "1" ? "Yes" : "No";
+  return raw;
+}
+
 /** Client-side dynamic form state (ADR-0014), recomputed on every edit. */
 interface DynamicState {
   /** Field occurrences not collected under the current responses. */
@@ -282,7 +294,11 @@ function EntryGroup({
                     <div className="flex max-w-sm items-center gap-2">
                       <input
                         className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-zinc-600"
-                        value={values[key] ?? savedValue}
+                        value={readOnlyDisplayValue(
+                          child.def,
+                          child.codeList,
+                          values[key] ?? savedValue,
+                        )}
                         disabled
                       />
                       {editable && (values[key] ?? savedValue) !== "" ? (
@@ -294,7 +310,11 @@ function EntryGroup({
                   ) : isDerived ? (
                     <input
                       className="w-full max-w-sm rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
-                      value={dynamic.derivedValues[key] ?? values[key] ?? ""}
+                      value={readOnlyDisplayValue(
+                        child.def,
+                        child.codeList,
+                        dynamic.derivedValues[key] ?? values[key] ?? "",
+                      )}
                       disabled
                     />
                   ) : (
