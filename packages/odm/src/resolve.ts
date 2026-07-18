@@ -7,7 +7,13 @@ import type { CodeList, ItemDef, ItemGroupDef, MetaDataVersion } from "./model.j
 
 export interface ResolvedItem {
   kind: "item";
-  ref: { mandatory?: string; repeat?: string; other?: string };
+  ref: {
+    mandatory?: string;
+    repeat?: string;
+    other?: string;
+    methodOid?: string;
+    collectionExceptionConditionOid?: string;
+  };
   def: ItemDef;
   codeList?: CodeList;
   /**
@@ -19,7 +25,7 @@ export interface ResolvedItem {
 
 export interface ResolvedGroup {
   kind: "group";
-  ref: { mandatory?: string };
+  ref: { mandatory?: string; collectionExceptionConditionOid?: string };
   def: ItemGroupDef;
   children: (ResolvedItem | ResolvedGroup)[];
 }
@@ -66,6 +72,10 @@ export function resolveGroup(mdv: MetaDataVersion, groupOid: string): ResolvedGr
           ...(ref.mandatory !== undefined ? { mandatory: ref.mandatory } : {}),
           ...(ref.repeat !== undefined ? { repeat: ref.repeat } : {}),
           ...(ref.other !== undefined ? { other: ref.other } : {}),
+          ...(ref.methodOid !== undefined ? { methodOid: ref.methodOid } : {}),
+          ...(ref.collectionExceptionConditionOid !== undefined
+            ? { collectionExceptionConditionOid: ref.collectionExceptionConditionOid }
+            : {}),
         },
         def: itemDef,
         ...(codeList ? { codeList } : {}),
@@ -76,7 +86,12 @@ export function resolveGroup(mdv: MetaDataVersion, groupOid: string): ResolvedGr
       if (child) {
         children.push({
           ...child,
-          ref: { ...(ref.mandatory !== undefined ? { mandatory: ref.mandatory } : {}) },
+          ref: {
+            ...(ref.mandatory !== undefined ? { mandatory: ref.mandatory } : {}),
+            ...(ref.collectionExceptionConditionOid !== undefined
+              ? { collectionExceptionConditionOid: ref.collectionExceptionConditionOid }
+              : {}),
+          },
         });
       }
     }
