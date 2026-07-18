@@ -11,6 +11,7 @@ import { codingRoutes } from "./routes/coding.js";
 import { dictionaryRoutes } from "./routes/dictionaries.js";
 import { labImportRoutes } from "./routes/lab-imports.js";
 import { notificationRoutes } from "./routes/notifications.js";
+import { protocolRoutes } from "./routes/protocols.js";
 import { queryRoutes } from "./routes/queries.js";
 import { rtsmRoutes } from "./routes/rtsm.js";
 import { securityAnomalyRoutes } from "./routes/security-anomalies.js";
@@ -68,6 +69,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await server.register(securityAnomalyRoutes);
   await server.register(studyRoutes);
   await server.register(studyBuildRoutes);
+  await server.register(protocolRoutes);
   await server.register(labImportRoutes);
   await server.register(rtsmRoutes);
   await server.register(dictionaryRoutes);
