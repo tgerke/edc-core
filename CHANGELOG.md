@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.5.0 — Protocol-first builds and site form layouts (2026-07)
+
+Two halves of one idea (BYOFW: the sponsor governs the data, sites adapt
+the forms that capture it), grounded in CDISC USDM v4 and timed to ICH
+M11's adoption as a final guideline (November 2025).
+
+### Protocol-first build path (ADR-0012)
+- Import a USDM v4 protocol package (JSON; Excel authoring via the
+  external usdm4-excel converter is documented) as an immutable,
+  versioned protocol artifact
+- The compiler derives the build from the protocol: encounters → events
+  (with planned timing and visit windows carried as `edc:` extensions),
+  scheduled activities → forms, biomedical concepts → items/codelists
+  via a bundled mapping pack curated from the open COSMoS dataset
+  (MIT, pinned sha; no CDISC text or runtime CDISC Library dependency)
+- A review screen shows the protocol's schedule of activities with
+  per-concept resolution status; surrogate/unmatched concepts become
+  draft items that must be completed before publish, so published
+  builds are always capture-ready
+- Publishing runs through the same single build write path as ODM
+  import and the visual builder; per-field protocol traceability is
+  recorded relationally and in the exported ODM (`edc:UsdmRef`)
+- New guide pages: "Why protocol-first?" (for readers new to USDM/M11)
+  and "Protocol import (USDM)" (including authoring the Excel workbook
+  properly)
+
+### Site form layouts (ADR-0013)
+- Sites adapt form layout/workflow per site — regroup, reorder, relabel
+  — as append-only-versioned variants that only reference build fields
+- Data-equivalence is validated structurally on every edit (exact
+  coverage of the governed items, no additions, mandatory flags may
+  only strengthen); submission is blocked until clean, so the sponsor's
+  approval queue reviews workflow, not data integrity
+- Capture through an approved layout pins the variant version while
+  every value write keys on canonical build identifiers: captured data
+  is byte-identical in shape across sites regardless of layout
+- Amendments revalidate approved layouts automatically: equivalent
+  layouts carry forward, the rest are marked stale with notifications
+  and capture falls back to the standard forms
+- New permission `site.forms.manage` (site-scoped, seeded to the
+  coordinator role); sponsor decisions ride `study.manage`
+
 ## v0.4.0 — Python workbench and blinding governance (2026-07)
 
 The analytics workbench speaks Python as well as R and SQL, the engines

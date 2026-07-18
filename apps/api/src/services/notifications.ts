@@ -5,6 +5,7 @@ import type { Db } from "../db/client.js";
 import { notifications } from "../db/schema/index.js";
 
 export type NotificationType =
+  | "site_forms.stale"
   | "query.opened"
   | "query.answered"
   | "form.awaiting_signature"
