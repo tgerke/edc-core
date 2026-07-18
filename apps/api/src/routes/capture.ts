@@ -8,6 +8,7 @@ import {
   auditEvents,
   formInstances,
   queries,
+  siteFormVariantVersions,
   sites,
   studyEventInstances,
   studyMetadataVersions,
@@ -450,6 +451,19 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       .from(queries)
       .where(and(eq(queries.formInstanceId, formInstanceId), eq(queries.status, "open")));
     const formSignatures = await listFormSignatures(app.db, formInstanceId);
+
+    // Variant-captured forms carry the site layout so the renderer can show
+    // it; values still key on build item/group OIDs.
+    let variantDefinition: unknown = null;
+    if (context.siteFormVariantVersionId) {
+      const [variantRow] = await app.db
+        .select({ definition: siteFormVariantVersions.definition })
+        .from(siteFormVariantVersions)
+        .where(eq(siteFormVariantVersions.id, context.siteFormVariantVersionId))
+        .limit(1);
+      variantDefinition = variantRow?.definition ?? null;
+    }
+
     return {
       context,
       buildVersion: build?.version ?? null,
@@ -457,6 +471,7 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
       blindedItems: unblinded ? [] : [...blinded],
       openQueries,
       signatures: formSignatures,
+      variantDefinition,
     };
   });
 

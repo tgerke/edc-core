@@ -10,5 +10,6 @@ export * from "./notifications.js";
 export * from "./protocols.js";
 export * from "./review.js";
 export * from "./rtsm.js";
+export * from "./site-forms.js";
 export * from "./studies.js";
 export * from "./users.js";
