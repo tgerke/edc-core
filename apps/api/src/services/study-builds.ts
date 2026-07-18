@@ -13,6 +13,7 @@ import {
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditEvents, studies, studyMetadataVersions } from "../db/schema/index.js";
+import { revalidateVariantsForBuild } from "./site-forms.js";
 
 /** What a studyMetadataVersions.definition jsonb column holds. */
 export interface StudyBuildDefinition {
@@ -113,6 +114,19 @@ export async function importStudyBuild(
         note: input.note ?? null,
       },
     });
+
+    // Amendment integration for site form variants (BYOFW): approved
+    // layouts are carried forward when still data-equivalent to the new
+    // build, staled (with notifications) otherwise. Same transaction, so
+    // the amendment and its variant outcomes commit together; a stale
+    // variant never blocks the amendment — capture just falls back to the
+    // standard forms.
+    await revalidateVariantsForBuild(tx as unknown as Db, {
+      studyId: input.studyId,
+      newMetadataVersionId: row.id,
+      actorId: input.actorId,
+    });
+
     return row;
   });
 
