@@ -60,17 +60,22 @@ function SubjectLifecycle({
   subjectKey,
   status,
   unblinded,
-  canTransition,
-  canUnblind,
+  siteId,
 }: {
   studyId: string;
   subjectId: string;
   subjectKey: string;
   status: string;
   unblinded: boolean;
-  canTransition: boolean;
-  canUnblind: boolean;
+  siteId: string;
 }) {
+  // Permissions at the subject's site scope: site-scoped grants (the usual
+  // shape for coordinators and investigators) confer nothing at study scope,
+  // so gating on study-level permissions would hide these actions from the
+  // very roles that perform them. One fetch per site, cached by query key.
+  const { data: sitePermissions } = usePermissions(studyId, siteId);
+  const canTransition = sitePermissions?.includes("subject.enroll") ?? false;
+  const canUnblind = sitePermissions?.includes("data.unblind") ?? false;
   const transition = useTransitionSubject(studyId);
   const breakBlind = useBreakBlind(studyId);
   const [pending, setPending] = useState<{ action: string; label: string } | null>(null);
@@ -276,8 +281,6 @@ export function MatrixPage() {
   const [enrolling, setEnrolling] = useState(false);
   const study = studies?.find((s) => s.id === studyId);
   const canExport = permissions?.includes("export.data") ?? false;
-  const canEnroll = permissions?.includes("subject.enroll") ?? false;
-  const canUnblind = permissions?.includes("data.unblind") ?? false;
 
   if (isPending) return <Spinner />;
   if (isError || !matrix) return <ErrorNote>Failed to load the subject matrix.</ErrorNote>;
@@ -344,8 +347,7 @@ export function MatrixPage() {
                       subjectKey={subject.subjectKey}
                       status={subject.status}
                       unblinded={subject.unblinded}
-                      canTransition={canEnroll}
-                      canUnblind={canUnblind}
+                      siteId={subject.siteId}
                     />
                   </td>
                   <td className="px-4 py-2.5 text-zinc-500">{subject.siteName}</td>
