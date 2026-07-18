@@ -10,6 +10,18 @@ typed data. That one design decision does most of the work: the audit
 trail, edit checks, blinding, SDV, signatures, casebooks, and the
 analytics lake all treat imported values exactly like entered ones.
 
+End to end, a transfer looks like this: the lab emails (or drops) a CSV;
+the data manager opens the study page's **Lab data import** panel, picks
+the mapping for that lab, chooses the file, and clicks **Validate**. The
+dry-run report says exactly what would happen, per row, before anything is
+written:
+
+![](../images/lab-import.png){.screenshot fig-alt="The lab import panel after validating a CSV: per-row outcomes including rows that would import, a skipped completed form, and a value conflict, with nothing written yet"}
+
+If the report looks right, typing the study name confirms the import, which
+runs in the background with a final row-by-row report. The rest of this
+page is the reference for each piece.
+
 ## File format
 
 A CSV file in **tall format**: a header row, then one row per test

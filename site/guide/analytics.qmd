@@ -65,22 +65,14 @@ organization's validated environment from exported snapshot data.
 
 ## Exports and the study archive
 
-Any snapshot table exports as:
-
-- **Dataset-JSON v1.1**, the FDA-accepted, CDISC-standard exchange format
-- **CSV** and **Parquet**
-
-Every subject also has a **PDF casebook**: a human-readable rendering of all
-captured forms with current values, per-occurrence repeating groups, correction
-markers (version and reason for change), queries, and the signature manifest.
-Download it from the subject matrix (with `export.data`), or `GET
-/subjects/:id/casebook`.
-
-The **study archive** bundles everything into one self-contained zip designed
-to outlive the running system: the ODM study definition (XML + JSON) for every
-build, all snapshot datasets (Dataset-JSON + CSV), the complete audit trail,
-the signature manifest, a PDF casebook per subject, and a machine-readable
-`MANIFEST.json` identifying the exact snapshot version archived.
+Any snapshot table exports as **Dataset-JSON v1.1** (the FDA-accepted,
+CDISC-standard exchange format), **CSV**, or **Parquet**, straight from the
+table cards above the editor. Every subject also has a **PDF casebook**, and
+the **study archive** bundles the whole study (every build's ODM, all
+datasets, the audit trail, signatures, casebooks) into one self-contained
+zip. When to use which format, what a casebook contains, and what the
+archive is for are covered on
+[Exports, casebooks, and the study archive](exports-and-archive.qmd).
 
 ## Permissions
 

@@ -27,6 +27,20 @@ withdrawal require a reason, which lands in the audit trail alongside the
 old and new status; *reinstate* undoes any terminal status (also with a
 required reason), returning the subject to where they came from.
 
+Transitions happen inline on the matrix: the menu next to the subject's
+badge offers only the moves the current status allows, and terminal moves
+prompt for their reason before anything is recorded.
+
+![](../images/subject-lifecycle.png){.screenshot fig-alt="The subject matrix with a lifecycle transition in progress: DEMO-003's screen-fail action prompting for a required reason"}
+
+To walk the whole cycle in the demo: as `demo-coord`, register a new
+subject with status *screening*, **Enroll** them, then **Withdraw…** with a
+reason, and finally **Reinstate…** (reason again). Each transition, with
+its reason and the old and new status, is now in the audit trail, and the
+matrix badge tracked every step. Each subject's row also offers their
+[PDF casebook](analytics.qmd#exports-and-the-study-archive) for download
+(with `export.data`).
+
 Two deliberate boundaries:
 
 - **Status is disposition, not a lock.** A withdrawn subject's forms stay
@@ -114,29 +128,15 @@ the audit trail.
 
 ## Blinded items
 
-Items flagged **Blinded** in the study build (the `edc:Blinded` attribute in
-ODM, or the Blinded checkbox in the builder) are visible only to roles holding
-the `data.unblind` permission, by default the site-facing roles
+Items flagged **Blinded** in the study build are visible only to roles
+holding the `data.unblind` permission, by default the site-facing roles
 (investigator, data entry, admin). Everyone else, monitors included, sees a
-locked field: the item's presence and entry status, but never its value. The
-same rule follows the data everywhere it goes:
-
-- **Casebooks** print `[BLINDED]` unless the requester can unblind; study
-  archives always use the blinded rendering.
-- **Audit review** shows blinded reviewers who changed the item, when, and
-  why, with the old and new values masked.
-- **Analytics snapshots never contain blinded columns at all**, so the SQL
-  workbench, the R engine, and every export are blinded by construction. The
-  snapshot manifest lists the excluded items.
-
-Blinded values are still captured, versioned, and audited normally: blinding
-scopes *visibility*, not collection. Entry roles hold `data.unblind` by
-default precisely so that entering a dose feels like entering anything else.
-One authoring caution (the importer warns about it): edit checks may reference
-blinded items, but their message text is shown to blinded roles too. Never
-word a check message so it reveals the value. See
-[ADR-0009](https://github.com/tgerke/edc-core/blob/main/docs/adr/0009-item-level-blinding.md)
-for the full design.
+locked field: the item's presence and entry status, but never its value, and
+the same mask follows the data into casebooks, audit review, and analytics
+snapshots. Blinded values are still captured, versioned, and audited
+normally: blinding scopes *visibility*, not collection. What each role
+sees, the break-the-blind workflow, and the governance around
+`data.unblind` grants are on the [blinding page](blinding.qmd).
 
 ## System queries from edit checks
 
