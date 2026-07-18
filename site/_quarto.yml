@@ -37,6 +37,7 @@ website:
         - guide/why-protocol-first.qmd
         - guide/study-builds.qmd
         - guide/protocol-import.qmd
+        - guide/site-forms.qmd
         - guide/data-capture.qmd
         - guide/lab-import.qmd
         - guide/rtsm-integration.qmd

@@ -35,6 +35,7 @@ export const notifications = pgTable(
         "form.awaiting_signature",
         "form.overdue",
         "security.anomaly",
+        "site_forms.stale",
       ],
     }).notNull(),
     title: text("title").notNull(),
