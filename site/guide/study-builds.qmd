@@ -97,3 +97,37 @@ includes three:
 A failing check warns instantly during entry and, on save, raises a **system
 query** attached to the item. When the data is corrected, the query closes
 automatically. See [Data capture](data-capture.qmd).
+
+## Dynamic fields
+
+Beyond checks that flag data, a build can make the form itself respond to the
+data ([ADR-0014](https://github.com/tgerke/edc-core/blob/main/docs/adr/0014-conditional-collection-and-derived-values.md)).
+All three constructs reuse the same JSONata `ConditionDef`/`MethodDef`
+machinery as edit checks, so they travel inside the ODM build like everything
+else.
+
+**Skip logic.** A `CollectionExceptionConditionOID` on an `ItemRef` or
+`ItemGroupRef` marks the field (or the whole section, including nested
+sections) as *not collected* while the referenced condition is true. This is
+standard ODM. The demo study skips its pregnancy-test item while the subject's
+sex is recorded male.
+
+**Dependent options.** The same attribute on a `CodeListItem` (as the
+`edc:CollectionExceptionConditionOID` vendor extension) withdraws one option
+from the choice list while its condition is true. The demo study withdraws
+"Not performed" from the pregnancy-test result once the subject is recorded
+female. Consumers that only speak plain ODM ignore the attribute and see the
+full option list, so exports stay portable.
+
+**Derived values.** An `ItemRef` with a `MethodOID` is computed, not entered:
+the server evaluates the method's JSONata expression after every accepted
+write and stores the result through the normal audited path (as
+`item_value.derived`, permanently distinguishable from entered data). The
+demo study computes BMI from height and weight. A derivation may read other
+derived items; circular chains are rejected at validation time.
+
+Conditions and methods referenced this way are collection logic, never edit
+checks: they gate what is collected instead of raising queries. What happens
+at the point of entry — fields appearing and disappearing, retained values
+that need clearing, read-only computed fields — is covered in
+[Data capture](data-capture.qmd).
