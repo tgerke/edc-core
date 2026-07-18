@@ -26,6 +26,9 @@ export const itemGroupRefSchema = z.object({
   itemGroupOid: z.string().min(1),
   mandatory: z.string().optional(),
   orderNumber: z.number().int().optional(),
+  // Skip logic: the group (and all its descendants) is not collected when
+  // the referenced ConditionDef evaluates true.
+  collectionExceptionConditionOid: z.string().optional(),
   extra,
 });
 export type ItemGroupRef = z.infer<typeof itemGroupRefSchema>;
@@ -94,6 +97,12 @@ export type ItemDef = z.infer<typeof itemDefSchema>;
 export const codeListItemSchema = z.object({
   codedValue: z.string(),
   decode: z.array(translatedTextSchema).optional(),
+  // Vendor extension (edc:CollectionExceptionConditionOID in XML): the option
+  // is excluded from the rendered choice list when the referenced ConditionDef
+  // evaluates true — same excluded-when-true polarity as ODM's
+  // CollectionExceptionCondition on ItemRef. Plain-ODM consumers ignore the
+  // attribute and see the full option list.
+  collectionExceptionConditionOid: z.string().optional(),
   extra,
 });
 export type CodeListItem = z.infer<typeof codeListItemSchema>;

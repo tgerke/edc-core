@@ -54,9 +54,14 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
 
   const referencedItemGroups = new Set<string>();
   const referencedItems = new Set<string>();
+  // ConditionDefs referenced as collection exceptions (item, group, or code
+  // list option level) and MethodDefs referenced by ItemRefs: these must be
+  // evaluable at runtime, so they get stricter checks below.
+  const cecReferencedOids = new Set<string>();
+  const methodReferencedOids = new Set<string>();
 
   const checkItemGroupRefs = (
-    refs: { itemGroupOid: string; collectionExceptionConditionOid?: string }[],
+    refs: { itemGroupOid: string; collectionExceptionConditionOid?: string | undefined }[],
     from: string,
   ) => {
     for (const ref of refs) {
@@ -67,6 +72,16 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
           path: from,
           message: `ItemGroupRef → "${ref.itemGroupOid}" does not resolve to an ItemGroupDef`,
         });
+      }
+      if (ref.collectionExceptionConditionOid) {
+        cecReferencedOids.add(ref.collectionExceptionConditionOid);
+        if (!conditionOids.has(ref.collectionExceptionConditionOid)) {
+          issues.push({
+            severity: "error",
+            path: from,
+            message: `CollectionExceptionConditionOID → "${ref.collectionExceptionConditionOid}" does not resolve to a ConditionDef`,
+          });
+        }
       }
     }
   };
@@ -86,22 +101,32 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
           message: `ItemRef → "${ref.itemOid}" does not resolve to an ItemDef`,
         });
       }
-      if (
-        ref.collectionExceptionConditionOid &&
-        !conditionOids.has(ref.collectionExceptionConditionOid)
-      ) {
-        issues.push({
-          severity: "error",
-          path: `ItemGroupDef[${ig.oid}]`,
-          message: `CollectionExceptionConditionOID → "${ref.collectionExceptionConditionOid}" does not resolve to a ConditionDef`,
-        });
+      if (ref.collectionExceptionConditionOid) {
+        cecReferencedOids.add(ref.collectionExceptionConditionOid);
+        if (!conditionOids.has(ref.collectionExceptionConditionOid)) {
+          issues.push({
+            severity: "error",
+            path: `ItemGroupDef[${ig.oid}]`,
+            message: `CollectionExceptionConditionOID → "${ref.collectionExceptionConditionOid}" does not resolve to a ConditionDef`,
+          });
+        }
       }
-      if (ref.methodOid && !methodOids.has(ref.methodOid)) {
-        issues.push({
-          severity: "error",
-          path: `ItemGroupDef[${ig.oid}]`,
-          message: `MethodOID → "${ref.methodOid}" does not resolve to a MethodDef`,
-        });
+      if (ref.methodOid) {
+        methodReferencedOids.add(ref.methodOid);
+        if (!methodOids.has(ref.methodOid)) {
+          issues.push({
+            severity: "error",
+            path: `ItemGroupDef[${ig.oid}]`,
+            message: `MethodOID → "${ref.methodOid}" does not resolve to a MethodDef`,
+          });
+        }
+        if (ref.mandatory === "Yes") {
+          issues.push({
+            severity: "warning",
+            path: `ItemGroupDef[${ig.oid}]`,
+            message: `ItemRef → "${ref.itemOid}" is derived (MethodOID) but Mandatory="Yes": derived items are system-written and cannot be entered`,
+          });
+        }
       }
     }
   }
@@ -114,6 +139,93 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
         message: `CodeListRef → "${item.codeListRef.codeListOid}" does not resolve to a CodeList`,
       });
     }
+  }
+
+  for (const cl of mdv.codeLists) {
+    for (const clItem of cl.items) {
+      if (!clItem.collectionExceptionConditionOid) continue;
+      cecReferencedOids.add(clItem.collectionExceptionConditionOid);
+      if (!conditionOids.has(clItem.collectionExceptionConditionOid)) {
+        issues.push({
+          severity: "error",
+          path: `CodeList[${cl.oid}]`,
+          message: `CodeListItem[${clItem.codedValue}] CollectionExceptionConditionOID → "${clItem.collectionExceptionConditionOid}" does not resolve to a ConditionDef`,
+        });
+      }
+    }
+  }
+
+  // Collection exceptions and derivations only execute when they carry a
+  // jsonata expression. Files authored elsewhere (e.g. CDISC examples with
+  // XPath expressions) must still import, so an unevaluable construct is a
+  // warning: the field is simply always collected / never computed.
+  const jsonataExpression = (def: {
+    formalExpressions: { context?: string | undefined; code: string }[];
+  }) => def.formalExpressions.find((e) => e.context === "jsonata")?.code;
+  for (const condition of mdv.conditionDefs) {
+    if (cecReferencedOids.has(condition.oid) && jsonataExpression(condition) === undefined) {
+      issues.push({
+        severity: "warning",
+        path: `ConditionDef[${condition.oid}]`,
+        message:
+          "is referenced as a collection exception but has no jsonata FormalExpression: the exception will not be enforced at runtime",
+      });
+    }
+  }
+  for (const method of mdv.methodDefs) {
+    if (methodReferencedOids.has(method.oid) && jsonataExpression(method) === undefined) {
+      issues.push({
+        severity: "warning",
+        path: `MethodDef[${method.oid}]`,
+        message:
+          "is referenced by an ItemRef but has no jsonata FormalExpression: the derived value will never compute",
+      });
+    }
+  }
+
+  // A derivation chain that feeds itself can never settle; the runtime drops
+  // cyclic derivations defensively, so surface the cycle at publish time.
+  // Dependencies are found by scanning expressions for backtick-quoted OIDs
+  // of other derived items (the ADR-0007 referencing convention).
+  const methodsByOid = new Map(mdv.methodDefs.map((m) => [m.oid, m]));
+  const derivedExpressions = new Map<string, string[]>();
+  for (const ig of mdv.itemGroupDefs) {
+    for (const ref of ig.itemRefs) {
+      if (!ref.methodOid) continue;
+      const method = methodsByOid.get(ref.methodOid);
+      const code = method ? jsonataExpression(method) : undefined;
+      if (code === undefined) continue;
+      derivedExpressions.set(ref.itemOid, [...(derivedExpressions.get(ref.itemOid) ?? []), code]);
+    }
+  }
+  const derivedDeps = new Map<string, string[]>();
+  for (const [itemOid, codes] of derivedExpressions) {
+    derivedDeps.set(
+      itemOid,
+      [...derivedExpressions.keys()].filter(
+        (oid) => oid !== itemOid && codes.some((code) => code.includes(oid)),
+      ),
+    );
+  }
+  {
+    const visiting = new Set<string>();
+    const done = new Set<string>();
+    const visitDerived = (oid: string, trail: string[]): void => {
+      if (visiting.has(oid)) {
+        issues.push({
+          severity: "error",
+          path: `ItemDef[${oid}]`,
+          message: `circular derivation chain: ${[...trail, oid].join(" → ")}`,
+        });
+        return;
+      }
+      if (done.has(oid)) return;
+      visiting.add(oid);
+      for (const dep of derivedDeps.get(oid) ?? []) visitDerived(dep, [...trail, oid]);
+      visiting.delete(oid);
+      done.add(oid);
+    };
+    for (const oid of derivedDeps.keys()) visitDerived(oid, []);
   }
 
   // Cycles in nested item groups would make form rendering diverge.
@@ -164,17 +276,32 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
   // items derived from blinded ones leak by construction.
   const blindedOids = new Set(mdv.itemDefs.filter((i) => i.blinded).map((i) => i.oid));
   if (blindedOids.size > 0) {
+    const blindedIn = (def: { formalExpressions: { code: string }[] }) =>
+      [...blindedOids].filter((oid) => def.formalExpressions.some((e) => e.code.includes(oid)));
     for (const condition of mdv.conditionDefs) {
-      const referenced = [...blindedOids].filter((oid) =>
-        condition.formalExpressions.some((e) => e.code.includes(oid)),
-      );
-      if (referenced.length > 0) {
-        issues.push({
-          severity: "warning",
-          path: `ConditionDef[${condition.oid}]`,
-          message: `references blinded item${referenced.length === 1 ? "" : "s"} ${referenced.join(", ")}: ensure the check message does not reveal blinded values`,
-        });
-      }
+      const referenced = blindedIn(condition);
+      if (referenced.length === 0) continue;
+      const plural = referenced.length === 1 ? "" : "s";
+      // Collection exceptions leak differently from edit checks: toggling a
+      // field's visibility on a blinded value reveals that value to anyone
+      // watching the form, regardless of message wording.
+      issues.push({
+        severity: "warning",
+        path: `ConditionDef[${condition.oid}]`,
+        message: cecReferencedOids.has(condition.oid)
+          ? `collection exception references blinded item${plural} ${referenced.join(", ")}: visibility changes can reveal blinded values to blinded roles`
+          : `references blinded item${plural} ${referenced.join(", ")}: ensure the check message does not reveal blinded values`,
+      });
+    }
+    for (const method of mdv.methodDefs) {
+      if (!methodReferencedOids.has(method.oid)) continue;
+      const referenced = blindedIn(method);
+      if (referenced.length === 0) continue;
+      issues.push({
+        severity: "warning",
+        path: `MethodDef[${method.oid}]`,
+        message: `derives from blinded item${referenced.length === 1 ? "" : "s"} ${referenced.join(", ")}: a non-blinded derived item leaks blinded data — blind the derived item too`,
+      });
     }
   }
 
