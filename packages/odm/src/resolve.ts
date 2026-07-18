@@ -10,6 +10,11 @@ export interface ResolvedItem {
   ref: { mandatory?: string; repeat?: string; other?: string };
   def: ItemDef;
   codeList?: CodeList;
+  /**
+   * Set when rendering a site form variant: the build group value writes key
+   * on (the variant's own section grouping is presentation-only).
+   */
+  canonicalGroupOid?: string;
 }
 
 export interface ResolvedGroup {

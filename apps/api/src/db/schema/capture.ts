@@ -83,6 +83,9 @@ export const formInstances = pgTable(
     metadataVersionId: uuid("metadata_version_id")
       .notNull()
       .references(() => studyMetadataVersions.id),
+    // Set when the site captured through an approved form variant (V.* form
+    // OIDs). Values still key on build item/group OIDs — presentation only.
+    siteFormVariantVersionId: uuid("site_form_variant_version_id"),
     status: text("status", {
       enum: ["not_started", "in_progress", "complete", "verified", "signed", "locked"],
     })
