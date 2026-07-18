@@ -70,10 +70,12 @@ function convertItemGroupRefs(node: XNode): ItemGroupRef[] {
     const n = asNode(raw);
     const mandatory = attr(n, "Mandatory");
     const orderNumber = intAttr(n, "OrderNumber");
+    const cec = attr(n, "CollectionExceptionConditionOID");
     return {
       itemGroupOid: requireAttr(n, "ItemGroupOID", "ItemGroupRef"),
       ...(mandatory !== undefined ? { mandatory } : {}),
       ...(orderNumber !== undefined ? { orderNumber } : {}),
+      ...(cec !== undefined ? { collectionExceptionConditionOid: cec } : {}),
     };
   });
 }
