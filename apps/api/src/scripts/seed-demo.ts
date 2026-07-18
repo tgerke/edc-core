@@ -20,9 +20,9 @@ import {
   transitionForm,
   writeItemValue,
 } from "../services/capture.js";
-import { evaluateFormChecks } from "../services/checks.js";
 import { setDictionaryBinding } from "../services/coding.js";
 import { type DictionaryType, loadDictionary } from "../services/dictionaries.js";
+import { runPostWritePipeline } from "../services/form-state.js";
 import { importStudyBuild } from "../services/study-builds.js";
 
 const STUDY_OID = "ST.CDASH.DEMO";
@@ -136,7 +136,7 @@ try {
         value,
         actorId: coordinator,
       });
-      await evaluateFormChecks(db, context, coordinator);
+      await runPostWritePipeline(db, context, coordinator);
     }
   };
   await enter(form1.id, {

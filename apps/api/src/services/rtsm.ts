@@ -15,7 +15,7 @@ import {
   type SubjectStatus,
   writeItemValue,
 } from "./capture.js";
-import { evaluateFormChecks } from "./checks.js";
+import { assertWriteAllowed, loadFormState, runPostWritePipeline } from "./form-state.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
 
 /**
@@ -340,6 +340,26 @@ export async function applyAssignment(
         );
       }
 
+      // Unattended intake must not write into a derived or not-collected
+      // target; reject visibly instead of leaving a silent bad value.
+      const formState = await loadFormState(txDb, context);
+      if (formState) {
+        try {
+          assertWriteAllowed(formState, {
+            itemGroupOid: config.itemGroupOid,
+            itemOid: config.itemOid,
+            value: assignment.arm,
+          });
+        } catch (err) {
+          return record(
+            "rejected",
+            err instanceof Error ? err.message : String(err),
+            { subjectId: subject.id },
+            txDb,
+          );
+        }
+      }
+
       const written = await writeItemValue(txDb, context, {
         itemGroupOid: config.itemGroupOid,
         itemOid: config.itemOid,
@@ -347,7 +367,7 @@ export async function applyAssignment(
         actorId: input.serviceUserId,
         origin: "integration",
       });
-      await evaluateFormChecks(txDb, { ...context, status: "in_progress" }, input.serviceUserId);
+      await runPostWritePipeline(txDb, { ...context, status: "in_progress" }, input.serviceUserId);
       return record(
         "applied",
         null,
