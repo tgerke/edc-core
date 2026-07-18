@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@edc-core/odm": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

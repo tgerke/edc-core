@@ -256,6 +256,6 @@ export function soaMatrix(design: UsdmStudyDesign): SoaMatrix {
 }
 
 /** Preferred display text: label when present, else name. */
-export function displayLabel(entity: { name: string; label?: string | null }): string {
+export function displayLabel(entity: { name: string; label?: string | null | undefined }): string {
   return entity.label ?? entity.name;
 }
