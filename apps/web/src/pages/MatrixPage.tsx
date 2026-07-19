@@ -2,12 +2,13 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import {
   type MatrixCell,
+  type Site,
   useBreakBlind,
   useEnrollSubject,
   useEnsureForm,
   useMatrix,
   usePermissions,
-  useSites,
+  useSitesWithPermission,
   useStudies,
   useTransitionSubject,
 } from "../api/hooks.js";
@@ -185,8 +186,15 @@ function SubjectLifecycle({
   );
 }
 
-function EnrollForm({ studyId, onDone }: { studyId: string; onDone: () => void }) {
-  const { data: sites } = useSites(studyId);
+function EnrollForm({
+  studyId,
+  sites,
+  onDone,
+}: {
+  studyId: string;
+  sites: Site[];
+  onDone: () => void;
+}) {
   const enroll = useEnrollSubject(studyId);
   const [siteId, setSiteId] = useState("");
   const [subjectKey, setSubjectKey] = useState("");
@@ -208,7 +216,7 @@ function EnrollForm({ studyId, onDone }: { studyId: string; onDone: () => void }
           className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
         >
           <option value="">Select site…</option>
-          {sites?.map((site) => (
+          {sites.map((site) => (
             <option key={site.id} value={site.id}>
               {site.name} ({site.oid})
             </option>
@@ -278,6 +286,10 @@ export function MatrixPage() {
   const { data: studies } = useStudies();
   const { data: matrix, isPending, isError } = useMatrix(studyId);
   const { data: permissions } = usePermissions(studyId);
+  // Sites where this user can enroll: a study-wide subject.enroll grant
+  // qualifies everywhere, a site-scoped one only at its site. No sites means
+  // no button — the form would only offer choices the server rejects.
+  const enrollableSites = useSitesWithPermission(studyId, "subject.enroll");
   const [enrolling, setEnrolling] = useState(false);
   const study = studies?.find((s) => s.id === studyId);
   const canExport = permissions?.includes("export.data") ?? false;
@@ -304,14 +316,20 @@ export function MatrixPage() {
         >
           {study?.name ?? "Subjects"}
         </PageTitle>
-        <Button variant="secondary" onClick={() => setEnrolling((v) => !v)}>
-          {enrolling ? "Cancel" : "Enroll subject"}
-        </Button>
+        {enrollableSites.sites.length > 0 ? (
+          <Button variant="secondary" onClick={() => setEnrolling((v) => !v)}>
+            {enrolling ? "Cancel" : "Enroll subject"}
+          </Button>
+        ) : null}
       </div>
 
-      {enrolling ? (
+      {enrolling && enrollableSites.sites.length > 0 ? (
         <div className="mb-4">
-          <EnrollForm studyId={studyId} onDone={() => setEnrolling(false)} />
+          <EnrollForm
+            studyId={studyId}
+            sites={enrollableSites.sites}
+            onDone={() => setEnrolling(false)}
+          />
         </div>
       ) : null}
 

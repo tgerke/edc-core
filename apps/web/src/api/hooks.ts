@@ -1,5 +1,5 @@
 import { type OdmFile, parseOdm } from "@edc-core/odm";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ApiError, api } from "./client.js";
 
@@ -854,6 +854,28 @@ export function usePermissions(studyId: string, siteId?: string) {
         )
       ).permissions,
   });
+}
+
+/**
+ * The study's sites at which the user holds the permission. Site-scoped
+ * grants confer nothing at study scope, so any "can they do this anywhere"
+ * gate has to ask per site; the query keys match usePermissions, so results
+ * are shared with per-row checks.
+ */
+export function useSitesWithPermission(studyId: string, permission: string) {
+  const { data: sites } = useSites(studyId);
+  const results = useQueries({
+    queries: (sites ?? []).map((site) => ({
+      queryKey: ["permissions", studyId, site.id],
+      queryFn: async () =>
+        (await api<{ permissions: string[] }>(`/studies/${studyId}/permissions?siteId=${site.id}`))
+          .permissions,
+    })),
+  });
+  return {
+    sites: (sites ?? []).filter((_, i) => results[i]?.data?.includes(permission)),
+    isPending: sites === undefined || results.some((r) => r.isPending),
+  };
 }
 
 export function useOpenQuery(formInstanceId: string) {
