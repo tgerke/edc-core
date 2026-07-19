@@ -1111,11 +1111,8 @@ async function main() {
         },
       },
       {
-        // demo-admin (study-wide admin): the matrix only offers per-subject
-        // actions to study-scope permission holders today — site-scoped
-        // personas don't see the menu (known UI gating gap).
         name: "break-blind",
-        context: demoAdminCtx,
+        context: invCtx,
         async run(page) {
           await page.goto(`/studies/${bld.studyId}/subjects`);
           await page.getByTitle("Change status of BLD-001").selectOption("unblind");
@@ -1126,7 +1123,7 @@ async function main() {
       },
       {
         name: "subject-lifecycle",
-        context: demoAdminCtx,
+        context: coordCtx,
         async run(page) {
           await page.goto(`/studies/${demoStudy.id}/subjects`);
           await page.getByTitle("Change status of DEMO-003").selectOption("screen_fail");
