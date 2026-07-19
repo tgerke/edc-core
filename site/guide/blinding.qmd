@@ -16,7 +16,7 @@ the site-facing roles (investigator, data entry, admin) and *not* by
 monitors or data managers. The screenshots use the seeded
 `ST.BLD.DEMO` study: a dosing form whose assigned-arm item is blinded,
 entered by `demo-coord`, reviewed by `demo-cra` (monitor), with
-`demo-admin` performing the break-the-blind action.
+`demo-inv` performing the break-the-blind action.
 
 ## The model in one paragraph
 
