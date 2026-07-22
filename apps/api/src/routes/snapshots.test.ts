@@ -11,7 +11,14 @@ import { hashPassword } from "../auth/password.js";
 import { grantRole } from "../auth/rbac.js";
 import { createDb, databaseUrl } from "../db/client.js";
 import { runMigrations } from "../db/migrate.js";
-import { auditEvents, roles, sites, studies, users } from "../db/schema/index.js";
+import {
+  auditEvents,
+  roles,
+  sites,
+  studies,
+  users,
+  workbenchExecutions,
+} from "../db/schema/index.js";
 import { buildServer } from "../server.js";
 import { lakeRef, withLakeReader } from "../services/lake.js";
 import type { SnapshotManifest, SnapshotTable } from "../services/snapshots.js";
@@ -400,6 +407,22 @@ describe.skipIf(!dbAvailable)("DuckLake snapshots (integration)", () => {
       expect(
         executed.some((e) => (e.newValue as { sql?: string }).sql?.includes("USING (subject_key)")),
       ).toBe(true);
+
+      // Each SQL run is also an execution record: exact content, pinned
+      // snapshot, outcome — including the sandboxed failures above.
+      expect(joined.json().executionId).toBeTruthy();
+      const sqlRuns = (
+        await db
+          .select()
+          .from(workbenchExecutions)
+          .where(eq(workbenchExecutions.studyId, fx.studyId))
+      ).filter((e) => e.language === "sql");
+      const joinedRun = sqlRuns.find((e) => e.id === joined.json().executionId);
+      expect(joinedRun?.status).toBe("succeeded");
+      expect(joinedRun?.content).toContain("USING (subject_key)");
+      expect(joinedRun?.snapshotId).toBe(first.id);
+      expect(joinedRun?.result).toBeNull();
+      expect(sqlRuns.filter((e) => e.status === "failed").length).toBeGreaterThanOrEqual(4);
     },
     LAKE_TIMEOUT,
   );
