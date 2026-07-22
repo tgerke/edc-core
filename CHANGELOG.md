@@ -6,6 +6,13 @@
 - SQL workbench runs are now recorded as execution records like R and
   Python runs: exact SQL, pinned snapshot, and outcome (including failed
   runs), with the execution id returned to the caller (E6-04)
+- Batch query creation from listing rows: `POST
+  /studies/:id/queries/batch` turns workbench result rows into manual
+  queries through the existing lifecycle — dry-run preview, per-row skip
+  reasons (duplicates, stale values, locked forms, unknown targets,
+  site permission), one aggregate notification per site, and provenance
+  (`queries.source_execution_id` plus the audit event) back to the exact
+  execution, script version, and snapshot (E6-08)
 
 ### Dynamic and linked fields (ADR-0014)
 - Skip logic: `CollectionExceptionConditionOID` on ItemRef and ItemGroupRef

@@ -1,4 +1,5 @@
 import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { workbenchExecutions } from "./analytics.js";
 import { formInstances } from "./capture.js";
 import { studies } from "./studies.js";
 import { users } from "./users.js";
@@ -17,6 +18,9 @@ export const queries = pgTable("queries", {
   origin: text("origin", { enum: ["manual", "system"] }).notNull(),
   // For system queries: the edit-check ConditionDef that raised this query.
   checkOid: text("check_oid"),
+  // For listing-driven queries (ADR-0015): the workbench execution whose
+  // result identified this data point.
+  sourceExecutionId: uuid("source_execution_id").references(() => workbenchExecutions.id),
   status: text("status", { enum: ["open", "answered", "closed"] })
     .notNull()
     .default("open"),
