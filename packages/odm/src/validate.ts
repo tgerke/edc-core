@@ -305,6 +305,69 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
     }
   }
 
+  // Cross-form check references (ADR-0015): an edit-check expression may
+  // read another form of the same subject as `FORM_OID`.`ITEM_OID`. The
+  // qualified item must exist on that form; a cross-form check with no
+  // unqualified local item reference evaluates identically on every form
+  // (no home to attribute its query to), which is almost never intended.
+  {
+    const escape = (oid: string) => oid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const groupsByOid = new Map(mdv.itemGroupDefs.map((g) => [g.oid, g]));
+    const itemsReachableFrom = (rootOid: string): Set<string> => {
+      const found = new Set<string>();
+      const seen = new Set<string>();
+      const queue = [rootOid];
+      while (queue.length > 0) {
+        const current = queue.pop();
+        if (current === undefined || seen.has(current)) continue;
+        seen.add(current);
+        const group = groupsByOid.get(current);
+        if (!group) continue;
+        for (const ref of group.itemRefs) found.add(ref.itemOid);
+        for (const ref of group.itemGroupRefs) queue.push(ref.itemGroupOid);
+      }
+      return found;
+    };
+    const formOids = mdv.itemGroupDefs.filter((g) => g.type === "Form").map((g) => g.oid);
+    for (const condition of mdv.conditionDefs) {
+      // Collection exceptions and dependent options are single-form runtime
+      // constructs; cross-form syntax in them is not honored.
+      if (cecReferencedOids.has(condition.oid)) continue;
+      const code = jsonataExpression(condition);
+      if (code === undefined) continue;
+      const referencedForms = formOids.filter((oid) => code.includes(`\`${oid}\``));
+      if (referencedForms.length === 0) continue;
+
+      let stripped = code;
+      for (const formOid of referencedForms) {
+        const items = itemsReachableFrom(formOid);
+        const qualified = new RegExp(`\`${escape(formOid)}\`\\s*\\.\\s*\`([^\`]+)\``, "g");
+        for (const match of code.matchAll(qualified)) {
+          const itemOid = match[1];
+          if (itemOid !== undefined && !itemOid.startsWith("_") && !items.has(itemOid)) {
+            issues.push({
+              severity: "error",
+              path: `ConditionDef[${condition.oid}]`,
+              message: `cross-form reference \`${formOid}\`.\`${itemOid}\`: "${itemOid}" is not an item on that form`,
+            });
+          }
+        }
+        stripped = stripped
+          .replaceAll(qualified, " ")
+          .replaceAll(new RegExp(`\`${escape(formOid)}\``, "g"), " ");
+      }
+      const hasLocalItem = [...itemOids].some((oid) => stripped.includes(oid));
+      if (!hasLocalItem) {
+        issues.push({
+          severity: "warning",
+          path: `ConditionDef[${condition.oid}]`,
+          message:
+            "cross-form check has no unqualified local item reference: it will evaluate the same way on every form and cannot be attributed to a home form",
+        });
+      }
+    }
+  }
+
   // Draft items from unresolved protocol concepts are review-workspace
   // artifacts; a published build must be capture-ready, so they hard-fail.
   for (const item of mdv.itemDefs) {
