@@ -13,7 +13,9 @@ capability:
   targets (`edc:CodingDictionary`).
 - **Edit checks**: JSONata ConditionDefs (ADR-0007) — systolic BP plausible
   range, systolic > diastolic, AE end date ≥ start date — which raise system
-  queries automatically during entry.
+  queries automatically during entry, plus a cross-form check (ADR-0015)
+  comparing each AE's onset date against the informed consent date on
+  Demographics.
 
 ### Use it two ways
 

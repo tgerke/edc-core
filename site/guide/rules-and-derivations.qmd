@@ -61,6 +61,18 @@ correctly as strings:
 `IT.AE.AESTDTC` != null and `IT.AE.AEENDTC` != null and `IT.AE.AEENDTC` < `IT.AE.AESTDTC`
 ```
 
+**A cross-form check** (`CK.AE.ONSET_BEFORE_CONSENT`). Qualifying an item
+with another form's OID reads that form of the same subject. The query
+opens on the form the unqualified items belong to (here, the AE form), and
+because the other form's data isn't available in the browser, these checks
+run only on the server — the entry UI marks their findings *checked on
+save*:
+
+```
+`IT.AE.AESTDTC` != null and `FO.DM`.`IT.DM.RFICDTC` != null
+  and `IT.AE.AESTDTC` < `FO.DM`.`IT.DM.RFICDTC`
+```
+
 **A skip condition** (`CD.DM.MALE`). True when the field should *not* be
 collected. The demo study skips the pregnancy-test item while sex is
 recorded male (coded value 1):
