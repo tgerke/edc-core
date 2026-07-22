@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { auditEvents, snapshots } from "../db/schema/index.js";
+import { auditEvents, snapshots, workbenchExecutions } from "../db/schema/index.js";
 import { ident, lakeRef, lit, withLakeReader } from "./lake.js";
 import type { SnapshotManifest } from "./snapshots.js";
 
@@ -17,6 +17,7 @@ export const MAX_RESULT_ROWS = 5_000;
 const QUERY_TIMEOUT_MS = 30_000;
 
 export interface WorkbenchResult {
+  executionId: string;
   columns: string[];
   rows: unknown[][];
   rowCount: number;
@@ -67,7 +68,47 @@ export async function executeWorkbenchSql(
   const ref = lakeRef(manifest.schema);
 
   const started = Date.now();
-  const result = await withLakeReader(ref, async (conn) => {
+  let result: { columns: string[]; rows: unknown[][]; truncated: boolean };
+  try {
+    result = await runSandboxed(ref, manifest, lakeVersion, input.sql);
+  } catch (err) {
+    // Failed runs are execution evidence too (parity with R/Python);
+    // not_found/invalid never reach the sandbox and are not recorded.
+    if (err instanceof WorkbenchError && (err.code === "query" || err.code === "timeout")) {
+      await recordSqlExecution(db, input, lakeVersion, {
+        status: "failed",
+        error: err.message,
+        elapsedMs: Date.now() - started,
+      });
+    }
+    throw err;
+  }
+  const elapsedMs = Date.now() - started;
+
+  const executionId = await recordSqlExecution(db, input, lakeVersion, {
+    status: "succeeded",
+    rowCount: result.rows.length,
+    elapsedMs,
+  });
+
+  return {
+    executionId,
+    columns: result.columns,
+    rows: result.rows,
+    rowCount: result.rows.length,
+    truncated: result.truncated,
+    elapsedMs,
+    lakeVersion,
+  };
+}
+
+async function runSandboxed(
+  ref: ReturnType<typeof lakeRef>,
+  manifest: SnapshotManifest,
+  lakeVersion: string,
+  sql: string,
+) {
+  return withLakeReader(ref, async (conn) => {
     for (const table of manifest.tables) {
       await conn.run(
         `CREATE VIEW ${ident(table.table)} AS ` +
@@ -80,7 +121,7 @@ export async function executeWorkbenchSql(
 
     const timer = setTimeout(() => conn.interrupt(), QUERY_TIMEOUT_MS);
     try {
-      const reader = await conn.runAndReadUntil(input.sql, MAX_RESULT_ROWS + 1);
+      const reader = await conn.runAndReadUntil(sql, MAX_RESULT_ROWS + 1);
       const rows = reader.getRows();
       return {
         columns: reader.columnNames(),
@@ -97,30 +138,49 @@ export async function executeWorkbenchSql(
       clearTimeout(timer);
     }
   });
-  const elapsedMs = Date.now() - started;
+}
 
-  // E6-04: what ran, against which immutable dataset, by whom.
-  await db.insert(auditEvents).values({
-    actorId: input.actorId,
-    studyId: input.studyId,
-    action: "workbench.executed",
-    entityType: "snapshot",
-    entityId: input.snapshotId,
-    newValue: {
-      language: "sql",
-      sql: input.sql.length > 2000 ? `${input.sql.slice(0, 2000)}…` : input.sql,
-      lakeVersion,
-      rowCount: result.rows.length,
-      elapsedMs,
-    },
+// E6-04: what ran, against which immutable dataset, by whom — one
+// workbench_executions row per run (the shape executeScript uses), plus the
+// audit event. SQL results are not persisted; content on the pinned
+// snapshot reproduces them.
+async function recordSqlExecution(
+  db: Db,
+  input: { studyId: string; snapshotId: string; sql: string; actorId: string },
+  lakeVersion: string,
+  outcome: { status: "succeeded" | "failed"; error?: string; rowCount?: number; elapsedMs: number },
+): Promise<string> {
+  return db.transaction(async (tx) => {
+    const [execution] = await tx
+      .insert(workbenchExecutions)
+      .values({
+        studyId: input.studyId,
+        snapshotId: input.snapshotId,
+        language: "sql",
+        content: input.sql,
+        status: outcome.status,
+        error: outcome.error ?? null,
+        elapsedMs: outcome.elapsedMs,
+        executedBy: input.actorId,
+      })
+      .returning();
+    if (!execution) throw new WorkbenchError("invalid", "execution insert returned no row");
+    await tx.insert(auditEvents).values({
+      actorId: input.actorId,
+      studyId: input.studyId,
+      action: "workbench.executed",
+      entityType: "workbench_execution",
+      entityId: execution.id,
+      newValue: {
+        language: "sql",
+        sql: input.sql.length > 2000 ? `${input.sql.slice(0, 2000)}…` : input.sql,
+        snapshotId: input.snapshotId,
+        lakeVersion,
+        status: outcome.status,
+        ...(outcome.rowCount !== undefined ? { rowCount: outcome.rowCount } : {}),
+        elapsedMs: outcome.elapsedMs,
+      },
+    });
+    return execution.id;
   });
-
-  return {
-    columns: result.columns,
-    rows: result.rows,
-    rowCount: result.rows.length,
-    truncated: result.truncated,
-    elapsedMs,
-    lakeVersion,
-  };
 }
