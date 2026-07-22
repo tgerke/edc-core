@@ -83,7 +83,8 @@ has every value null, and a check that fires on empty forms buries sites in
 queries. Lean on the item's data type: values are evaluated as their ODM
 type, so integers compare numerically and dates as ISO strings. And keep
 expressions pure: they read the form's values and return a result; they
-cannot write, fetch, or reach outside the form.
+cannot write or fetch. The one sanctioned way to see beyond the form is a
+[cross-form check](#cross-form-checks), covered below.
 
 ## Walkthrough: author an edit check
 
@@ -151,6 +152,69 @@ with a **computed** badge while they type the inputs, but the stored value
 is always the server's own calculation. A derivation may read other derived
 items; a circular chain is rejected when the build is validated, not
 discovered at runtime.
+
+## Cross-form checks
+
+Everything above reads one form instance at a time. Consistency checks
+often need two: an adverse event's onset against the screening visit date,
+a concomitant medication against the AE it treats. An edit check reads the
+subject's other forms by qualifying item OIDs with the form's OID:
+
+```
+`IT.AESTDT` != null and `IT.AESTDT` < `FO.DM`.`IT.VISDT`
+```
+
+Unqualified OIDs keep their meaning, the form the check is evaluated on, so
+every existing check behaves exactly as before. The form holding the
+check's unqualified items is its **home form**: the form where its queries
+open and where sites see the finding. This check's home is the AE form; it
+fires there when an onset date precedes the Demographics visit date.
+
+**What a reference sees.** A qualified form OID binds to an array of the
+subject's instances of that form, one object per instance. Each object
+carries the form's item values, typed the same way as local values, plus
+three metadata keys: `_event_oid`, `_event_repeat_key`, and
+`_form_repeat_key`. A repeating item group inside the form appears as an
+array of occurrence objects, each holding `_repeat_key` and that
+occurrence's values. JSONata's sequence semantics fit this shape: with a
+single Demographics instance, `` `FO.DM`.`IT.VISDT` `` is simply the date,
+and against a repeating form or event it is a sequence you can filter. The
+metadata keys are how you pin a reference to one visit:
+
+```
+`IT.AESTDT` != null
+  and `IT.AESTDT` < `FO.DM`[`_event_oid` = "SE.SCR"].`IT.VISDT`
+```
+
+A referenced form the subject does not have yet contributes nothing: the
+qualified reference evaluates to nothing, comparisons against it are not
+true, and the check stays quiet, the same behavior as the null guards you
+already write locally.
+
+**When it fires.** The server re-evaluates a cross-form check after every
+accepted write to *any* form its expression reads, not just the home form.
+Correcting the Demographics visit date re-runs the AE check and opens or
+auto-closes its system queries on the AE form, with the same
+open-and-auto-close mechanics as any edit check. One edge case: if the home
+form has no instance yet (the site has not opened it), there is nothing to
+attach a query to, so the check first fires on that form's own first write.
+
+**During entry.** Single-form rules give feedback as the site types.
+Cross-form checks are the exception: the browser is never sent the
+subject's other forms (both payload size and blinding forbid it), so they
+cannot fire instantly. Their findings arrive with the save response and
+render with a **checked on save** label. Builds that use no cross-form
+checks are unaffected, during entry and everywhere else.
+
+**Validation at publish.** Saving a build checks every qualified reference:
+naming an item that is not on the referenced form is an error, and a
+cross-form check with no unqualified local item at all is a warning: it
+would evaluate identically on every form, leaving no home form to attribute
+its query to.
+
+**Scope.** Only edit checks cross forms. Skip logic and derivations stay
+single-form: qualified references are not honored in a collection-exception
+condition or a MethodDef.
 
 ## How rules travel
 
