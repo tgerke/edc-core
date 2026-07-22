@@ -2,7 +2,9 @@
 <!-- edc-core demo study (SC-03): a small CDASH-aligned protocol exercising
      every core capability — demographics and vitals capture, an adverse
      event log and concomitant medications with medical-coding targets,
-     coded values, JSONata edit checks that raise queries, and dynamic
+     coded values, JSONata edit checks that raise queries — including a
+     cross-form check (ADR-0015) comparing AE onset against the consent
+     date on Demographics — and dynamic
      fields (ADR-0014): a pregnancy-test item skipped for male subjects,
      a code list option shown conditionally, and a BMI value derived from
      height and weight.
@@ -39,6 +41,7 @@
         <ItemGroupRef ItemGroupOID="IG.DM" Mandatory="Yes"/>
       </ItemGroupDef>
       <ItemGroupDef Name="Demographics" OID="IG.DM" Type="Section" Repeating="No">
+        <ItemRef ItemOID="IT.DM.RFICDTC" Mandatory="Yes"/>
         <ItemRef ItemOID="IT.DM.BRTHDTC" Mandatory="Yes"/>
         <ItemRef ItemOID="IT.DM.SEX" Mandatory="Yes"/>
         <ItemRef ItemOID="IT.DM.ETHNIC" Mandatory="Yes"/>
@@ -86,6 +89,9 @@
         <ItemRef ItemOID="IT.CM.CMENDTC" Mandatory="No"/>
       </ItemGroupDef>
 
+      <ItemDef DataType="date" Name="Informed Consent Date" OID="IT.DM.RFICDTC">
+        <Question><TranslatedText xml:lang="en" Type="text/plain">What was the date of informed consent?</TranslatedText></Question>
+      </ItemDef>
       <ItemDef DataType="date" Name="Birth Date" OID="IT.DM.BRTHDTC">
         <Question><TranslatedText xml:lang="en" Type="text/plain">What is the subject's date of birth?</TranslatedText></Question>
       </ItemDef>
@@ -210,6 +216,13 @@
       <ConditionDef OID="CK.AE.END_BEFORE_START" Name="AE end date before start date">
         <Description><TranslatedText xml:lang="en" Type="text/plain">The adverse event end date is before its start date.</TranslatedText></Description>
         <FormalExpression Context="jsonata">`IT.AE.AESTDTC` != null and `IT.AE.AEENDTC` != null and `IT.AE.AEENDTC` &lt; `IT.AE.AESTDTC`</FormalExpression>
+      </ConditionDef>
+      <!-- Cross-form check (ADR-0015): reads the same subject's Demographics
+           form via the qualified `FO.DM`.`IT.DM.RFICDTC` reference; the query
+           opens on the AE form, where the unqualified item lives. -->
+      <ConditionDef OID="CK.AE.ONSET_BEFORE_CONSENT" Name="AE onset before informed consent">
+        <Description><TranslatedText xml:lang="en" Type="text/plain">The adverse event start date is before the informed consent date recorded on the Demographics form.</TranslatedText></Description>
+        <FormalExpression Context="jsonata">`IT.AE.AESTDTC` != null and `FO.DM`.`IT.DM.RFICDTC` != null and `IT.AE.AESTDTC` &lt; `FO.DM`.`IT.DM.RFICDTC`</FormalExpression>
       </ConditionDef>
 
       <!-- Collection exceptions (ADR-0014): excluded-when-true conditions

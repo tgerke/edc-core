@@ -59,6 +59,23 @@ recomputes and audits it on every save. Try changing a saved sex from female
 to male: the recorded pregnancy result is kept, flagged **not collected**,
 and a system query stays open until you clear it.
 
+Checks can span forms, too: the demo build compares each adverse event's
+onset date against the informed consent date on Demographics. Try it on
+DEMO-002:
+
+1. On the Screening **Demographics** form, record an informed consent date
+   of `2026-07-01` and save. Nothing fires: the seeded adverse event
+   ("stomach ake") started on 2026-07-04, after consent.
+2. Open that adverse event from the **Adverse Events** log and change its
+   start date to `2026-06-28`, giving a reason for change. The edit-check
+   panel flags it, marked *checked on save* — a check that reads another
+   form runs only on the server — and a system query opens here, on the AE
+   form, where the problem is anchored.
+3. Correct either form. Say the consent date was the error: change it to
+   `2026-06-15` on Demographics and save. Back on the AE form, the query
+   has closed itself: a write to one form re-evaluates the checks that
+   read it, wherever their queries live.
+
 *Full guide: [Data capture](guide/data-capture.qmd#conditional-and-computed-fields)
 for the entry side, [Rules and derivations](guide/rules-and-derivations.qmd)
 for authoring the checks and computations themselves.*
