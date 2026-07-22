@@ -46,6 +46,10 @@ system query **closes automatically**.
 
 Edit checks are JSONata expressions defined in the study build. They run
 client-side for instant feedback and server-side as the source of truth.
+Checks can also read the subject's *other* forms (an AE onset date against
+the visit date, say); those run server-side only and come back marked
+**checked on save**. See
+[cross-form checks](guide/rules-and-derivations.qmd#cross-form-checks).
 
 The demo study's forms are dynamic, too. On the Demographics form, the
 pregnancy-test question only appears while the subject's recorded sex allows
@@ -114,7 +118,27 @@ code, logs, and results:
 
 ![](images/workbench-r.png){.screenshot fig-alt="R workbench with console output and execution history"}
 
-*Full guide: [Analytics workbench](guide/analytics.qmd).*
+Then close the loop the way a data manager would. A listing that finds
+problems can raise queries without re-keying anything. Run:
+
+```sql
+SELECT subject_key, event_oid, form_oid, it_vs_sysbp
+FROM fo_vs
+WHERE it_vs_sysbp > 120
+```
+
+Select the flagged rows and click **Create queries…**. The key columns map
+themselves, and a dry-run preview shows what each row will do before
+anything is written: create a query, or skip with a reason (already
+queried, value corrected since the snapshot, form locked). Confirm, and
+the queries land on the site's forms as ordinary manual queries. The site
+hears about the batch once, and each query records the execution and
+snapshot that raised it. Run the preview again and every row now reports
+an existing query: the loop does not double-file.
+
+*Full guide: [Analytics workbench](guide/analytics.qmd), and
+[From listings to queries](guide/analytics.qmd#from-listings-to-queries)
+for this workflow.*
 
 ## 7. Export and archive
 
@@ -128,6 +152,7 @@ PDF casebook for every subject.
 archive](guide/exports-and-archive.qmd).*
 
 That's the whole loop: capture → clean → verify → sign → snapshot → analyze →
-archive, with every step audited. For details on any piece, head to the
-[user guide](guide/study-builds.qmd) or pick a
+archive, with every step audited. And it is a loop, not a line: the analysis
+step raises the next round of cleaning queries itself. For details on any
+piece, head to the [user guide](guide/study-builds.qmd) or pick a
 [reading track for your role](start-here.qmd).
