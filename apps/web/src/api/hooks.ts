@@ -261,6 +261,12 @@ export function useFormData(formInstanceId: string) {
   });
 }
 
+export interface ServerCheckFinding {
+  checkOid: string;
+  message: string;
+  repeatKey: number | null;
+}
+
 export function useWriteItem(formInstanceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -270,7 +276,11 @@ export function useWriteItem(formInstanceId: string) {
       itemOid: string;
       value: string | null;
       reasonForChange?: string;
-    }) => api(`/forms/${formInstanceId}/items`, { method: "PUT", body: JSON.stringify(body) }),
+    }) =>
+      api<{ findings?: ServerCheckFinding[] }>(`/forms/${formInstanceId}/items`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
       // Writes open/close system queries server-side.

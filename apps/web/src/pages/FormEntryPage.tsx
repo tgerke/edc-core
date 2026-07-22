@@ -12,6 +12,7 @@ import {
   compileDerivations,
   compileEditChecks,
   evaluateFormState,
+  extractFormDependencies,
   type ItemValueRow,
   skipResidualMessages,
 } from "@edc-core/rules";
@@ -458,7 +459,24 @@ function EntryForm({
   // Instant client-side evaluation of the same pipeline the server enforces
   // (derivations → skip logic → option exclusions → checks), occurrence-aware
   // for repeating item groups. The server recomputes authoritatively on write.
+  //
+  // Cross-form checks (ADR-0015) are the exception to instant feedback: the
+  // client cannot see the subject's other forms (blinding, payload), so they
+  // never fire locally. Their findings come from the server's write response
+  // and render with a "checked on save" affordance.
   const [findings, setFindings] = useState<
+    { oid: string; message: string; repeatKey: number | null }[]
+  >([]);
+  const crossFormCheckOids = useMemo(
+    () =>
+      new Set(
+        [...extractFormDependencies(mdv)]
+          .filter(([, forms]) => forms.size > 0)
+          .map(([checkOid]) => checkOid),
+      ),
+    [mdv],
+  );
+  const [serverFindings, setServerFindings] = useState<
     { oid: string; message: string; repeatKey: number | null }[]
   >([]);
   const [dynamic, setDynamic] = useState<DynamicState>({
@@ -531,16 +549,25 @@ function EntryForm({
     setError(null);
     setSaved(false);
     try {
+      let lastFindings: { checkOid: string; message: string; repeatKey: number | null }[] = [];
       for (const key of dirtyKeys) {
         const [itemGroupOid = "", repeatKey = "1", itemOid = ""] = key.split(":");
-        await writeItem.mutateAsync({
+        const response = await writeItem.mutateAsync({
           itemGroupOid,
           itemGroupRepeatKey: Number(repeatKey),
           itemOid,
           value: values[key] === "" ? null : (values[key] ?? null),
           ...(key in serverValues && reason ? { reasonForChange: reason } : {}),
         });
+        lastFindings = response.findings ?? [];
       }
+      // Each write returns this form's full findings; cross-form ones can
+      // only be known here (the client never sees other forms' data).
+      setServerFindings(
+        lastFindings
+          .filter((f) => crossFormCheckOids.has(f.checkOid))
+          .map((f) => ({ oid: f.checkOid, message: f.message, repeatKey: f.repeatKey })),
+      );
       setReason("");
       setSaved(true);
     } catch (err) {
@@ -756,7 +783,7 @@ function EntryForm({
           </ul>
         </div>
       ) : null}
-      {findings.length > 0 && editable ? (
+      {(findings.length > 0 || serverFindings.length > 0) && editable ? (
         <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
           <div className="font-medium">Edit checks</div>
           <ul className="mt-1 list-inside list-disc">
@@ -764,6 +791,13 @@ function EntryForm({
               <li key={`${finding.oid}:${finding.repeatKey ?? ""}`}>
                 {finding.message}
                 {finding.repeatKey != null ? ` (occurrence ${finding.repeatKey})` : ""}
+              </li>
+            ))}
+            {serverFindings.map((finding) => (
+              <li key={`server:${finding.oid}:${finding.repeatKey ?? ""}`}>
+                {finding.message}
+                {finding.repeatKey != null ? ` (occurrence ${finding.repeatKey})` : ""}
+                <span className="text-amber-600"> · checked on save</span>
               </li>
             ))}
           </ul>
