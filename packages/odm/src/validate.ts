@@ -311,7 +311,7 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
   // unqualified local item reference evaluates identically on every form
   // (no home to attribute its query to), which is almost never intended.
   {
-    const escape = (oid: string) => oid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapeOid = (oid: string) => oid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const groupsByOid = new Map(mdv.itemGroupDefs.map((g) => [g.oid, g]));
     const itemsReachableFrom = (rootOid: string): Set<string> => {
       const found = new Set<string>();
@@ -341,7 +341,7 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
       let stripped = code;
       for (const formOid of referencedForms) {
         const items = itemsReachableFrom(formOid);
-        const qualified = new RegExp(`\`${escape(formOid)}\`\\s*\\.\\s*\`([^\`]+)\``, "g");
+        const qualified = new RegExp(`\`${escapeOid(formOid)}\`\\s*\\.\\s*\`([^\`]+)\``, "g");
         for (const match of code.matchAll(qualified)) {
           const itemOid = match[1];
           if (itemOid !== undefined && !itemOid.startsWith("_") && !items.has(itemOid)) {
@@ -354,7 +354,7 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
         }
         stripped = stripped
           .replaceAll(qualified, " ")
-          .replaceAll(new RegExp(`\`${escape(formOid)}\``, "g"), " ");
+          .replaceAll(new RegExp(`\`${escapeOid(formOid)}\``, "g"), " ");
       }
       const hasLocalItem = [...itemOids].some((oid) => stripped.includes(oid));
       if (!hasLocalItem) {
