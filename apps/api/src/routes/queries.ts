@@ -15,6 +15,7 @@ import {
   QueryError,
   reopenQuery,
 } from "../services/queries.js";
+import { createQueryBatch } from "../services/query-batch.js";
 
 const openSchema = z.object({
   itemGroupOid: z.string().min(1).optional(),
@@ -25,6 +26,26 @@ const openSchema = z.object({
 const messageSchema = z.object({ body: z.string().min(1) });
 const closeSchema = z.object({ body: z.string().min(1).optional() });
 const listSchema = z.object({ status: z.enum(["open", "answered", "closed"]).optional() });
+
+const batchTargetSchema = z.object({
+  subjectKey: z.string().min(1),
+  formOid: z.string().min(1),
+  eventOid: z.string().min(1).optional(),
+  eventRepeatKey: z.number().int().positive().optional(),
+  formRepeatKey: z.number().int().positive().optional(),
+  itemGroupOid: z.string().min(1).optional(),
+  itemGroupRepeatKey: z.number().int().positive().optional(),
+  itemOid: z.string().min(1).optional(),
+  snapshotValue: z.string().nullable().optional(),
+  message: z.string().min(1).optional(),
+});
+const batchSchema = z.object({
+  dryRun: z.boolean().default(false),
+  force: z.boolean().default(false),
+  message: z.string().min(1),
+  executionId: z.uuid().optional(),
+  targets: z.array(batchTargetSchema).min(1).max(500),
+});
 
 function sendQueryError(reply: FastifyReply, err: unknown) {
   if (err instanceof QueryError) {
@@ -180,6 +201,33 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
       closeSchema,
     ),
   );
+
+  // Listing rows → manual queries in bulk (ADR-0015). query.manage is
+  // checked per target's site inside the service: a site-scoped data
+  // manager gets site_forbidden skips for other sites, not a 403.
+  app.post("/studies/:studyId/queries/batch", async (request, reply) => {
+    const { studyId } = request.params as { studyId: string };
+    if (!request.user) return reply.code(401).send({ error: "authentication required" });
+    if (!request.user.isSystemAdmin && !(await isStudyMember(app.db, request.user.id, studyId))) {
+      return reply.code(403).send({ error: "not a member of this study" });
+    }
+    const parsed = batchSchema.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    try {
+      const result = await createQueryBatch(app.db, {
+        studyId,
+        actorId: request.user.id,
+        message: parsed.data.message,
+        targets: parsed.data.targets,
+        dryRun: parsed.data.dryRun,
+        force: parsed.data.force,
+        ...(parsed.data.executionId ? { executionId: parsed.data.executionId } : {}),
+      });
+      return reply.code(parsed.data.dryRun ? 200 : 201).send(result);
+    } catch (err) {
+      return sendQueryError(reply, err);
+    }
+  });
 
   app.get("/studies/:studyId/queries", async (request, reply) => {
     const { studyId } = request.params as { studyId: string };

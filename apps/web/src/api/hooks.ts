@@ -261,6 +261,12 @@ export function useFormData(formInstanceId: string) {
   });
 }
 
+export interface ServerCheckFinding {
+  checkOid: string;
+  message: string;
+  repeatKey: number | null;
+}
+
 export function useWriteItem(formInstanceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -270,7 +276,11 @@ export function useWriteItem(formInstanceId: string) {
       itemOid: string;
       value: string | null;
       reasonForChange?: string;
-    }) => api(`/forms/${formInstanceId}/items`, { method: "PUT", body: JSON.stringify(body) }),
+    }) =>
+      api<{ findings?: ServerCheckFinding[] }>(`/forms/${formInstanceId}/items`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form", formInstanceId] });
       // Writes open/close system queries server-side.
@@ -977,6 +987,7 @@ export function usePublishSnapshot(studyId: string) {
 }
 
 export interface WorkbenchResult {
+  executionId: string;
   columns: string[];
   rows: unknown[][];
   rowCount: number;
@@ -1012,7 +1023,7 @@ export interface WorkbenchExecution {
   snapshotId: string;
   scriptId: string | null;
   scriptVersion: number | null;
-  language: ScriptLanguage;
+  language: ScriptLanguage | "sql";
   content: string;
   status: "succeeded" | "failed";
   stdout: string | null;
@@ -1066,6 +1077,56 @@ export function useExecutions(studyId: string) {
     queryFn: async () =>
       (await api<{ executions: WorkbenchExecution[] }>(`/studies/${studyId}/workbench/executions`))
         .executions,
+  });
+}
+
+export interface QueryBatchTarget {
+  subjectKey: string;
+  formOid: string;
+  eventOid?: string;
+  eventRepeatKey?: number;
+  formRepeatKey?: number;
+  itemGroupOid?: string;
+  itemGroupRepeatKey?: number;
+  itemOid?: string;
+  snapshotValue?: string | null;
+  message?: string;
+}
+
+export interface QueryBatchRowResult {
+  index: number;
+  outcome: "created" | "would_create" | "skipped";
+  queryId?: string;
+  formInstanceId?: string;
+  reason?: string;
+}
+
+export interface QueryBatchResult {
+  batchId: string;
+  results: QueryBatchRowResult[];
+  created: number;
+  skipped: number;
+}
+
+export function useCreateQueryBatch(studyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      dryRun?: boolean;
+      force?: boolean;
+      message: string;
+      executionId?: string;
+      targets: QueryBatchTarget[];
+    }) =>
+      api<QueryBatchResult>(`/studies/${studyId}/queries/batch`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (_result, variables) => {
+      if (!variables.dryRun) {
+        void queryClient.invalidateQueries({ queryKey: ["queries"] });
+      }
+    },
   });
 }
 
