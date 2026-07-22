@@ -54,6 +54,11 @@ one does depends on where it is referenced. See
 is collected, "e" for electronic. In edc-core, CRFs render directly from the
 build's metadata. See [Data capture](guide/data-capture.qmd).
 
+**Cross-form check.** An edit check that reads the subject's other forms by
+qualifying item OIDs with a form OID (`` `FO.DM`.`IT.VISDT` ``). It fires
+on writes to any form it reads, and its query opens on its home form. See
+[Rules and derivations](guide/rules-and-derivations.qmd#cross-form-checks).
+
 **Data-equivalence.** The machine-checked property that a site's custom form
 layout collects exactly the same fields as the sponsor's build, with at
 least the same required flags. See [Site form layouts](guide/site-forms.qmd).
@@ -114,6 +119,12 @@ they travel with the study definition.
 **Lake.** The per-study analytics store (DuckLake: Parquet files cataloged
 in Postgres) that snapshots publish into. The workbench queries the lake,
 never live capture tables. See [Analytics workbench](guide/analytics.qmd).
+
+**Listing.** A workbench query or script whose result rows are
+data-cleaning findings: subjects with missing visits, out-of-window dates,
+values that disagree across forms. Listing rows can be turned into manual
+queries in bulk. See
+[From listings to queries](guide/analytics.qmd#from-listings-to-queries).
 
 **MedDRA.** The Medical Dictionary for Regulatory Activities, the licensed
 terminology used to code adverse events. See
