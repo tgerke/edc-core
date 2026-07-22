@@ -13,6 +13,13 @@
   site permission), one aggregate notification per site, and provenance
   (`queries.source_execution_id` plus the audit event) back to the exact
   execution, script version, and snapshot (E6-08)
+- Cross-form edit checks: a ConditionDef expression can now read the
+  subject's other forms through the referenced form's OID
+  (`` `IT.AESTDT` < `FO.DM`.`IT.VISDT` ``); writes to any referenced
+  form fire and auto-close the check's system queries on its home form,
+  publish-time validation rejects qualified references to items not on
+  the referenced form, and builds without cross-form checks are
+  unaffected (E6-08)
 
 ### Dynamic and linked fields (ADR-0014)
 - Skip logic: `CollectionExceptionConditionOID` on ItemRef and ItemGroupRef

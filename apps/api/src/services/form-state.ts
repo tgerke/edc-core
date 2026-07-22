@@ -11,7 +11,7 @@ import { appendItemValue } from "../db/audit.js";
 import type { Db } from "../db/client.js";
 import { studyMetadataVersions } from "../db/schema/index.js";
 import { CaptureError, type FormContext } from "./capture.js";
-import { type CheckFinding, evaluateFormChecks } from "./checks.js";
+import { type CheckFinding, evaluateCrossFormChecks, evaluateFormChecks } from "./checks.js";
 import type { StudyBuildDefinition } from "./study-builds.js";
 
 /** Reason recorded on automatic derivation rewrites (audit requires one). */
@@ -139,7 +139,9 @@ export async function applyDerivations(
 
 /**
  * The post-write sequence for every accepted data change: derivations first
- * (their results feed the checks), then check/residual query reconciliation.
+ * (their results feed the checks), then check/residual query reconciliation
+ * on the written form, then re-evaluation of the subject's other forms whose
+ * cross-form checks read this one (ADR-0015; no-op without such checks).
  */
 export async function runPostWritePipeline(
   db: Db,
@@ -147,5 +149,7 @@ export async function runPostWritePipeline(
   actorId: string,
 ): Promise<CheckFinding[]> {
   await applyDerivations(db, context, actorId);
-  return evaluateFormChecks(db, context, actorId);
+  const findings = await evaluateFormChecks(db, context, actorId);
+  await evaluateCrossFormChecks(db, context, actorId);
+  return findings;
 }
