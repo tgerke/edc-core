@@ -79,9 +79,10 @@ export const workbenchScriptVersions = pgTable(
   (t) => [uniqueIndex("workbench_script_version_unique").on(t.scriptId, t.version)],
 );
 
-// One row per engine (R/Python) execution: exact content run, pinned
-// snapshot, logs, and outputs — the E6-04 evidence trail for data
-// transformations.
+// One row per workbench execution: exact content run, pinned snapshot, and
+// outcome — the E6-04 evidence trail for data transformations. R/Python
+// runs also persist logs and outputs; SQL results are not stored (rerunning
+// the content against the pinned snapshot reproduces them).
 export const workbenchExecutions = pgTable(
   "workbench_executions",
   {
@@ -94,7 +95,7 @@ export const workbenchExecutions = pgTable(
       .references(() => snapshots.id),
     scriptId: uuid("script_id").references(() => workbenchScripts.id),
     scriptVersion: integer("script_version"),
-    language: text("language", { enum: ["r", "python"] }).notNull(),
+    language: text("language", { enum: ["r", "python", "sql"] }).notNull(),
     content: text("content").notNull(),
     status: text("status", { enum: ["succeeded", "failed"] }).notNull(),
     stdout: text("stdout"),

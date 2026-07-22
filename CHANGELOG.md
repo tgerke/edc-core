@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Data cleaning workbench (ADR-0015)
+- SQL workbench runs are now recorded as execution records like R and
+  Python runs: exact SQL, pinned snapshot, and outcome (including failed
+  runs), with the execution id returned to the caller (E6-04)
+
 ### Dynamic and linked fields (ADR-0014)
 - Skip logic: `CollectionExceptionConditionOID` on ItemRef and ItemGroupRef
   is now enforced at runtime — skipped fields hide in capture, writes to
