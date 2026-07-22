@@ -29,6 +29,17 @@ export class QueryError extends Error {
 
 export type QueryStatus = "open" | "answered" | "closed";
 
+/** Where a listing-driven query came from (ADR-0015): recorded on the row
+ * (sourceExecutionId) and in the query.opened audit event. */
+export interface QueryProvenance {
+  batchId: string;
+  sourceExecutionId?: string;
+  snapshotId?: string;
+  lakeVersion?: string;
+  scriptId?: string;
+  scriptVersion?: number;
+}
+
 /**
  * Manual query lifecycle (E6-08, P11 audit coverage): open → answered →
  * closed, with answered → open when the monitor rejects an answer. Every
@@ -47,6 +58,7 @@ export async function openManualQuery(
     body: string;
     actorId: string;
     context?: QueryNotifyContext;
+    provenance?: QueryProvenance;
   },
 ) {
   return db.transaction(async (tx) => {
@@ -59,6 +71,7 @@ export async function openManualQuery(
         itemGroupRepeatKey: input.itemGroupRepeatKey ?? null,
         itemOid: input.itemOid ?? null,
         origin: "manual",
+        sourceExecutionId: input.provenance?.sourceExecutionId ?? null,
         openedBy: input.actorId,
       })
       .returning();
@@ -72,7 +85,12 @@ export async function openManualQuery(
       action: "query.opened",
       entityType: "query",
       entityId: query.id,
-      newValue: { origin: "manual", itemOid: input.itemOid ?? null, body: input.body },
+      newValue: {
+        origin: "manual",
+        itemOid: input.itemOid ?? null,
+        body: input.body,
+        ...(input.provenance ? { provenance: input.provenance } : {}),
+      },
     });
     // Manual queries only: system queries churn with every edit-check run
     // and would train users to ignore the bell.
@@ -224,6 +242,7 @@ export interface QueryThread {
   itemOid: string | null;
   origin: "manual" | "system";
   checkOid: string | null;
+  sourceExecutionId: string | null;
   status: QueryStatus;
   openedBy: string;
   createdAt: Date;
@@ -270,6 +289,7 @@ const threadColumns = {
   itemOid: queries.itemOid,
   origin: queries.origin,
   checkOid: queries.checkOid,
+  sourceExecutionId: queries.sourceExecutionId,
   status: queries.status,
   openedBy: users.username,
   createdAt: queries.createdAt,

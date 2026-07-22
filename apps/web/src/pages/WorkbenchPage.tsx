@@ -1,10 +1,13 @@
-import { useParams } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  type QueryBatchResult,
+  type QueryBatchTarget,
   type SavedScript,
   type ScriptLanguage,
   type Snapshot,
   type SnapshotTable,
+  useCreateQueryBatch,
   useExecutions,
   usePermissions,
   usePublishSnapshot,
@@ -73,6 +76,389 @@ function ResultsGrid({ columns, rows }: { columns: string[]; rows: unknown[][] }
 
 function editorClass() {
   return "h-44 w-full rounded-xl border border-zinc-300 bg-white p-3 font-mono text-sm shadow-sm focus:border-zinc-400 focus:outline-none";
+}
+
+const BATCH_LIMIT = 500;
+
+/** Auto-map by the lake's key column names; anything else is picked by hand. */
+const AUTO_MAP: [keyof ColumnMapping, string][] = [
+  ["subjectKey", "subject_key"],
+  ["eventOid", "event_oid"],
+  ["eventRepeatKey", "event_repeat_key"],
+  ["formOid", "form_oid"],
+  ["formRepeatKey", "form_repeat_key"],
+  ["itemGroupRepeatKey", "item_group_repeat_key"],
+];
+
+interface ColumnMapping {
+  subjectKey: number;
+  formOid: number;
+  eventOid: number;
+  eventRepeatKey: number;
+  formRepeatKey: number;
+  itemGroupRepeatKey: number;
+}
+
+interface ItemColumnChoice {
+  key: string;
+  resultIdx: number;
+  itemOid: string;
+  itemGroupOid: string;
+  label: string;
+}
+
+const SKIP_REASON_LABEL: Record<string, string> = {
+  subject_not_found: "subject not found",
+  event_not_found: "event not found",
+  form_not_found: "form not found",
+  ambiguous_target: "ambiguous target — map an event column",
+  unknown_item: "item not on this form's build",
+  duplicate_open_query: "already has an open query",
+  value_changed: "value changed since this snapshot",
+  site_forbidden: "outside your site scope",
+  form_locked: "form is locked",
+};
+
+/**
+ * Listing rows → queries (ADR-0015). The dialog maps result columns onto
+ * query targets, previews server-side resolution with dryRun, then creates.
+ * The server re-validates everything against live capture; this flow only
+ * proposes.
+ */
+function CreateQueriesDialog({
+  studyId,
+  snapshot,
+  executionId,
+  columns,
+  rows,
+  onClose,
+}: {
+  studyId: string;
+  snapshot: Snapshot;
+  executionId?: string;
+  columns: string[];
+  rows: unknown[][];
+  onClose: () => void;
+}) {
+  const createBatch = useCreateQueryBatch(studyId);
+  const candidateRows = useMemo(() => rows.slice(0, BATCH_LIMIT), [rows]);
+
+  const [mapping, setMapping] = useState<ColumnMapping>(() => {
+    const auto = Object.fromEntries(
+      AUTO_MAP.map(([field, name]) => [field, columns.indexOf(name)]),
+    ) as unknown as ColumnMapping;
+    return auto;
+  });
+  const itemChoices = useMemo<ItemColumnChoice[]>(() => {
+    const choices: ItemColumnChoice[] = [];
+    for (const table of snapshot.manifest?.tables ?? []) {
+      if (!table.columns || !table.itemGroupOid) continue;
+      for (const col of table.columns) {
+        const resultIdx = columns.indexOf(col.column);
+        if (resultIdx < 0) continue;
+        choices.push({
+          key: `${table.table}.${col.column}`,
+          resultIdx,
+          itemOid: col.itemOid,
+          itemGroupOid: table.itemGroupOid,
+          label: `${col.column} (${table.table})`,
+        });
+      }
+    }
+    return choices;
+  }, [snapshot, columns]);
+  const [itemKey, setItemKey] = useState(() =>
+    itemChoices.length === 1 ? itemChoices[0]?.key : "",
+  );
+  const item = itemChoices.find((c) => c.key === itemKey) ?? null;
+
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(candidateRows.map((_, i) => i)),
+  );
+  const [message, setMessage] = useState("");
+  const [preview, setPreview] = useState<QueryBatchResult | null>(null);
+  const [created, setCreated] = useState<QueryBatchResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const ready = mapping.subjectKey >= 0 && mapping.formOid >= 0 && message.trim().length > 0;
+
+  function buildTargets(): { targets: QueryBatchTarget[]; rowForTarget: number[] } {
+    const targets: QueryBatchTarget[] = [];
+    const rowForTarget: number[] = [];
+    const str = (v: unknown) => (v === null || v === undefined ? undefined : String(v));
+    const num = (v: unknown) => {
+      const n = Number(v);
+      return Number.isInteger(n) && n > 0 ? n : undefined;
+    };
+    for (const [i, row] of candidateRows.entries()) {
+      if (!selected.has(i)) continue;
+      const subjectKey = str(row[mapping.subjectKey]);
+      const formOid = str(row[mapping.formOid]);
+      if (!subjectKey || !formOid) continue;
+      const eventOid = mapping.eventOid >= 0 ? str(row[mapping.eventOid]) : undefined;
+      const eventRepeatKey =
+        mapping.eventRepeatKey >= 0 ? num(row[mapping.eventRepeatKey]) : undefined;
+      const formRepeatKey =
+        mapping.formRepeatKey >= 0 ? num(row[mapping.formRepeatKey]) : undefined;
+      const itemGroupRepeatKey =
+        mapping.itemGroupRepeatKey >= 0 ? num(row[mapping.itemGroupRepeatKey]) : undefined;
+      targets.push({
+        subjectKey,
+        formOid,
+        ...(eventOid ? { eventOid } : {}),
+        ...(eventRepeatKey ? { eventRepeatKey } : {}),
+        ...(formRepeatKey ? { formRepeatKey } : {}),
+        ...(itemGroupRepeatKey ? { itemGroupRepeatKey } : {}),
+        ...(item
+          ? {
+              itemOid: item.itemOid,
+              itemGroupOid: item.itemGroupOid,
+              snapshotValue: row[item.resultIdx] === null ? null : String(row[item.resultIdx]),
+            }
+          : {}),
+      });
+      rowForTarget.push(i);
+    }
+    return { targets, rowForTarget };
+  }
+
+  async function run(dryRun: boolean) {
+    setError(null);
+    const { targets } = buildTargets();
+    if (targets.length === 0) {
+      setError("No usable rows: the subject and form columns must be mapped and non-empty.");
+      return;
+    }
+    try {
+      const result = await createBatch.mutateAsync({
+        dryRun,
+        message: message.trim(),
+        targets,
+        ...(executionId ? { executionId } : {}),
+      });
+      if (dryRun) setPreview(result);
+      else setCreated(result);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const mapSelect = (field: keyof ColumnMapping, label: string, required = false) => (
+    <label className="grid gap-1 text-sm">
+      <span className="text-zinc-600">
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <select
+        className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm"
+        value={mapping[field]}
+        onChange={(e) => {
+          setMapping({ ...mapping, [field]: Number(e.target.value) });
+          setPreview(null);
+        }}
+      >
+        <option value={-1}>—</option>
+        {columns.map((col, i) => (
+          <option key={col} value={i}>
+            {col}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  if (created) {
+    return (
+      <div className="fixed inset-0 z-10 flex items-center justify-center bg-zinc-900/40 p-4">
+        <Card className="w-full max-w-lg p-6">
+          <h3 className="text-base font-semibold text-zinc-900">Queries created</h3>
+          <p className="mt-2 text-sm text-zinc-600">
+            {created.created} created · {created.skipped} skipped.
+          </p>
+          {created.skipped > 0 ? (
+            <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-xs text-zinc-500">
+              {created.results
+                .filter((r) => r.outcome === "skipped")
+                .map((r) => (
+                  <li key={r.index}>
+                    row {r.index + 1}: {SKIP_REASON_LABEL[r.reason ?? ""] ?? r.reason}
+                  </li>
+                ))}
+            </ul>
+          ) : null}
+          <div className="mt-4 flex items-center gap-3">
+            <Link
+              to="/studies/$studyId/queries"
+              params={{ studyId }}
+              className="text-sm font-medium text-zinc-900 underline"
+            >
+              View queries
+            </Link>
+            <Button variant="secondary" onClick={onClose}>
+              Done
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const previewByTarget = new Map((preview?.results ?? []).map((r) => [r.index, r]));
+  const { targets: currentTargets, rowForTarget } = buildTargets();
+  const targetIdxByRow = new Map(rowForTarget.map((rowIdx, targetIdx) => [rowIdx, targetIdx]));
+
+  return (
+    <div className="fixed inset-0 z-10 flex items-center justify-center bg-zinc-900/40 p-4">
+      <Card className="flex max-h-[90vh] w-full max-w-3xl flex-col p-6">
+        <h3 className="text-base font-semibold text-zinc-900">Create queries from listing</h3>
+        <p className="mt-1 text-sm text-zinc-500">
+          Rows are re-checked against live data before anything is created — snapshot v
+          {snapshot.lakeVersion} is the evidence, not the target.
+          {rows.length > BATCH_LIMIT ? ` Showing the first ${BATCH_LIMIT} rows.` : ""}
+        </p>
+        {error ? (
+          <div className="mt-3">
+            <ErrorNote>{error}</ErrorNote>
+          </div>
+        ) : null}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {mapSelect("subjectKey", "Subject column", true)}
+          {mapSelect("formOid", "Form column", true)}
+          {mapSelect("eventOid", "Event column")}
+          {mapSelect("eventRepeatKey", "Event repeat")}
+          {mapSelect("formRepeatKey", "Form repeat")}
+          {mapSelect("itemGroupRepeatKey", "Group repeat")}
+        </div>
+        <label className="mt-3 grid gap-1 text-sm">
+          <span className="text-zinc-600">Item column (targets the query at a field)</span>
+          <select
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm"
+            value={itemKey}
+            onChange={(e) => {
+              setItemKey(e.target.value);
+              setPreview(null);
+            }}
+          >
+            <option value="">form-level query (no item)</option>
+            {itemChoices.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="mt-3 grid gap-1 text-sm">
+          <span className="text-zinc-600">Query message *</span>
+          <textarea
+            className="h-16 rounded-lg border border-zinc-300 p-2 text-sm"
+            placeholder="e.g. Value flagged by the weekly cleaning listing — please verify against source."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+        </label>
+
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-lg border border-zinc-200">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-zinc-50">
+              <tr className="text-left text-zinc-500">
+                <th className="px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={selected.size === candidateRows.length}
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? new Set(candidateRows.map((_, i) => i))
+                          : new Set<number>(),
+                      )
+                    }
+                  />
+                </th>
+                <th className="px-2 py-1.5">subject</th>
+                <th className="px-2 py-1.5">form</th>
+                {item ? <th className="px-2 py-1.5">value</th> : null}
+                {preview ? <th className="px-2 py-1.5">preview</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {candidateRows.map((row, i) => {
+                const targetIdx = targetIdxByRow.get(i);
+                const outcome =
+                  targetIdx !== undefined ? previewByTarget.get(targetIdx) : undefined;
+                return (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: positional listing rows
+                  <tr key={i} className="border-t border-zinc-100">
+                    <td className="px-2 py-1">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(i)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked) next.add(i);
+                          else next.delete(i);
+                          setSelected(next);
+                          setPreview(null);
+                        }}
+                      />
+                    </td>
+                    <td className="px-2 py-1 font-mono">
+                      {mapping.subjectKey >= 0 ? String(row[mapping.subjectKey] ?? "") : "—"}
+                    </td>
+                    <td className="px-2 py-1 font-mono">
+                      {mapping.formOid >= 0 ? String(row[mapping.formOid] ?? "") : "—"}
+                    </td>
+                    {item ? (
+                      <td className="px-2 py-1 font-mono">{String(row[item.resultIdx] ?? "∅")}</td>
+                    ) : null}
+                    {preview ? (
+                      <td className="px-2 py-1">
+                        {outcome ? (
+                          outcome.outcome === "would_create" ? (
+                            <Badge tone="emerald">will create</Badge>
+                          ) : (
+                            <Badge tone="amber">
+                              {SKIP_REASON_LABEL[outcome.reason ?? ""] ?? outcome.reason}
+                            </Badge>
+                          )
+                        ) : (
+                          <span className="text-zinc-300">not selected</span>
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => run(true)}
+            disabled={!ready || createBatch.isPending}
+          >
+            {createBatch.isPending ? "Checking…" : "Preview"}
+          </Button>
+          <Button
+            onClick={() => run(false)}
+            disabled={!ready || !preview || createBatch.isPending}
+            title={preview ? "" : "Preview first"}
+          >
+            Create{" "}
+            {preview ? preview.results.filter((r) => r.outcome === "would_create").length : ""}{" "}
+            queries
+          </Button>
+          <span className="text-xs text-zinc-400">
+            {currentTargets.length} of {candidateRows.length} rows selected and mappable
+          </span>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 function TableCard({
@@ -154,18 +540,21 @@ function SqlPanel({
   studyId,
   snapshot,
   canRun,
+  canManageQueries,
   sql,
   setSql,
 }: {
   studyId: string;
   snapshot: Snapshot;
   canRun: boolean;
+  canManageQueries: boolean;
   sql: string;
   setSql: (sql: string) => void;
 }) {
   const runSql = useRunSql(studyId);
   const [result, setResult] = useState<WorkbenchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   async function run() {
     if (!sql.trim() || runSql.isPending) return;
@@ -209,6 +598,11 @@ function SqlPanel({
             Download CSV
           </Button>
         ) : null}
+        {result && result.rowCount > 0 && canManageQueries ? (
+          <Button variant="secondary" onClick={() => setCreating(true)}>
+            Create queries…
+          </Button>
+        ) : null}
       </div>
       {error ? (
         <div className="mt-3">
@@ -218,11 +612,25 @@ function SqlPanel({
         </div>
       ) : null}
       {result ? <ResultsGrid columns={result.columns} rows={result.rows} /> : null}
+      {creating && result ? (
+        <CreateQueriesDialog
+          studyId={studyId}
+          snapshot={snapshot}
+          executionId={result.executionId}
+          columns={result.columns}
+          rows={result.rows}
+          onClose={() => setCreating(false)}
+        />
+      ) : null}
     </div>
   );
 }
 
-const LANGUAGE_LABEL: Record<ScriptLanguage, string> = { r: "R", python: "Python" };
+const LANGUAGE_LABEL: Record<ScriptLanguage | "sql", string> = {
+  r: "R",
+  python: "Python",
+  sql: "SQL",
+};
 
 const SCRIPT_PLACEHOLDER: Record<ScriptLanguage, string> = {
   r: '# The snapshot is exposed as read-only, version-pinned views.\n# lake_read("table") returns a data.frame; lake_query(sql) runs DuckDB SQL.\nvs <- lake_read("subjects")\nnrow(vs)\nlake_query("SELECT site_oid, count(*) AS n FROM subjects GROUP BY site_oid")',
@@ -234,11 +642,13 @@ function ScriptPanel({
   studyId,
   snapshot,
   canRun,
+  canManageQueries,
   language,
 }: {
   studyId: string;
   snapshot: Snapshot;
   canRun: boolean;
+  canManageQueries: boolean;
   language: ScriptLanguage;
 }) {
   const { data: scripts } = useScripts(studyId);
@@ -251,6 +661,7 @@ function ScriptPanel({
   const [loaded, setLoaded] = useState<SavedScript | null>(null);
   const [execution, setExecution] = useState<WorkbenchExecution | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const languageScripts = (scripts ?? []).filter((s) => s.language === language);
 
@@ -350,6 +761,11 @@ function ScriptPanel({
             Download CSV
           </Button>
         ) : null}
+        {execution?.result && execution.result.rows.length > 0 && canManageQueries ? (
+          <Button variant="secondary" onClick={() => setCreating(true)}>
+            Create queries…
+          </Button>
+        ) : null}
       </div>
       {error ? (
         <div className="mt-3">
@@ -374,6 +790,16 @@ function ScriptPanel({
       ) : null}
       {execution?.result ? (
         <ResultsGrid columns={execution.result.columns} rows={execution.result.rows} />
+      ) : null}
+      {creating && execution?.result ? (
+        <CreateQueriesDialog
+          studyId={studyId}
+          snapshot={snapshot}
+          executionId={execution.id}
+          columns={execution.result.columns}
+          rows={execution.result.rows}
+          onClose={() => setCreating(false)}
+        />
       ) : null}
 
       {executions && executions.length > 0 ? (
@@ -425,6 +851,7 @@ export function WorkbenchPage() {
 
   const canExport = permissions?.includes("export.data") ?? false;
   const canRun = permissions?.includes("analytics.run") ?? false;
+  const canManageQueries = permissions?.includes("query.manage") ?? false;
 
   return (
     <div>
@@ -524,6 +951,7 @@ export function WorkbenchPage() {
                 studyId={studyId}
                 snapshot={selected}
                 canRun={canRun}
+                canManageQueries={canManageQueries}
                 sql={sql}
                 setSql={setSql}
               />
@@ -534,6 +962,7 @@ export function WorkbenchPage() {
                 studyId={studyId}
                 snapshot={selected}
                 canRun={canRun}
+                canManageQueries={canManageQueries}
                 language={mode}
               />
             )}

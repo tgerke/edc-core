@@ -2,9 +2,13 @@ import type { MetaDataVersion } from "@edc-core/odm";
 import { describe, expect, it } from "vitest";
 import {
   buildRuleContext,
+  buildSubjectContext,
   compileCheck,
   compileEditChecks,
+  evaluateFormState,
   expressionSyntaxError,
+  extractFormDependencies,
+  hasCrossFormChecks,
   repeatingGroupOids,
   runChecks,
   runChecksOverRows,
@@ -214,5 +218,164 @@ describe("runChecksOverRows", () => {
 
   it("repeatingGroupOids reflects the Repeating attribute", () => {
     expect(repeatingGroupOids(repeatMdv)).toEqual(new Set(["IG.VS"]));
+  });
+});
+
+// --- Cross-form checks (ADR-0015) ---
+
+const crossFormMdv: MetaDataVersion = {
+  oid: "MDV.XF",
+  studyEventDefs: [],
+  itemGroupDefs: [
+    {
+      oid: "FO.AE",
+      name: "Adverse Events",
+      type: "Form",
+      itemRefs: [],
+      itemGroupRefs: [{ itemGroupOid: "IG.AE" }],
+    },
+    {
+      oid: "IG.AE",
+      name: "AE entries",
+      repeating: "Yes",
+      itemRefs: [{ itemOid: "IT.AESTDT" }, { itemOid: "IT.AETERM" }],
+      itemGroupRefs: [],
+    },
+    {
+      oid: "FO.DM",
+      name: "Demographics",
+      type: "Form",
+      itemRefs: [],
+      itemGroupRefs: [{ itemGroupOid: "IG.DM" }],
+    },
+    {
+      oid: "IG.DM",
+      name: "Demographics section",
+      itemRefs: [{ itemOid: "IT.VISDT" }, { itemOid: "IT.SEX" }],
+      itemGroupRefs: [],
+    },
+  ],
+  itemDefs: [
+    { oid: "IT.AESTDT", name: "AE onset date", dataType: "date" },
+    { oid: "IT.AETERM", name: "AE term", dataType: "text" },
+    { oid: "IT.VISDT", name: "Visit date", dataType: "date" },
+    { oid: "IT.SEX", name: "Sex", dataType: "text" },
+  ],
+  codeLists: [],
+  conditionDefs: [
+    {
+      oid: "CHECK.AE_BEFORE_VISIT",
+      name: "AE onset before the visit",
+      description: [{ lang: "en", text: "AE onset date is before the screening visit date" }],
+      formalExpressions: [
+        {
+          context: "jsonata",
+          code: "`IT.AESTDT` != null and `IT.AESTDT` < `FO.DM`.`IT.VISDT`",
+        },
+      ],
+    },
+    {
+      oid: "CHECK.LOCAL_ONLY",
+      name: "Local check",
+      formalExpressions: [{ context: "jsonata", code: "`IT.AETERM` = ''" }],
+    },
+  ],
+  methodDefs: [],
+};
+
+describe("extractFormDependencies", () => {
+  it("maps each check to the form OIDs its expression reads", () => {
+    const deps = extractFormDependencies(crossFormMdv);
+    expect(deps.get("CHECK.AE_BEFORE_VISIT")).toEqual(new Set(["FO.DM"]));
+    expect(deps.get("CHECK.LOCAL_ONLY")).toEqual(new Set());
+    expect(hasCrossFormChecks(crossFormMdv)).toBe(true);
+    expect(hasCrossFormChecks(mdv)).toBe(false);
+  });
+});
+
+describe("buildSubjectContext", () => {
+  it("shapes instances with metadata keys, coerced base values, and occurrence arrays", () => {
+    const context = buildSubjectContext(crossFormMdv, [
+      {
+        formOid: "FO.DM",
+        eventOid: "SE.SCR",
+        eventRepeatKey: 1,
+        formRepeatKey: 1,
+        rows: [
+          {
+            itemGroupOid: "IG.DM",
+            itemGroupRepeatKey: 1,
+            itemOid: "IT.VISDT",
+            value: "2026-06-01",
+          },
+        ],
+      },
+      {
+        formOid: "FO.AE",
+        eventOid: "SE.SCR",
+        eventRepeatKey: 1,
+        formRepeatKey: 1,
+        rows: [
+          {
+            itemGroupOid: "IG.AE",
+            itemGroupRepeatKey: 2,
+            itemOid: "IT.AESTDT",
+            value: "2026-06-10",
+          },
+          {
+            itemGroupOid: "IG.AE",
+            itemGroupRepeatKey: 1,
+            itemOid: "IT.AESTDT",
+            value: "2026-05-20",
+          },
+        ],
+      },
+    ]);
+    expect(context["FO.DM"]).toEqual([
+      {
+        _event_oid: "SE.SCR",
+        _event_repeat_key: 1,
+        _form_repeat_key: 1,
+        "IT.VISDT": "2026-06-01",
+      },
+    ]);
+    expect(context["FO.AE"]?.[0]?.["IG.AE"]).toEqual([
+      { _repeat_key: 1, "IT.AESTDT": "2026-05-20" },
+      { _repeat_key: 2, "IT.AESTDT": "2026-06-10" },
+    ]);
+  });
+});
+
+describe("cross-form check evaluation", () => {
+  const aeRows = [
+    { itemGroupOid: "IG.AE", itemGroupRepeatKey: 1, itemOid: "IT.AESTDT", value: "2026-05-20" },
+    { itemGroupOid: "IG.AE", itemGroupRepeatKey: 2, itemOid: "IT.AESTDT", value: "2026-06-10" },
+  ];
+  const subjectContext = buildSubjectContext(crossFormMdv, [
+    {
+      formOid: "FO.DM",
+      eventOid: "SE.SCR",
+      eventRepeatKey: 1,
+      formRepeatKey: 1,
+      rows: [
+        { itemGroupOid: "IG.DM", itemGroupRepeatKey: 1, itemOid: "IT.VISDT", value: "2026-06-01" },
+      ],
+    },
+  ]);
+
+  it("fires per occurrence against the referenced form's values", async () => {
+    const state = await evaluateFormState(crossFormMdv, aeRows, subjectContext);
+    expect(state.findings).toEqual([
+      {
+        checkOid: "CHECK.AE_BEFORE_VISIT",
+        message: "AE onset date is before the screening visit date",
+        repeatKey: 1,
+      },
+    ]);
+  });
+
+  it("stays silent without a subject context (single-form behavior unchanged)", async () => {
+    const state = await evaluateFormState(crossFormMdv, aeRows);
+    expect(state.findings).toEqual([]);
   });
 });
