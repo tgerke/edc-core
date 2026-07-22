@@ -12,6 +12,11 @@ They come from two places:
 - **Manual queries:** opened by data managers or monitors against any form or
   item, answered by site staff, and closed (or reopened) by the reviewer.
 
+Manual queries can also be opened in bulk from a workbench listing: a
+cleaning query's result rows become queries, each carrying provenance back
+to the exact execution and snapshot that flagged it. See
+[From listings to queries](analytics.qmd#from-listings-to-queries).
+
 Each study has a queries dashboard showing every query with status, origin,
 subject, and the latest message:
 

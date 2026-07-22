@@ -26,6 +26,7 @@ DEMO-001's vitals, and `demo-inv`, who can answer it, finds it waiting:
 | Event | Who is notified |
 |---|---|
 | Manual query opened | Site staff who can answer it (`query.answer`, at that site) |
+| Queries created from a [workbench listing](analytics.qmd#from-listings-to-queries) | The same site staff, but one summary per site per batch, not one entry per query |
 | Query answered | Reviewers who manage queries (`query.manage`) |
 | Form reaches complete or verified | Its potential signers (`data.sign`) |
 | Form overdue (optional, see below) | Site data-entry staff |
@@ -38,7 +39,10 @@ Two rules keep the volume honest. Notifications are never sent to the
 person who caused the event. And **system queries from edit checks raise
 no notifications at all**: they open and close with the data during entry,
 and notifying anyone about self-resolving checks would train everyone to
-ignore the bell.
+ignore the bell. That holds for
+[cross-form checks](rules-and-derivations.qmd#cross-form-checks) too: a
+save on one form can open a system query on another, and it waits on that
+form and the queries dashboard rather than in anyone's inbox.
 
 ## Following the demo example
 

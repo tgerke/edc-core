@@ -58,7 +58,11 @@ Two deliberate boundaries:
 
 CRFs render directly from the study build's metadata: field types, required
 flags, units, and codelists all come from the ODM item definitions. Failing
-edit checks surface immediately as you type, before anything is saved.
+edit checks surface immediately as you type, before anything is saved. The
+exception is a [cross-form
+check](rules-and-derivations.qmd#cross-form-checks), which compares against
+the subject's other forms: the browser never loads those, so its findings
+arrive with the save response, marked **checked on save**.
 
 ![](../images/form-entry.png){.screenshot fig-alt="Metadata-driven CRF with edit checks and query panel"}
 
@@ -144,5 +148,8 @@ When a saved value fails an edit check, edc-core opens a **system query** on
 that item automatically. The query thread lives on the form (visible in the
 screenshot above) and in the study-wide queries dashboard. Correct the data
 and the system query closes itself; the resolution is audited like everything
-else. Manual queries work the same way; see
+else. A [cross-form check](rules-and-derivations.qmd#cross-form-checks)
+follows the same mechanics with one twist: its query opens on the check's
+home form, so a save on a different form can open or close a query here.
+Manual queries work the same way; see
 [Review workflows](review.qmd).

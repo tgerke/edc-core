@@ -33,7 +33,9 @@ entry and `demo-dm` for review.
 5. [Medical coding](guide/medical-coding.qmd): why "asprin 81mg" needs a
    dictionary term, and the queue where that happens.
 6. [Analytics workbench](guide/analytics.qmd): the SQL section is enough to
-   answer "how clean is my study today" yourself.
+   answer "how clean is my study today" yourself, and
+   [From listings to queries](guide/analytics.qmd#from-listings-to-queries)
+   turns the answer into site queries.
 
 ## Study builders (advanced data managers) {#study-builders}
 
@@ -43,8 +45,9 @@ versioned ODM builds, rules, and what happens after go-live. Work as
 
 1. [Study builds](guide/study-builds.qmd): the versioned, immutable build
    model everything else renders from, and the three ways to author one.
-2. [Rules and derivations](guide/rules-and-derivations.qmd): edit checks,
-   skip logic, and computed values, with a JSONata primer.
+2. [Rules and derivations](guide/rules-and-derivations.qmd): edit checks
+   (single-form and cross-form), skip logic, and computed values, with a
+   JSONata primer.
 3. [Why protocol-first?](guide/why-protocol-first.qmd) and
    [Protocol import](guide/protocol-import.qmd): deriving a build from a
    USDM protocol package instead of hand-built forms.
