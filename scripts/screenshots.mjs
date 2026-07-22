@@ -224,8 +224,7 @@ DEMO-003,SITE.001,SCREENING,DIABP,76,2026-07-02
 
 // Manual query on DEMO-001's completed vitals form (queries / notifications-
 // bell): opened by demo-dm, so demo-inv and demo-coord get the notification.
-const MANUAL_QUERY_BODY =
-  "Please verify the diastolic value against the source document.";
+const MANUAL_QUERY_BODY = "Please verify the diastolic value against the source document.";
 
 // The documented workbench examples (site/guide/analytics.qmd) against the
 // demo snapshot's ig_vs table.
@@ -1173,7 +1172,10 @@ async function main() {
         context: demoAdminCtx,
         async run(page) {
           await page.goto(`/studies/${usdmStudyId}/protocol/1`);
-          await page.getByRole("button", { name: /Publish/ }).first().waitFor();
+          await page
+            .getByRole("button", { name: /Publish/ })
+            .first()
+            .waitFor();
         },
       },
       {
