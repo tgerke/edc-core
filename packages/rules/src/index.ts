@@ -13,7 +13,7 @@
  * side-effect-free and identical in the browser and on the server; the
  * server remains the source of truth.
  */
-import { displayText, type MetaDataVersion } from "@edc-core/odm";
+import { displayText, listForms, type MetaDataVersion } from "@edc-core/odm";
 import jsonata from "jsonata";
 
 /** Item values visible to an edit check, keyed by ItemDef OID. */
@@ -241,9 +241,14 @@ async function checksOverBuckets(
   mdv: MetaDataVersion,
   base: Record<string, string | null>,
   byOccurrence: Map<number, Record<string, string | null>>,
+  subjectContext?: SubjectContext,
 ): Promise<OccurrenceFinding[]> {
+  // Cross-form bindings sit under form-OID keys; local item values win on a
+  // (conventionally impossible) key collision.
+  const withSubject = (context: RuleContext): RuleContext =>
+    subjectContext ? ({ ...subjectContext, ...context } as unknown as RuleContext) : context;
   const findings: OccurrenceFinding[] = [];
-  const baseResults = await runChecks(checks, buildRuleContext(mdv, base));
+  const baseResults = await runChecks(checks, withSubject(buildRuleContext(mdv, base)));
   const firedAtFormLevel = new Set<string>();
   for (const [oid, result] of baseResults) {
     if (result.fired) {
@@ -254,7 +259,7 @@ async function checksOverBuckets(
 
   for (const key of [...byOccurrence.keys()].sort((a, b) => a - b)) {
     const context = buildRuleContext(mdv, { ...base, ...byOccurrence.get(key) });
-    const results = await runChecks(checks, context);
+    const results = await runChecks(checks, withSubject(context));
     for (const [oid, result] of results) {
       if (result.fired && !firedAtFormLevel.has(oid)) {
         findings.push({ checkOid: oid, message: result.message, repeatKey: key });
@@ -262,6 +267,122 @@ async function checksOverBuckets(
     }
   }
   return findings;
+}
+
+// ---------------------------------------------------------------------------
+// Cross-form checks (ADR-0015). An edit-check expression may read other
+// forms of the same subject through the referenced form's OID:
+//
+//   `IT.AESTDT` != null and `IT.AESTDT` < `FO.DM`.`IT.VISDT`
+//
+// Unqualified item OIDs keep their meaning (the form under evaluation), so
+// existing single-form checks are untouched. Each referenced form OID is
+// bound to an ARRAY of per-instance objects; jsonata sequence semantics make
+// `` `FO.DM`.`IT.VISDT` `` a scalar for a single instance and a sequence for
+// repeating events/forms, so comparisons, `in`, and predicates all work.
+// Skip logic and derivations stay single-form by design.
+// ---------------------------------------------------------------------------
+
+/** One live form instance's values for the same subject. */
+export interface SubjectFormInstanceRows {
+  formOid: string;
+  eventOid: string;
+  eventRepeatKey: number;
+  formRepeatKey: number;
+  rows: ItemValueRow[];
+}
+
+/** Cross-form bindings: form OID → per-instance objects (see above). */
+export type SubjectContext = Readonly<Record<string, Record<string, unknown>[]>>;
+
+/**
+ * Which OTHER forms each edit check reads: checkOid → referenced form OIDs
+ * (backtick-quoted in the expression). Empty set = single-form check; builds
+ * without cross-form checks pay nothing. Callers invert this to know which
+ * checks re-evaluate when a given form changes.
+ */
+export function extractFormDependencies(mdv: MetaDataVersion): Map<string, Set<string>> {
+  const formOids = listForms(mdv).map((f) => f.oid);
+  const collectionExceptionOids = collectionExceptionConditionOids(mdv);
+  const deps = new Map<string, Set<string>>();
+  for (const condition of mdv.conditionDefs) {
+    if (collectionExceptionOids.has(condition.oid)) continue;
+    const code = jsonataCode(condition);
+    if (code === undefined) continue;
+    deps.set(condition.oid, new Set(formOids.filter((oid) => code.includes(`\`${oid}\``))));
+  }
+  return deps;
+}
+
+/** True when any check in the build reads another form. */
+export function hasCrossFormChecks(mdv: MetaDataVersion): boolean {
+  for (const forms of extractFormDependencies(mdv).values()) {
+    if (forms.size > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Build the cross-form bindings from live instance rows. Instance objects
+ * carry `_event_oid`, `_event_repeat_key`, `_form_repeat_key`, the coerced
+ * base item values, and one array of occurrence objects (`_repeat_key` +
+ * coerced values) per repeating group.
+ */
+export function buildSubjectContext(
+  mdv: MetaDataVersion,
+  instances: SubjectFormInstanceRows[],
+): SubjectContext {
+  const repeating = repeatingGroupOids(mdv);
+  const context: Record<string, Record<string, unknown>[]> = {};
+  const sorted = [...instances].sort(
+    (a, b) =>
+      a.formOid.localeCompare(b.formOid) ||
+      a.eventOid.localeCompare(b.eventOid) ||
+      a.eventRepeatKey - b.eventRepeatKey ||
+      a.formRepeatKey - b.formRepeatKey,
+  );
+  for (const instance of sorted) {
+    const baseValues: Record<string, string | null> = {};
+    const groupValues = new Map<string, Map<number, Record<string, string | null>>>();
+    for (const row of instance.rows) {
+      if (repeating.has(row.itemGroupOid)) {
+        let perKey = groupValues.get(row.itemGroupOid);
+        if (!perKey) {
+          perKey = new Map();
+          groupValues.set(row.itemGroupOid, perKey);
+        }
+        let occurrence = perKey.get(row.itemGroupRepeatKey);
+        if (!occurrence) {
+          occurrence = {};
+          perKey.set(row.itemGroupRepeatKey, occurrence);
+        }
+        occurrence[row.itemOid] = row.value;
+      } else {
+        baseValues[row.itemOid] = row.value;
+      }
+    }
+    const entry: Record<string, unknown> = {
+      _event_oid: instance.eventOid,
+      _event_repeat_key: instance.eventRepeatKey,
+      _form_repeat_key: instance.formRepeatKey,
+      ...buildRuleContext(mdv, baseValues),
+    };
+    for (const [groupOid, perKey] of groupValues) {
+      entry[groupOid] = [...perKey.keys()]
+        .sort((a, b) => a - b)
+        .map((key) => ({
+          _repeat_key: key,
+          ...buildRuleContext(mdv, perKey.get(key) ?? {}),
+        }));
+    }
+    let list = context[instance.formOid];
+    if (!list) {
+      list = [];
+      context[instance.formOid] = list;
+    }
+    list.push(entry as Record<string, unknown>);
+  }
+  return context;
 }
 
 // ---------------------------------------------------------------------------
@@ -579,6 +700,7 @@ export function skipResidualMessages(mdv: MetaDataVersion): Map<string, string> 
 export async function evaluateFormState(
   mdv: MetaDataVersion,
   rows: ItemValueRow[],
+  subjectContext?: SubjectContext,
 ): Promise<FormStateResult> {
   const repeating = repeatingGroupOids(mdv);
   const { base, byOccurrence, occurrencesByGroup } = bucketRows(mdv, rows);
@@ -763,7 +885,15 @@ export async function evaluateFormState(
   }
 
   // 5. Edit checks over the final contexts: skipped fields cannot fire them.
-  const findings = await checksOverBuckets(compileEditChecks(mdv), mdv, base, byOccurrence);
+  //    Cross-form bindings (ADR-0015) apply to checks only — skip logic and
+  //    derivations stay single-form.
+  const findings = await checksOverBuckets(
+    compileEditChecks(mdv),
+    mdv,
+    base,
+    byOccurrence,
+    subjectContext,
+  );
 
   return { findings, derived, skippedFields, excludedOptions, residuals };
 }
