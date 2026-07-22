@@ -105,7 +105,8 @@ on one host (shared Keycloak SSO, one Postgres, one Caddy), start from
 - Study builds from CDISC ODM v2.0 (file, API, or visual builder), versioned
   and immutable, with mid-study amendment migration (build diff, impact
   analysis, batch re-pointing of unsigned forms)
-- Metadata-driven data capture with JSONata edit checks, dynamic fields
+- Metadata-driven data capture with JSONata edit checks (single-form and
+  cross-form — ADR-0015), dynamic fields
   (skip logic, dependent code lists, server-computed derived values —
   ADR-0014), repeating item groups, a server-enforced entry workflow (in
   progress → complete → verified → signed → locked), and an audited subject
@@ -128,7 +129,10 @@ on one host (shared Keycloak SSO, one Postgres, one Caddy), start from
 - Access evidence: structured access log with review UI, session binding to
   the issuing client, and security anomaly detection (failed-login bursts,
   lockouts, binding violations) with audited acknowledgement
-- Per-study DuckLake snapshots; sandboxed SQL + R + Python workbench; Dataset-JSON v1.1 /
+- Per-study DuckLake snapshots; sandboxed SQL + R + Python workbench; batch
+  query creation from listing rows (dry-run preview, per-row skip reasons,
+  provenance from each query back to the execution and snapshot that raised
+  it — ADR-0015); Dataset-JSON v1.1 /
   CSV / Parquet exports; per-subject PDF casebooks; self-contained study archives
 - Per-release validation pack; deployment guide (TLS, encryption, backups,
   GDPR/HIPAA posture); CDASH-aligned demo study with one-command seed
