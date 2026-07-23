@@ -1,0 +1,92 @@
+---
+title: "RTSM integration"
+---
+
+
+edc-core does not randomize subjects: randomization and trial supply
+management (RTSM/IRT) is deliberately an external system. What edc-core
+provides is the receiving end: the RTSM posts each subject's treatment-arm
+assignment to a study-scoped endpoint, and the arm lands on an ordinary
+eCRF item through the same audited write path as typed data. That one
+design decision (the same one lab import makes) means the audit trail,
+edit checks, blinding, signatures, casebooks, and the analytics lake all
+handle the arm correctly without special cases. The full rationale is in
+ADR-0010.
+
+## Setting up
+
+Both steps live in the study page's *RTSM integration* panel and require
+the `study.manage` permission.
+
+**1. Point the intake at an item.** The configuration names the event,
+form, item group, and item OID where the arm lands, typically a
+dedicated randomization form with a text item for the arm. OIDs are
+validated against the latest study build when you save, and every change
+is audited with the full before/after. For a blinded trial, mark the arm
+item `edc:Blinded="Yes"` in the build: masking then applies everywhere
+by construction (see the [blinding guide](/edc-core/guide/blinding/)).
+
+![The RTSM integration panel: intake configuration pointing at the arm item, API-key management, and the transfer log with an applied assignment](../../../assets/screenshots/rtsm-panel.png)
+
+**2. Mint an API key.** The RTSM authenticates with a study-scoped
+bearer token (`edcrtsm_…`). The raw token is shown exactly once at mint
+(edc-core stores only a hash) and can be revoked at any time. Keys are
+bound to a per-study service account that holds the `rtsm_agent` role;
+the key can reach exactly one route (the assignment POST) and can never
+read data, so the service account's `data.unblind` grant is write-only
+in practice.
+
+## Posting an assignment
+
+```bash
+curl -X POST https://your-edc/api/studies/<studyId>/rtsm/assignments \
+  -H "Authorization: Bearer edcrtsm_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subjectKey": "S-101",
+    "arm": "ARM-B",
+    "randomizationId": "R-2026-0042",
+    "assignedAt": "2026-07-11T09:30:00Z",
+    "strata": { "region": "US" },
+    "source": "vendor-rtsm"
+  }'
+```
+
+`subjectKey`, `arm`, and `randomizationId` are required.
+`randomizationId` is the RTSM's own transaction identifier, recorded for
+reconciliation. `strata` is stored opaquely in v1 (masked together with
+the arm); it is not written to items.
+
+Outcomes map to HTTP statuses the RTSM can branch on:
+
+| Status | Outcome | Meaning |
+|---|---|---|
+| 201 | `applied` | Arm written; form auto-created and started if needed |
+| 200 | `duplicate` | Identical assignment already recorded; replays are safe |
+| 409 | `conflict` | A *different* value is already recorded and nothing was written; resolve in the EDC |
+| 422 | `rejected` | Not applied: unknown or withdrawn/screen-failed subject, intake disabled/unconfigured, or an invalid arm value |
+
+Assignments **never overwrite**, and no response ever echoes the arm.
+Unknown subjects are rejected rather than auto-enrolled (enrollment is a
+site act), and the rejected event (below) is the discrepancy signal for
+reconciliation. Withdrawn and screen-failed subjects are rejected too:
+a subject who is out of the study must not silently accept an
+assignment, and [reinstatement](/edc-core/guide/data-capture/#subject-lifecycle) is
+the correction path if the disposition is wrong.
+
+## The transfer record
+
+Every POST, including rejects, appends a row to an immutable events log:
+the payload as received, the outcome, the reason, and a link to the
+written value. The panel shows recent events; for viewers without a
+study-wide `data.unblind` grant the arm and strata are masked. This log
+is the transfer documentation and reconciliation basis ICH E6(R3) §4.2.5
+expects for data moving between computerised systems, and it deliberately
+stays out of the analytics lake.
+
+## Limits
+
+- One assignment item per study, on repeat key 1; studies randomizing
+  inside repeating events are not supported.
+- No outbound sync: edc-core does not push enrollments to the RTSM.
+- No emergency unblinding workflow; that stays in the RTSM.

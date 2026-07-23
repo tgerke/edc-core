@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Docs screenshot generator — reproduces every site/images/*.png against the
+// Docs screenshot generator — reproduces every site/src/assets/screenshots/*.png against the
 // dev stack, so a UI refresh is one command instead of an ad-hoc Playwright
 // session. See CONTRIBUTING.md ("Refreshing docs screenshots") for the recipe.
 //
@@ -48,7 +48,7 @@ function flagValue(name) {
 const only = flagValue("--only")
   ?.split(",")
   .map((s) => s.trim());
-const outDir = path.resolve(root, flagValue("--out") ?? "site/images");
+const outDir = path.resolve(root, flagValue("--out") ?? "site/src/assets/screenshots");
 
 // ---------------------------------------------------------------------------
 // Reference states (recovered from the previous captures)
@@ -226,7 +226,7 @@ DEMO-003,SITE.001,SCREENING,DIABP,76,2026-07-02
 // bell): opened by demo-dm, so demo-inv and demo-coord get the notification.
 const MANUAL_QUERY_BODY = "Please verify the diastolic value against the source document.";
 
-// The documented workbench examples (site/guide/analytics.qmd) against the
+// The documented workbench examples (site/src/content/docs/guide/analytics.md) against the
 // demo snapshot's ig_vs table.
 const SQL_EXAMPLE = `SELECT subject_key, it_vs_sysbp, it_vs_diabp,
        it_vs_sysbp - it_vs_diabp AS pulse_pressure
