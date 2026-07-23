@@ -16,9 +16,9 @@ coverage/
 apps/api/data/
 # Generated release artifact (pnpm validation-pack)
 validation-pack/
-# Quarto docs site build output
-site/_site/
-site/.quarto/
+# Astro docs site build output and generated types
+site/dist/
+site/.astro/
 __pycache__/
 
 # terraform (infra/terraform/*): state is local and contains secrets

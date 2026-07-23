@@ -1,0 +1,184 @@
+---
+title: edc-core
+description: A modern, open-source Electronic Data Capture system for clinical research
+template: splash
+tableOfContents: false
+hero:
+  title: Electronic Data Capture, built like modern software
+  tagline: >-
+    Commercial EDC platforms are expensive, closed, and dated. The open-source
+    alternatives run on legacy stacks. edc-core is a from-scratch EDC built on
+    modern web technology, an analytics-native data architecture, and CDISC
+    standards, designed so that regulatory expectations (21 CFR Part 11,
+    ICH E6(R3)) are structural properties of the system rather than
+    afterthoughts.
+  actions:
+    - text: Get started
+      link: /edc-core/installation/
+      icon: right-arrow
+      variant: primary
+    - text: Five-minute tour
+      link: /edc-core/tour/
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/tgerke/edc-core
+      icon: github
+      variant: minimal
+---
+
+import { Image } from "astro:assets";
+import workbench from "../../assets/screenshots/workbench-sql.png";
+
+<div class="landing">
+
+<figure class="landing-shot">
+  <Image src={workbench} alt="The analytics workbench: a SQL editor over an immutable study snapshot, with a results grid" />
+  <figcaption>
+    The analytics workbench: self-service SQL over an immutable, version-pinned
+    study snapshot.
+  </figcaption>
+</figure>
+
+<section>
+
+<h2 id="why-edc-core">Why edc-core</h2>
+
+<div class="landing-grid">
+  <div class="landing-card">
+    <h3>No vendor lock-in</h3>
+    <p>
+      AGPL-3.0 licensed: nobody can take this code and sell it back to you as
+      a closed platform.
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Programmable study builds</h3>
+    <p>
+      First-class CDISC ODM v2.0 import/export means study builds can be
+      file-driven, code-driven, and LLM-assisted. The visual builder writes
+      through exactly the same versioned-metadata API.
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Self-service analytics, in the EDC</h3>
+    <p>
+      Data managers query published study snapshots with real SQL, R, and
+      Python, not a bespoke, vendor-locked reporting layer. Every execution is
+      read-only, sandboxed, version-pinned, and audited. And a listing's rows
+      can <a href="/edc-core/guide/analytics/#from-listings-to-queries">become
+      site queries in bulk</a>, so the workbench doubles as the study's
+      data-cleaning surface.
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Compliance by construction</h3>
+    <p>
+      Append-only audit trails enforced at the database level, Part 11
+      e-signatures bound to record versions, an audit-trail review UI, and a
+      validation pack shipped with every release.
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Standards as the interface</h3>
+    <p>
+      ODM v2.0 (XML + JSON) for metadata, Dataset-JSON v1.1 for data exchange,
+      CDASH-aligned demo CRFs, and a self-contained study archive that
+      outlives the running system.
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Boring to operate</h3>
+    <p>
+      The supported production shape is one compose file on a single VM:
+      pinned release images, automatic TLS, paired database-and-lake backups,
+      and cloud-init or Terraform recipes for the major clouds. See
+      <a href="/edc-core/deployment/">Deployment</a>.
+    </p>
+  </div>
+</div>
+
+</section>
+
+<section>
+
+## Where to start
+
+<div class="landing-grid landing-grid--4">
+  <a class="landing-card" href="/edc-core/installation/">
+    <h3>Installation</h3>
+    <p>
+      Run the full stack locally with Podman or Docker, or deploy the
+      published container images.
+    </p>
+  </a>
+  <a class="landing-card" href="/edc-core/tour/">
+    <h3>Five-minute tour</h3>
+    <p>
+      Seed the demo study and walk the whole lifecycle: entry → query →
+      verify → sign → snapshot → analyze.
+    </p>
+  </a>
+  <a class="landing-card" href="/edc-core/guide/study-builds/">
+    <h3>User guide</h3>
+    <p>
+      Study builds, data capture, review workflows, and the analytics
+      workbench.
+    </p>
+  </a>
+  <a class="landing-card" href="/edc-core/compliance/">
+    <h3>Compliance</h3>
+    <p>
+      How edc-core maps to 21 CFR Part 11 and ICH E6(R3), and what the
+      validation pack contains.
+    </p>
+  </a>
+</div>
+
+</section>
+
+<section>
+
+## Start here by role
+
+<div class="landing-grid landing-grid--4">
+  <a class="landing-card" href="/edc-core/start-here/#entry-level">
+    <h3>New to EDC</h3>
+    <p>
+      Entry-level data managers: vocabulary first, then a guided loop through
+      entry, review, coding, and analytics.
+    </p>
+  </a>
+  <a class="landing-card" href="/edc-core/start-here/#study-builders">
+    <h3>Study builders</h3>
+    <p>
+      Experienced data managers: versioned builds, protocol import, site
+      layouts, and integrations.
+    </p>
+  </a>
+  <a class="landing-card" href="/edc-core/start-here/#leadership">
+    <h3>CRO and sponsor leadership</h3>
+    <p>
+      Compliance posture, oversight evidence, and the exit path, without
+      touching a form.
+    </p>
+  </a>
+  <a class="landing-card" href="/edc-core/start-here/#clinical-ops">
+    <h3>Clinical operations</h3>
+    <p>
+      Site-facing workflows: subjects, entry, queries, and signatures.
+    </p>
+  </a>
+</div>
+
+</section>
+
+<div class="landing-status">
+  <strong>Status: alpha.</strong> The full workflow (protocol-first or
+  forms-first build, capture, clean, code, sign, snapshot, analyze with SQL,
+  R, and Python, export) is released as
+  <a href="https://github.com/tgerke/edc-core/releases/tag/v0.5.0">v0.5.0</a>,
+  but edc-core has not yet been used in a production study. Follow progress
+  on <a href="https://github.com/tgerke/edc-core">GitHub</a>.
+</div>
+
+</div>

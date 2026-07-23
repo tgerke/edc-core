@@ -23,19 +23,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
+      - uses: pnpm/action-setup@v4
+        # version is taken from packageManager in package.json
 
-      - name: Render site
-        run: quarto render site
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build site
+        run: pnpm --filter site build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site/_site
+          path: site/dist
 
   deploy:
     needs: build
+    # workflow_dispatch from a branch validates the build without publishing
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
