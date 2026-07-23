@@ -46,7 +46,7 @@ tests skip locally (and fail on CI).
 
 ## Refreshing docs screenshots
 
-The screenshots in `site/images/` are generated, not hand-captured. After a
+The screenshots in `site/src/assets/screenshots/` are generated, not hand-captured. After a
 UI change that shows up in the docs, regenerate them:
 
 ```sh
@@ -72,7 +72,7 @@ unpublished protocol import), then captures every page at 1440x900 with
 The state setup is idempotent, so the script can be re-run against a stack it
 already touched — useful with `--only name,name` to redo a subset (names are
 the PNG basenames) and `--out dir` to write somewhere other than
-`site/images/`. But the pages show whatever is in the database, so canonical
+`site/src/assets/screenshots/`. But the pages show whatever is in the database, so canonical
 screenshots want the fresh stack above; leftover dev data will appear in
 list pages.
 

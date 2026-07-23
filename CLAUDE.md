@@ -5,7 +5,7 @@
 - **Regulatory claims are verified against source text, never cited from model
   memory.** Any statement attributing a requirement or position to 21 CFR
   Part 11, ICH E6(R3), GAMP 5, CDISC standards, or similar — in
-  `docs/regulatory-traceability.md`, `site/compliance.qmd`, ADRs, the
+  `docs/regulatory-traceability.md`, `site/src/content/docs/compliance.md`, ADRs, the
   validation pack, or PR descriptions — must be checked against the
   authoritative full text before it lands. Maintainers keep a local mirror at
   `~/claude-clinical-skills/sources/` (integrity-checked via its
