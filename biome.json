@@ -7,8 +7,9 @@
       "!**/node_modules",
       "!**/coverage",
       "!validation-pack",
-      "!site/_site",
-      "!site/.quarto"
+      "!.claude",
+      "!site/.astro",
+      "!**/*.astro"
     ]
   },
   "formatter": {
