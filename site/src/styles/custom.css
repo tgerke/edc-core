@@ -144,6 +144,12 @@
   gap: 1rem;
 }
 
+/* Starlight's content sibling-spacing rule adds margin-top to every card
+   after the first, skewing the grid rows; the gap is the only spacing here. */
+.landing-grid > .landing-card {
+  margin-top: 0 !important;
+}
+
 /* 4-card sections: 4-up on wide screens, 2x2 in between, instead of 3+1 */
 @media (min-width: 72rem) {
   .landing-grid--4 {
