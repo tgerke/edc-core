@@ -978,6 +978,8 @@ async function main() {
         context: dmCtx,
         async run(page) {
           await page.goto(`/studies/${demoStudy.id}/audit`);
+          // getByText would match the hidden facet <option> — wait on a row cell.
+          await page.getByRole("cell", { name: "item_value.entered" }).first().waitFor();
         },
       },
       {
@@ -1037,6 +1039,15 @@ async function main() {
         async run(page) {
           await page.goto("/admin/access-log");
           await page.getByText("GET /").first().waitFor();
+        },
+      },
+      {
+        name: "system-audit",
+        context: adminCtx,
+        async run(page) {
+          await page.goto("/admin/audit");
+          // getByText would match the hidden facet <option> — wait on a row cell.
+          await page.getByRole("cell", { name: "auth.login" }).first().waitFor();
         },
       },
       {
