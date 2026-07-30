@@ -57,8 +57,16 @@ BEGIN
   LOOP
     EXECUTE format('ALTER SCHEMA %I OWNER TO edc_app', s.nspname);
     FOR c IN
-      SELECT relname FROM pg_class
-      WHERE relnamespace = s.oid AND relkind IN ('r', 'p', 'S', 'v', 'm')
+      SELECT cl.relname FROM pg_class cl
+      WHERE cl.relnamespace = s.oid AND cl.relkind IN ('r', 'p', 'S', 'v', 'm')
+        -- Sequences owned by a table column (serial/identity) cannot change
+        -- owner on their own; they follow their table's ALTER automatically.
+        AND NOT EXISTS (
+          SELECT 1 FROM pg_depend d
+          WHERE d.objid = cl.oid
+            AND d.classid = 'pg_class'::regclass
+            AND d.deptype IN ('a', 'i')
+        )
     LOOP
       EXECUTE format('ALTER TABLE %I.%I OWNER TO edc_app', s.nspname, c.relname);
     END LOOP;
