@@ -86,7 +86,8 @@ built:
 | Review | Where |
 |---|---|
 | Data review | [Query dashboard](/edc-core/guide/review/): open/answered/closed lifecycle, manual and system-raised, monitor reopen |
-| Audit trail review | `/studies/:id/audit`: filter by action, entity, actor, time; export CSV (`audit.review`-gated) |
+| Audit trail review | `/studies/:id/audit`: filter by action, entity, actor, time range; export the complete trail as CSV (`audit.review`-gated) |
+| System-level audit review | `/admin/audit`: logins, lockouts, account lifecycle, and cross-study role changes — the events recorded without a study (system administrators) |
 | Access review | [Access log](/edc-core/guide/user-admin/) with CSV export |
 | Security events | [Anomaly review](/edc-core/deployment/#security-anomaly-detection) with audited acknowledgement |
 

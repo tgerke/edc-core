@@ -321,6 +321,9 @@ export interface AuditFilters {
   action?: string;
   entityType?: string;
   actor?: string;
+  /** ISO datetimes; the API compares against server-side UTC timestamps. */
+  from?: string;
+  to?: string;
   limit: number;
   offset: number;
 }
@@ -336,6 +339,8 @@ export function auditQueryString(filters: AuditFilters): string {
   if (filters.action) params.set("action", filters.action);
   if (filters.entityType) params.set("entityType", filters.entityType);
   if (filters.actor) params.set("actor", filters.actor);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
   params.set("limit", String(filters.limit));
   params.set("offset", String(filters.offset));
   return params.toString();
@@ -346,6 +351,15 @@ export function useAudit(studyId: string, filters: AuditFilters) {
     queryKey: ["audit", studyId, filters],
     placeholderData: (previous) => previous,
     queryFn: () => api<AuditPage>(`/studies/${studyId}/audit?${auditQueryString(filters)}`),
+  });
+}
+
+/** System-level events (no study): logins, account lifecycle, role changes. */
+export function useSystemAudit(filters: AuditFilters) {
+  return useQuery<AuditPage>({
+    queryKey: ["audit", "system", filters],
+    placeholderData: (previous) => previous,
+    queryFn: () => api<AuditPage>(`/admin/audit?${auditQueryString(filters)}`),
   });
 }
 
