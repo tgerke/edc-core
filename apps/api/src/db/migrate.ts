@@ -2,9 +2,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { createDb, databaseUrl } from "./client.js";
+import { createDb, migrateDatabaseUrl } from "./client.js";
 
-export async function runMigrations(url = databaseUrl()): Promise<void> {
+export async function runMigrations(url = migrateDatabaseUrl()): Promise<void> {
   const { db, client } = createDb(url);
   const migrationsFolder = path.join(fileURLToPath(import.meta.url), "../../../drizzle");
   try {

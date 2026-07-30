@@ -52,8 +52,10 @@ hashing, configurable password policy, session timeout and lockout; role-based
 permissions scoped per-study and per-site with six default clinical roles.
 
 **Audit trail review (E6-03).** A dedicated review UI with filters (action,
-entity, actor, time) and CSV export, because E6(R3) treats review as an
-expectation, not an option.
+entity, actor, time range), UTC timestamps, and CSV export that streams the
+complete trail with no row cap. Two scopes: per-study, and a system-level
+page for events recorded outside any study (logins, account lifecycle, role
+changes). E6(R3) treats review as an expectation, not an option.
 
 **Device checks and access review (P11-14).** Sessions are bound to the
 client they were issued to: a token presented by a different browser is

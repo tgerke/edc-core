@@ -6,7 +6,7 @@ import { hashPassword } from "../auth/password.js";
 import { grantRole } from "../auth/rbac.js";
 import { createDb, databaseUrl } from "../db/client.js";
 import { runMigrations } from "../db/migrate.js";
-import { roles, sites, studies, users } from "../db/schema/index.js";
+import { auditEvents, roles, sites, studies, users } from "../db/schema/index.js";
 import { buildServer } from "../server.js";
 
 const { db, client } = createDb();
@@ -139,5 +139,67 @@ describe.skipIf(!dbAvailable)("audit trail review", () => {
       "occurred_at,actor,actor_name,action,entity_type,entity_id,old_value,new_value,reason",
     );
     expect(lines.some((line) => line.includes("subject.enrolled"))).toBe(true);
+  });
+
+  describe("system scope (/admin/audit)", () => {
+    let adminToken = "";
+    let adminId = "";
+
+    beforeAll(async () => {
+      const [admin] = await db
+        .insert(users)
+        .values({
+          username: `sysadmin-${suffix}`,
+          email: `sysadmin-${suffix}@example.com`,
+          fullName: "System Admin",
+          passwordHash: await hashPassword(PASSWORD),
+          isSystemAdmin: true,
+        })
+        .returning();
+      if (!admin) throw new Error("fixture failed");
+      adminId = admin.id;
+      adminToken = (
+        await server.inject({
+          method: "POST",
+          url: "/auth/login",
+          payload: { username: `sysadmin-${suffix}`, password: PASSWORD },
+        })
+      ).json().token;
+    });
+
+    it("requires system administration, not just audit.review", async () => {
+      const denied = await get("/admin/audit", fx.dmToken);
+      expect(denied.statusCode).toBe(403);
+    });
+
+    it("lists only events without a study (logins, account lifecycle)", async () => {
+      const res = await get("/admin/audit", adminToken);
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      const actions = body.events.map((e: { action: string }) => e.action);
+      expect(actions).toContain("auth.login");
+      expect(actions).not.toContain("subject.enrolled");
+      expect(body.facets.actions).toContain("auth.login");
+    });
+
+    it("streams a complete CSV across keyset batches (no row cap)", async () => {
+      // 1,500 rows crosses the 1,000-row batch boundary; a unique entity
+      // type isolates the assertion from other fixtures' events.
+      const entityType = `bulk-${suffix}`;
+      const bulk = Array.from({ length: 1500 }, (_, i) => ({
+        actorId: adminId,
+        action: "auth.login",
+        entityType,
+        entityId: `row-${i}`,
+      }));
+      await db.insert(auditEvents).values(bulk);
+
+      const res = await get(`/admin/audit?format=csv&entityType=${entityType}`, adminToken);
+      expect(res.statusCode).toBe(200);
+      const lines = res.body.split("\n").filter((line: string) => line.length > 0);
+      expect(lines).toHaveLength(1501); // header + every row
+      const ids = new Set(lines.slice(1).map((line: string) => line.split(",")[5]));
+      expect(ids.size).toBe(1500); // keyset pagination neither drops nor repeats
+    });
   });
 });

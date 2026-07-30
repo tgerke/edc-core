@@ -14,8 +14,8 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 
 | ID | Requirement (citation) | System mechanism | Status |
 |---|---|---|---|
-| P11-01 | Secure, computer-generated, time-stamped audit trails for create/modify/delete; prior values not obscured (§11.10(e)) | Append-only version rows + DB triggers rejecting UPDATE/DELETE (ADR-0002) | 🟢 `audit.test.ts` |
-| P11-02 | Audit trail retained as long as the record, available for review and copying (§11.10(e)) | Append-only trail with review UI (filter by action/entity/actor, paginated) and CSV export; full trail included in the study archive | 🟢 `audit.test.ts`, `snapshots.test.ts` |
+| P11-01 | Secure, computer-generated, time-stamped audit trails for create/modify/delete; prior values not obscured (§11.10(e)) | Append-only version rows + DB triggers rejecting UPDATE/DELETE; runtime role cannot own the tables or disable the triggers (ADR-0002, migration 0024) | 🟢 `audit.test.ts` |
+| P11-02 | Audit trail retained as long as the record, available for review and copying (§11.10(e)) | Append-only trail with review UI (filter by action/entity/actor/time, paginated, UTC display) and complete streamed CSV export (no row cap); full study trail in the archive; system-level events reviewable and exportable at `/admin/audit` | 🟢 `audit.test.ts` (routes), `snapshots.test.ts` |
 | P11-03 | System access limited to authorized individuals (§11.10(d)) | Unique accounts, RBAC scoped per-study/per-site, session timeout, lockout; admin account-lifecycle UI (create, deactivate/reactivate, unlock) with immediate session revocation | 🟢 `auth.test.ts`, `admin-users.test.ts` |
 | P11-04 | Authority checks: only authorized users can use the system, sign, or alter records (§11.10(g)) | Permission guards on every mutating route; signing permission is role-gated | 🟢 `auth.test.ts`, `capture.test.ts`, `signatures.test.ts` |
 | P11-05 | Validation of systems to ensure accuracy, reliability, consistent intended performance (§11.10(a)) | Versioned releases; `pnpm validation-pack` joins this matrix to the commit's test results; the release workflow generates it per tag and attaches it to the GitHub release | 🟢 |
@@ -33,9 +33,9 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 
 | ID | Requirement (section) | System mechanism | Status |
 |---|---|---|---|
-| E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (Annex 1 §4.2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; audited subject lifecycle (screening/enrolled/screen-failed/completed/withdrawn with reasons); `site/data-lifecycle.qmd` maps every §4.2 lifecycle element to its system mechanism and the sponsor-side procedure it expects | 🟢 `study-builds.test.ts`, `capture.test.ts`, `subject-lifecycle.test.ts` |
+| E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (Annex 1 §4.2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; audited subject lifecycle (screening/enrolled/screen-failed/completed/withdrawn with reasons); `site/src/content/docs/data-lifecycle.md` maps every §4.2 lifecycle element to its system mechanism and the sponsor-side procedure it expects | 🟢 `study-builds.test.ts`, `capture.test.ts`, `subject-lifecycle.test.ts` |
 | E6-02 | Computerized systems validated proportionate to risk | Deterministic versioned builds; validation pack ships per release with full automated test evidence | 🟢 |
-| E6-03 | Audit trails enabled by default; metadata defined; routine review expected | Audit always-on (not configurable off); dedicated review UI (`/studies/:id/audit`) with action/entity/actor filters, facets, pagination, CSV export; `audit.review` permission-gated | 🟢 `audit.test.ts` |
+| E6-03 | Audit trails enabled by default; metadata defined; routine review expected | Audit always-on (not configurable off); dedicated review UI (`/studies/:id/audit`) with action/entity/actor/time filters, facets, pagination, CSV export; `audit.review` permission-gated; system-level events (no study) reviewable at `/admin/audit` | 🟢 `audit.test.ts` |
 | E6-04 | Traceability of data corrections and transformations | Reason-for-change on corrections; every workbench run (SQL, R, Python) persists an execution record — exact content, pinned snapshot, script version, outcome — plus an audit event with the code text; R/Python runs also persist logs and outputs | 🟢 `capture.test.ts`, `snapshots.test.ts` |
 | E6-05 | Access management: unique credentials, role-appropriate access, timely revocation | RBAC with per-study/per-site scoping; grants/revocations audited and managed in the per-study Team UI; deactivation revokes live sessions immediately (not at next timeout) | 🟢 `auth.test.ts`, `admin-users.test.ts`, `team.test.ts` |
 | E6-06 | Security incident detection and response (§4.3.3(b) "system monitoring", §3.16.1(w) incident reporting) | Periodic anomaly sweep over the access log and audit trail: failed-login bursts per source address, lockouts, session-binding violations; findings notify system administrators and are reviewed at `/admin/security-anomalies`, where acknowledgement (the recorded response) is written to the audit trail | 🟢 `security-anomalies.test.ts`, `access-log.test.ts` |
@@ -54,7 +54,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 | ID | Requirement | System mechanism | Status |
 |---|---|---|---|
 | DP-01 | GDPR pseudonymization by design | No direct identifiers in clinical tables by construction; subject keys only; site holds the link | 🟢 |
-| DP-02 | GDPR/HIPAA hosting guidance | Deployment guide (`site/deployment.qmd`): TLS termination and secure cookies, volume-level encryption at rest, paired database+lake backups sized to the records-retention period, access-log retention, processor/transfer posture (GDPR Art. 28/32/44), production checklist | 🟢 |
+| DP-02 | GDPR/HIPAA hosting guidance | Deployment guide (`site/src/content/docs/deployment.md`): TLS termination and secure cookies, volume-level encryption at rest, paired database+lake backups sized to the records-retention period, access-log retention, processor/transfer posture (GDPR Art. 28/32/44), production checklist | 🟢 |
 
 ## Standards conformance
 
