@@ -33,7 +33,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 
 | ID | Requirement (section) | System mechanism | Status |
 |---|---|---|---|
-| E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (Annex 1 §4.2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; audited subject lifecycle (screening/enrolled/screen-failed/completed/withdrawn with reasons); `site/data-lifecycle.qmd` maps every §4.2 lifecycle element to its system mechanism and the sponsor-side procedure it expects | 🟢 `study-builds.test.ts`, `capture.test.ts`, `subject-lifecycle.test.ts` |
+| E6-01 | Data governance across the data lifecycle: capture → validation → transfer → storage → destruction (Annex 1 §4.2) | Metadata-driven capture: the versioned study definition *is* the documented capture/validation logic; audited subject lifecycle (screening/enrolled/screen-failed/completed/withdrawn with reasons); `site/src/content/docs/data-lifecycle.md` maps every §4.2 lifecycle element to its system mechanism and the sponsor-side procedure it expects | 🟢 `study-builds.test.ts`, `capture.test.ts`, `subject-lifecycle.test.ts` |
 | E6-02 | Computerized systems validated proportionate to risk | Deterministic versioned builds; validation pack ships per release with full automated test evidence | 🟢 |
 | E6-03 | Audit trails enabled by default; metadata defined; routine review expected | Audit always-on (not configurable off); dedicated review UI (`/studies/:id/audit`) with action/entity/actor/time filters, facets, pagination, CSV export; `audit.review` permission-gated; system-level events (no study) reviewable at `/admin/audit` | 🟢 `audit.test.ts` |
 | E6-04 | Traceability of data corrections and transformations | Reason-for-change on corrections; every workbench run (SQL, R, Python) persists an execution record — exact content, pinned snapshot, script version, outcome — plus an audit event with the code text; R/Python runs also persist logs and outputs | 🟢 `capture.test.ts`, `snapshots.test.ts` |
@@ -54,7 +54,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 | ID | Requirement | System mechanism | Status |
 |---|---|---|---|
 | DP-01 | GDPR pseudonymization by design | No direct identifiers in clinical tables by construction; subject keys only; site holds the link | 🟢 |
-| DP-02 | GDPR/HIPAA hosting guidance | Deployment guide (`site/deployment.qmd`): TLS termination and secure cookies, volume-level encryption at rest, paired database+lake backups sized to the records-retention period, access-log retention, processor/transfer posture (GDPR Art. 28/32/44), production checklist | 🟢 |
+| DP-02 | GDPR/HIPAA hosting guidance | Deployment guide (`site/src/content/docs/deployment.md`): TLS termination and secure cookies, volume-level encryption at rest, paired database+lake backups sized to the records-retention period, access-log retention, processor/transfer posture (GDPR Art. 28/32/44), production checklist | 🟢 |
 
 ## Standards conformance
 

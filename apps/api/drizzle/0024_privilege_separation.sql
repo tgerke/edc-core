@@ -38,3 +38,29 @@ REVOKE UPDATE, DELETE, TRUNCATE ON audit_events, item_value_versions, study_meta
 -- Signatures keep UPDATE for the one-way invalidation transition; the
 -- signatures_guard trigger constrains it to exactly that.
 REVOKE DELETE, TRUNCATE ON signatures FROM edc_app;
+--> statement-breakpoint
+-- Existing deployments: DuckLake catalog schemas created before the role
+-- split are owned by the old single role, and the API must own them to run
+-- in-place catalog upgrades at startup. Transfer the ones this role owns;
+-- schemas created after the split are made by edc_app directly. ALTER TABLE
+-- ... OWNER TO also covers sequences and views.
+DO $$
+DECLARE
+  s record;
+  c record;
+BEGIN
+  FOR s IN
+    SELECT n.oid, n.nspname
+    FROM pg_namespace n
+    JOIN pg_roles r ON r.oid = n.nspowner
+    WHERE n.nspname LIKE 'ducklake\_%' AND r.rolname = current_user
+  LOOP
+    EXECUTE format('ALTER SCHEMA %I OWNER TO edc_app', s.nspname);
+    FOR c IN
+      SELECT relname FROM pg_class
+      WHERE relnamespace = s.oid AND relkind IN ('r', 'p', 'S', 'v', 'm')
+    LOOP
+      EXECUTE format('ALTER TABLE %I.%I OWNER TO edc_app', s.nspname, c.relname);
+    END LOOP;
+  END LOOP;
+END $$;

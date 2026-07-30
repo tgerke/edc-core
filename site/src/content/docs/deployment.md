@@ -62,6 +62,46 @@ Four places hold study data; everything else is stateless:
 The R and Python engines mount the lake read-only and keep no state of their
 own. The web container serves the SPA and holds nothing.
 
+## Database roles
+
+The stack uses two Postgres roles (migration 0024):
+
+- The **owner role** (`edc` in the dev compose) owns every clinical table
+  and runs migrations. The API reads its credential from
+  `MIGRATE_DATABASE_URL`, uses it only for the migration step at startup,
+  and falls back to `DATABASE_URL` when it is unset.
+- The **runtime role** (`edc_app`) is what the API connects with
+  (`DATABASE_URL`). It reads and writes through the application paths but
+  does not own the clinical tables and holds no TRIGGER or TRUNCATE
+  privilege, so it cannot disable, drop, or bypass the append-only triggers
+  that protect the audit trail (ADR-0002). A leaked or misused application
+  credential cannot rewrite history.
+
+A fresh dev compose stack creates the `edc_app` login on first boot
+(`infra/initdb/01-app-role.sql`). Everywhere else, create it yourself with a
+real password before starting the API:
+
+```sql
+CREATE ROLE edc_app LOGIN PASSWORD '<a real secret>';
+```
+
+If migrations ran before the login existed, the migration has already
+created a non-login `edc_app`; enable it with
+`ALTER ROLE edc_app LOGIN PASSWORD '...'` instead. Existing deployments need
+nothing else: the migration re-grants table privileges and hands ownership
+of pre-split DuckLake catalog schemas to `edc_app`.
+
+## Clock synchronization
+
+Every audit and version timestamp is taken server-side from PostgreSQL's
+clock, which is the host's clock. "Time-stamped audit trails" (§11.10(e))
+are only as trustworthy as that clock, so keep the database host disciplined
+with NTP (`chrony` or `systemd-timesyncd` on Linux; cloud hosts usually ship
+this enabled — verify rather than assume). If the database runs in a VM,
+check that the hypervisor does not step the guest clock on resume; a host
+that sleeps can wake up seconds or minutes wrong and stamp records until
+sync catches up.
+
 ## Encryption in transit
 
 Terminate TLS at a reverse proxy (Caddy, nginx, Traefik, or your cloud load
@@ -194,9 +234,14 @@ data on your behalf.
 Before first real use. Items marked *(wired)* are already handled by
 `compose.prod.yaml`; verify them instead if you deploy any other way:
 
-- [ ] Replace `POSTGRES_PASSWORD` / `DATABASE_URL` credentials (the dev
-  compose default is labeled `edc-dev-only` for a reason) and inject them as
-  secrets, not baked into files.
+- [ ] Replace `POSTGRES_PASSWORD` / `DATABASE_URL` / `MIGRATE_DATABASE_URL`
+  credentials (the dev compose default is labeled `edc-dev-only` for a
+  reason) and inject them as secrets, not baked into files.
+- [ ] `DATABASE_URL` connects as `edc_app`, not the owner role; the owner
+  credential lives only in `MIGRATE_DATABASE_URL` (see
+  [Database roles](#database-roles)).
+- [ ] NTP verified on the database host (see
+  [Clock synchronization](#clock-synchronization)).
 - [ ] `NODE_ENV=production` on the API container (secure cookies). *(wired)*
 - [ ] TLS-terminating reverse proxy in front; no other published ports,
   in particular not 5432 (Postgres) or 8000/8001 (engines). *(wired)*
