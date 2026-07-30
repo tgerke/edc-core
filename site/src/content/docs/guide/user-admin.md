@@ -98,6 +98,8 @@ filters, UTC timestamps, and complete CSV export as the study pages.
 These events stay out of per-study archives on purpose — they span
 studies — so this page's export is their inspection copy.
 
+![System audit trail with login and account-lifecycle events](../../../assets/screenshots/system-audit.png)
+
 ## The access log
 
 System administrators have an **Access log** page (linked from the
