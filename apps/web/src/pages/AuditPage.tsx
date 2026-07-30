@@ -1,5 +1,4 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { type AuditFilters, useAudit } from "../api/hooks.js";
 import { AuditTrail } from "../components/AuditTrail.js";
 import { PageTitle } from "../components/ui.js";
 
@@ -19,10 +18,7 @@ export function AuditPage() {
       <PageTitle sub="Every create, change, and state transition in this study — who, when, what changed, and why. Append-only by construction.">
         Audit trail
       </PageTitle>
-      <AuditTrail
-        useData={(filters: AuditFilters) => useAudit(studyId, filters)}
-        csvHref={(qs) => `/api/studies/${studyId}/audit?${qs}&format=csv`}
-      />
+      <AuditTrail studyId={studyId} />
     </div>
   );
 }

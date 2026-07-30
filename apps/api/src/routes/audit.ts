@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { type SQL, and, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, lte, type SQL, sql } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requireSystemAdmin } from "../auth/plugin.js";
@@ -47,7 +47,9 @@ function selectRows(db: Db, where: SQL | undefined, limit: number, byId = false)
     .from(auditEvents)
     .innerJoin(users, eq(auditEvents.actorId, users.id))
     .where(where)
-    .orderBy(...(byId ? [desc(auditEvents.id)] : [desc(auditEvents.occurredAt), desc(auditEvents.id)]))
+    .orderBy(
+      ...(byId ? [desc(auditEvents.id)] : [desc(auditEvents.occurredAt), desc(auditEvents.id)]),
+    )
     .limit(limit);
 }
 
@@ -85,8 +87,7 @@ function csvStream(
     yield `${CSV_HEADER}\n`;
     let cursor: bigint | undefined;
     for (;;) {
-      const page =
-        cursor === undefined ? conditions : [...conditions, lt(auditEvents.id, cursor)];
+      const page = cursor === undefined ? conditions : [...conditions, lt(auditEvents.id, cursor)];
       const batch = await selectRows(db, and(...page), CSV_BATCH, true);
       const last = batch.at(-1);
       if (!last) return;

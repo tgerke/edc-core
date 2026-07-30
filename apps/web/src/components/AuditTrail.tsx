@@ -1,6 +1,5 @@
 import { Fragment, useState } from "react";
-import type { UseQueryResult } from "@tanstack/react-query";
-import { type AuditFilters, type AuditPage, auditQueryString } from "../api/hooks.js";
+import { type AuditFilters, auditQueryString, useAudit } from "../api/hooks.js";
 import { Button, Card, ErrorNote, Input, Spinner } from "./ui.js";
 
 const PAGE_SIZE = 50;
@@ -24,17 +23,11 @@ function ValueCell({ label, value }: { label: string; value: unknown }) {
 }
 
 /**
- * The audit review surface shared by the per-study and system-level pages.
- * The page supplies the data hook (study- or admin-scoped) and the CSV
- * export URL; filters, table, and pagination behave identically.
+ * The audit review surface shared by the per-study and system-level pages;
+ * studyId null selects the system scope. Filters, table, and pagination
+ * behave identically in both.
  */
-export function AuditTrail({
-  useData,
-  csvHref,
-}: {
-  useData: (filters: AuditFilters) => UseQueryResult<AuditPage>;
-  csvHref: (queryString: string) => string;
-}) {
+export function AuditTrail({ studyId }: { studyId: string | null }) {
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
   const [actor, setActor] = useState("");
@@ -60,7 +53,7 @@ export function AuditTrail({
     limit: PAGE_SIZE,
     offset,
   };
-  const { data, isPending, isError } = useData(filters);
+  const { data, isPending, isError } = useAudit(studyId, filters);
 
   if (isPending) return <Spinner />;
   if (isError || !data) return <ErrorNote>Failed to load the audit trail.</ErrorNote>;
@@ -127,7 +120,7 @@ export function AuditTrail({
         </label>
         <a
           className="ml-auto inline-flex items-center rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 hover:bg-zinc-50"
-          href={csvHref(auditQueryString(filters))}
+          href={`/api${studyId ? `/studies/${studyId}/audit` : "/admin/audit"}?${auditQueryString(filters)}&format=csv`}
         >
           Export CSV
         </a>

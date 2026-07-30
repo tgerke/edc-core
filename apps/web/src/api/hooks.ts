@@ -346,20 +346,20 @@ export function auditQueryString(filters: AuditFilters): string {
   return params.toString();
 }
 
-export function useAudit(studyId: string, filters: AuditFilters) {
+/**
+ * studyId null selects the system scope (/admin/audit): events recorded
+ * with no study — logins, account lifecycle, role changes.
+ */
+export function useAudit(studyId: string | null, filters: AuditFilters) {
   return useQuery<AuditPage>({
-    queryKey: ["audit", studyId, filters],
+    queryKey: ["audit", studyId ?? "system", filters],
     placeholderData: (previous) => previous,
-    queryFn: () => api<AuditPage>(`/studies/${studyId}/audit?${auditQueryString(filters)}`),
-  });
-}
-
-/** System-level events (no study): logins, account lifecycle, role changes. */
-export function useSystemAudit(filters: AuditFilters) {
-  return useQuery<AuditPage>({
-    queryKey: ["audit", "system", filters],
-    placeholderData: (previous) => previous,
-    queryFn: () => api<AuditPage>(`/admin/audit?${auditQueryString(filters)}`),
+    queryFn: () =>
+      api<AuditPage>(
+        studyId
+          ? `/studies/${studyId}/audit?${auditQueryString(filters)}`
+          : `/admin/audit?${auditQueryString(filters)}`,
+      ),
   });
 }
 
