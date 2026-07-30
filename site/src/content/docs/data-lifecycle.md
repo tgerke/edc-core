@@ -62,11 +62,15 @@ turned off:
 
 §4.2.2(b) expects that audit trails are never disabled and not modified
 except in rare, logged circumstances. edc-core has no configuration to
-disable auditing, and PostgreSQL triggers reject `UPDATE` and `DELETE` on
-audit and version tables outright. The rare legitimate exception E6(R3)
-contemplates (a participant's personal information entered where it should
-never have been) cannot be performed through the application; it would be a
-deliberate database operation by your administrator, and your SOP should
+disable auditing, PostgreSQL triggers reject `UPDATE` and `DELETE` on
+audit and version tables outright, and the application's database role
+cannot disable or drop those triggers — it does not own the tables, so
+even a compromised application credential cannot rewrite history (see
+[Database roles](/edc-core/deployment/#database-roles)). The rare
+legitimate exception E6(R3) contemplates (a participant's personal
+information entered where it should never have been) cannot be performed
+through the application; it requires a deliberate database operation with
+the owner credential your administrator holds, and your SOP should
 require documenting the action and justification, which is exactly the log
 §4.2.2(b) demands.
 

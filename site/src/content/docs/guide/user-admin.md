@@ -87,6 +87,17 @@ audited, and you cannot change or deactivate your own account. A second
 administrator has to do it, so a lone admin can't lock the deployment
 out of administration.
 
+## The system audit trail
+
+Study audit pages show events scoped to that study, but some events have
+no study to belong to: logins and lockouts, account creation and
+deactivation, password resets, system-administrator changes, cross-study
+role grants. The **System audit** page (linked from the Studies header,
+system administrators only) reviews exactly those events, with the same
+filters, UTC timestamps, and complete CSV export as the study pages.
+These events stay out of per-study archives on purpose — they span
+studies — so this page's export is their inspection copy.
+
 ## The access log
 
 System administrators have an **Access log** page (linked from the

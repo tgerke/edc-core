@@ -72,11 +72,21 @@ permanently in the audit trail.
 Storing an audit trail is not enough: ICH E6(R3) expects it to be *reviewed*.
 The audit page gives reviewers the study's complete trail, every create,
 change, and state transition with actor, timestamp, before/after values, and
-reason. Filter by action, entity, and user, or export the trail to CSV.
+reason. Filter by action, entity, user, or time range, or export the
+complete trail to CSV (the export streams every row; it is never
+truncated). Timestamps display in UTC so reviewers in different time zones
+read the same instant identically.
 
 ![Audit trail with filters and CSV export](../../../assets/screenshots/audit-trail.png)
 
+Events recorded outside any study — logins and lockouts, account
+lifecycle, cross-study role changes — have their own review page: system
+administrators find **System audit** in the Studies header (see
+[User administration](/edc-core/guide/user-admin/#the-system-audit-trail)).
+
 Under the hood, audit rows and item-value versions are append-only tables;
-PostgreSQL triggers reject `UPDATE` and `DELETE` outright, and the tests prove
-it. The trail is also included, in full, in every
+PostgreSQL triggers reject `UPDATE` and `DELETE` outright, the application's
+database role cannot disable or drop those triggers (it does not own the
+tables), and the tests prove both. The study trail is also included, in
+full, in every
 [study archive](/edc-core/guide/analytics/#exports-and-the-study-archive).

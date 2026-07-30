@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Audit trail hardening
+- Database privilege separation (migration 0024): the API now connects as
+  a runtime role (`edc_app`) that does not own the clinical tables and
+  holds no TRIGGER or TRUNCATE privilege, so it cannot disable, drop, or
+  bypass the append-only triggers — previously ADR-0002 claimed this but
+  nothing enforced it. Migrations run as the owning role via
+  `MIGRATE_DATABASE_URL`; existing deployments enable the role with one
+  `ALTER ROLE` (see the deployment guide), and the migration hands
+  pre-split DuckLake catalog schemas to the runtime role automatically
+  (P11-01)
+- System-level audit review at `/admin/audit` (API and page,
+  system-administration scope): logins, lockouts, account lifecycle, and
+  cross-study role changes were recorded with no study attached and had
+  no review surface. Deliberately excluded from per-study archives —
+  the global trail would leak activity across studies; its CSV export is
+  the inspection copy (E6-03)
+- Audit CSV exports stream the complete trail with keyset pagination
+  instead of silently truncating at 10,000 rows (P11-02)
+- The audit review UI renders UTC with a labeled column (previously
+  browser-local time with no zone) and exposes the from/to time filters
+  the API already supported (E6(R3) 4.2.2(d))
+- Deployment guide: new Database roles and Clock synchronization (NTP)
+  sections with matching production-checklist items
+
 ### Data cleaning workbench (ADR-0015)
 - SQL workbench runs are now recorded as execution records like R and
   Python runs: exact SQL, pinned snapshot, and outcome (including failed
