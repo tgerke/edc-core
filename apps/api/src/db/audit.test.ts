@@ -207,3 +207,69 @@ describe.skipIf(!dbAvailable)("audit core (integration)", () => {
     );
   });
 });
+
+describe.skipIf(!dbAvailable)("privilege separation (integration)", () => {
+  // The runtime role (migration 0024) must not be able to reach around the
+  // append-only triggers. Each attempt runs in its own transaction under
+  // SET LOCAL ROLE, which the test connection can assume because the dev/CI
+  // migration role is superuser; rollback restores it.
+  const own = createDb();
+
+  beforeAll(async () => {
+    await runMigrations();
+  });
+
+  afterAll(async () => {
+    await own.client.end();
+  });
+
+  function asAppRole(statement: string) {
+    return own.client.begin(async (tx) => {
+      await tx`SET LOCAL ROLE edc_app`;
+      await tx.unsafe(statement);
+    });
+  }
+
+  it("cannot disable the append-only trigger", async () => {
+    await expectRejection(
+      asAppRole("ALTER TABLE audit_events DISABLE TRIGGER audit_events_append_only"),
+      /must be owner/,
+    );
+  });
+
+  it("cannot drop the append-only trigger", async () => {
+    await expectRejection(
+      asAppRole("DROP TRIGGER audit_events_append_only ON audit_events"),
+      /must be owner/,
+    );
+  });
+
+  it("cannot TRUNCATE the audit trail or version history", async () => {
+    await expectRejection(asAppRole("TRUNCATE audit_events"), /permission denied/);
+    await expectRejection(asAppRole("TRUNCATE item_value_versions"), /permission denied/);
+  });
+
+  it("lacks UPDATE and DELETE privileges on append-only tables entirely", async () => {
+    await expectRejection(asAppRole("UPDATE audit_events SET reason = 'x'"), /permission denied/);
+    await expectRejection(asAppRole("DELETE FROM audit_events"), /permission denied/);
+    await expectRejection(asAppRole("DELETE FROM signatures"), /permission denied/);
+  });
+
+  it("can still read and append", async () => {
+    const suffix = randomUUID().slice(0, 8);
+    await own.client.begin(async (tx) => {
+      await tx`SET LOCAL ROLE edc_app`;
+      const [user] = await tx`
+        INSERT INTO users (username, email, full_name, password_hash)
+        VALUES (${`priv-${suffix}`}, ${`priv-${suffix}@example.com`}, 'Priv Test', 'not-a-real-hash')
+        RETURNING id`;
+      if (!user) throw new Error("insert as edc_app failed");
+      await tx`
+        INSERT INTO audit_events (actor_id, action, entity_type, entity_id)
+        VALUES (${user.id}, 'auth.login', 'user', ${user.id})`;
+      const [row] = await tx`
+        SELECT count(*)::int AS n FROM audit_events WHERE actor_id = ${user.id}`;
+      if (row?.n !== 1) throw new Error("select as edc_app failed");
+    });
+  });
+});

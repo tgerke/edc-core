@@ -11,6 +11,9 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # First boot of a fresh volume only: creates the edc_app login role.
+      # Existing volumes: ALTER ROLE edc_app LOGIN PASSWORD 'edc-dev-only';
+      - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U edc -d edc"]
       interval: 5s
@@ -22,7 +25,10 @@ services:
       context: ..
       dockerfile: apps/api/Dockerfile
     environment:
-      DATABASE_URL: postgres://edc:edc-dev-only@postgres:5432/edc
+      # Runtime role: cannot own clinical tables or touch their triggers
+      # (migration 0024). Migrations run as the owning role (edc).
+      DATABASE_URL: postgres://edc_app:edc-dev-only@postgres:5432/edc
+      MIGRATE_DATABASE_URL: postgres://edc:edc-dev-only@postgres:5432/edc
       PORT: "3000"
       # DuckLake analytics layer: Parquet files here, catalog in Postgres
       # (one schema + subdirectory per study) — no separate analytics server.

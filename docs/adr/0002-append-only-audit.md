@@ -15,8 +15,12 @@ forgets the middleware silently corrupts the guarantee.
   carrying who, when, old→new value, and reason-for-change, committed in the same
   transaction as the logical write.
 - Audit and version tables carry Postgres triggers that raise on UPDATE or DELETE.
-  The application role has no privilege to alter or drop these triggers.
-- Automated tests assert that direct UPDATE/DELETE attempts fail.
+- The application connects as a runtime role (`edc_app`, migration 0024) that does not
+  own the tables and holds no TRIGGER or TRUNCATE privilege, so it cannot disable, drop,
+  or bypass the triggers; migrations run as the owning role under a separate credential
+  (`MIGRATE_DATABASE_URL`).
+- Automated tests assert that direct UPDATE/DELETE attempts fail and that the runtime
+  role cannot disable the triggers or TRUNCATE the tables.
 
 ## Consequences
 

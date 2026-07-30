@@ -14,7 +14,7 @@ Status legend: 🟢 implemented · 🟡 in progress · ⚪ planned
 
 | ID | Requirement (citation) | System mechanism | Status |
 |---|---|---|---|
-| P11-01 | Secure, computer-generated, time-stamped audit trails for create/modify/delete; prior values not obscured (§11.10(e)) | Append-only version rows + DB triggers rejecting UPDATE/DELETE (ADR-0002) | 🟢 `audit.test.ts` |
+| P11-01 | Secure, computer-generated, time-stamped audit trails for create/modify/delete; prior values not obscured (§11.10(e)) | Append-only version rows + DB triggers rejecting UPDATE/DELETE; runtime role cannot own the tables or disable the triggers (ADR-0002, migration 0024) | 🟢 `audit.test.ts` |
 | P11-02 | Audit trail retained as long as the record, available for review and copying (§11.10(e)) | Append-only trail with review UI (filter by action/entity/actor, paginated) and CSV export; full trail included in the study archive | 🟢 `audit.test.ts`, `snapshots.test.ts` |
 | P11-03 | System access limited to authorized individuals (§11.10(d)) | Unique accounts, RBAC scoped per-study/per-site, session timeout, lockout; admin account-lifecycle UI (create, deactivate/reactivate, unlock) with immediate session revocation | 🟢 `auth.test.ts`, `admin-users.test.ts` |
 | P11-04 | Authority checks: only authorized users can use the system, sign, or alter records (§11.10(g)) | Permission guards on every mutating route; signing permission is role-gated | 🟢 `auth.test.ts`, `capture.test.ts`, `signatures.test.ts` |
