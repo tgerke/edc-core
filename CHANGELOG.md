@@ -72,6 +72,13 @@
   condition of their own; assigning a derivation clears the required
   flag, since derived items are system-written
 
+## v0.5.1 — patched api image (2026-08)
+
+- The published `edc-core-api:0.5.0` container was missing
+  `packages/usdm` and failed to boot; the image now ships it. Build fix
+  only — no application changes. Deployments on 0.5.0 images should pin
+  0.5.1 instead.
+
 ## v0.5.0 — Protocol-first builds and site form layouts (2026-07)
 
 Two halves of one idea (BYOFW: the sponsor governs the data, sites adapt

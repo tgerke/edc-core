@@ -11,7 +11,7 @@ terraform apply \
   -var ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)" \
   -var admin_cidr="203.0.113.7/32" \
   -var domain="edc.example.org" \
-  -var app_version="0.4.0"
+  -var app_version="0.5.1"
 ```
 
 Then point the domain's A record at the `public_ip` output; Caddy obtains
