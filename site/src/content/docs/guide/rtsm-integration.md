@@ -34,7 +34,9 @@ bearer token (`edcrtsm_…`). The raw token is shown exactly once at mint
 bound to a per-study service account that holds the `rtsm_agent` role;
 the key can reach exactly one route (the assignment POST) and can never
 read data, so the service account's `data.unblind` grant is write-only
-in practice.
+in practice. Read access for metrics consumers is a separate key class
+with its own scope that in turn cannot write — see the
+[PMO read surface](/edc-core/guide/pmo-integration/).
 
 ## Posting an assignment
 
