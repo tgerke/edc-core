@@ -16,6 +16,7 @@ import {
   reopenQuery,
 } from "../services/queries.js";
 import { createQueryBatch } from "../services/query-batch.js";
+import { requireMemberOrPmoKey } from "./helpers.js";
 
 const openSchema = z.object({
   itemGroupOid: z.string().min(1).optional(),
@@ -233,15 +234,22 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
     const { studyId } = request.params as { studyId: string };
     const parsed = listSchema.safeParse(request.query ?? {});
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
-    if (!request.user) return reply.code(401).send({ error: "authentication required" });
-    if (!request.user.isSystemAdmin && !(await isStudyMember(app.db, request.user.id, studyId))) {
-      return reply.code(403).send({ error: "not a member of this study" });
-    }
-    return listStudyQueries(
+    if (!(await requireMemberOrPmoKey(request, reply))) return;
+    const threads = await listStudyQueries(
       app.db,
       studyId,
       parsed.data.status ? { status: parsed.data.status } : undefined,
     );
+    // Key path (ADR-0017): omit message bodies — a thread can quote any
+    // captured value. Authors and timestamps stay; that is what a
+    // response-time metric needs.
+    if (request.servicePrincipal) {
+      return threads.map((q) => ({
+        ...q,
+        messages: q.messages.map(({ body: _body, ...rest }) => rest),
+      }));
+    }
+    return threads;
   });
 
   // Advisory permission listing for UI gating (buttons, not enforcement).

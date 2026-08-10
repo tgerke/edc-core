@@ -224,6 +224,7 @@ function parseItemDef(raw: unknown): ItemDef {
   const question = parseTranslatedTexts(n.Question);
   const codeListRefNode = n.CodeListRef ? asNode(n.CodeListRef) : undefined;
   const blinded = attr(n, "edc:Blinded");
+  const visitDate = attr(n, "edc:VisitDate");
   const coding = attr(n, "edc:CodingDictionary");
   // Only a valid dictionary name is lifted onto the model; anything else
   // stays in `extra` so a typo round-trips visibly instead of vanishing.
@@ -237,6 +238,7 @@ function parseItemDef(raw: unknown): ItemDef {
       "Length",
       "SignificantDigits",
       "edc:Blinded",
+      "edc:VisitDate",
       ...(codingDictionary ? ["edc:CodingDictionary"] : []),
     ],
     ["Description", "Question", "CodeListRef"],
@@ -253,6 +255,7 @@ function parseItemDef(raw: unknown): ItemDef {
       ? { codeListRef: { codeListOid: requireAttr(codeListRefNode, "CodeListOID", "CodeListRef") } }
       : {}),
     ...(blinded === "Yes" ? { blinded: true } : {}),
+    ...(visitDate === "Yes" ? { visitDate: true } : {}),
     ...(codingDictionary ? { codingDictionary } : {}),
     ...(extra ? { extra } : {}),
   };
@@ -570,6 +573,7 @@ export function serializeOdmXml(file: OdmFile): string {
                                 ? { Question: buildTranslatedTexts(item.question) }
                                 : {}),
                               ...(item.blinded ? { "@_edc:Blinded": "Yes" } : {}),
+                              ...(item.visitDate ? { "@_edc:VisitDate": "Yes" } : {}),
                               ...(item.codingDictionary
                                 ? { "@_edc:CodingDictionary": item.codingDictionary }
                                 : {}),

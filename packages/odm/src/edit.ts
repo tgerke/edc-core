@@ -80,6 +80,7 @@ export interface ItemDefPatch {
   blinded?: boolean;
   /** null clears the coding-dictionary assignment. */
   codingDictionary?: "MedDRA" | "WHODrug" | null;
+  visitDate?: boolean;
 }
 
 /** Item defs are shared: editing one changes every form that references it. */
@@ -115,6 +116,10 @@ export function updateItemDef(
       if (patch.codingDictionary !== undefined) {
         if (patch.codingDictionary === null) delete next.codingDictionary;
         else next.codingDictionary = patch.codingDictionary;
+      }
+      if (patch.visitDate !== undefined) {
+        if (patch.visitDate) next.visitDate = true;
+        else delete next.visitDate;
       }
       return next;
     }),

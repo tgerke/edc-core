@@ -402,5 +402,56 @@ export function validateMetaDataVersion(mdv: MetaDataVersion): ValidationIssue[]
     }
   }
 
+  // Visit-date designations cross the PMO read surface (ADR-0017), so a
+  // designation that cannot serve an ISO date, or would leak a blinded
+  // value, or is ambiguous within one event, hard-fails the build — the
+  // read boundary validates values, but a build that can never satisfy it
+  // must not publish.
+  const visitDateItems = mdv.itemDefs.filter((i) => i.visitDate);
+  for (const item of visitDateItems) {
+    if (item.dataType !== "date") {
+      issues.push({
+        severity: "error",
+        path: `ItemDef[${item.oid}]`,
+        message: `has VisitDate but DataType "${item.dataType}": a visit date item must be DataType "date"`,
+      });
+    }
+    if (item.blinded) {
+      issues.push({
+        severity: "error",
+        path: `ItemDef[${item.oid}]`,
+        message:
+          "is both blinded and a visit date: the designation serves the value through the integration surface, which blinding must never cross",
+      });
+    }
+  }
+  if (visitDateItems.length > 0) {
+    const designated = new Set(visitDateItems.map((i) => i.oid));
+    const groupsByOid = new Map(mdv.itemGroupDefs.map((g) => [g.oid, g]));
+    for (const se of mdv.studyEventDefs) {
+      const reachable = new Set<string>();
+      const seen = new Set<string>();
+      const queue = se.itemGroupRefs.map((r) => r.itemGroupOid);
+      while (queue.length > 0) {
+        const current = queue.pop();
+        if (current === undefined || seen.has(current)) continue;
+        seen.add(current);
+        const group = groupsByOid.get(current);
+        if (!group) continue;
+        for (const ref of group.itemRefs) {
+          if (designated.has(ref.itemOid)) reachable.add(ref.itemOid);
+        }
+        for (const ref of group.itemGroupRefs) queue.push(ref.itemGroupOid);
+      }
+      if (reachable.size > 1) {
+        issues.push({
+          severity: "error",
+          path: `StudyEventDef[${se.oid}]`,
+          message: `reaches ${reachable.size} VisitDate items (${[...reachable].sort().join(", ")}): an event's visit date must resolve to one item`,
+        });
+      }
+    }
+  }
+
   return issues;
 }

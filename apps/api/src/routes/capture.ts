@@ -42,6 +42,7 @@ import { ExportError } from "../services/exports.js";
 import { assertWriteAllowed, loadFormState, runPostWritePipeline } from "../services/form-state.js";
 import { listFormSignatures, SignatureError, signForm } from "../services/signatures.js";
 import type { StudyBuildDefinition } from "../services/study-builds.js";
+import { requireMemberOrPmoKey } from "./helpers.js";
 
 const enrollSchema = z.object({
   siteId: z.uuid(),
@@ -232,9 +233,10 @@ export const captureRoutes: FastifyPluginAsync = async (app) => {
     return listUnblindings(app.db, subject.studyId, subjectId);
   });
 
+  // Members and PMO read keys alike (ADR-0017): the listing is pseudonymous.
   app.get("/studies/:studyId/subjects", async (request, reply) => {
     const { studyId } = request.params as { studyId: string };
-    if (!(await member(request, reply, studyId))) return;
+    if (!(await requireMemberOrPmoKey(request, reply))) return;
     return app.db
       .select({
         id: subjects.id,

@@ -176,6 +176,13 @@
       "when": 1785436800000,
       "tag": "0024_privilege_separation",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786373587375,
+      "tag": "0025_pmo_read_surface",
+      "breakpoints": true
     }
   ]
 }
