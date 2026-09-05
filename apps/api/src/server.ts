@@ -9,6 +9,7 @@ import { auditRoutes } from "./routes/audit.js";
 import { captureRoutes } from "./routes/capture.js";
 import { codingRoutes } from "./routes/coding.js";
 import { dictionaryRoutes } from "./routes/dictionaries.js";
+import { integrationRoutes } from "./routes/integration.js";
 import { labImportRoutes } from "./routes/lab-imports.js";
 import { notificationRoutes } from "./routes/notifications.js";
 import { protocolRoutes } from "./routes/protocols.js";
@@ -74,6 +75,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await server.register(siteFormRoutes);
   await server.register(labImportRoutes);
   await server.register(rtsmRoutes);
+  await server.register(integrationRoutes);
   await server.register(dictionaryRoutes);
   await server.register(codingRoutes);
   await server.register(captureRoutes);

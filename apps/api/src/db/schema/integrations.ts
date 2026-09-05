@@ -2,9 +2,9 @@ import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { studies } from "./studies.js";
 import { users } from "./users.js";
 
-// Machine credentials for external integrations (RTSM intake). Operational
-// state like sessions — revocation and last-used are mutable; key lifecycle
-// events go to audit_events. The raw token is never stored.
+// Machine credentials for external integrations (RTSM intake, PMO reads).
+// Operational state like sessions — revocation and last-used are mutable; key
+// lifecycle events go to audit_events. The raw token is never stored.
 export const apiKeys = pgTable(
   "api_keys",
   {
@@ -12,6 +12,11 @@ export const apiKeys = pgTable(
     studyId: uuid("study_id")
       .notNull()
       .references(() => studies.id),
+    // Key class (ADR-0017): 'rtsm' reaches the intake POST, 'pmo_read' the
+    // read surface. Guards pin the scope, so classes can never cross.
+    scope: text("scope", { enum: ["rtsm", "pmo_read"] })
+      .notNull()
+      .default("rtsm"),
     // The service-account user the key acts as: audit rows and item-value
     // versions need a real, permission-bearing actor.
     userId: uuid("user_id")

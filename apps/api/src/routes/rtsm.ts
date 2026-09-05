@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import {
@@ -67,7 +67,7 @@ export const rtsmRoutes: FastifyPluginAsync = async (app) => {
           revokedAt: apiKeys.revokedAt,
         })
         .from(apiKeys)
-        .where(eq(apiKeys.studyId, studyId))
+        .where(and(eq(apiKeys.studyId, studyId), eq(apiKeys.scope, "rtsm")))
         .orderBy(desc(apiKeys.createdAt));
     },
   );

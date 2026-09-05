@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### PMO read surface (ADR-0017)
+- Read-only integration keys: a second API-key class (`edcpmo_` prefix,
+  `scope` column via migration 0025) bound to a per-study `svc-pmo-*`
+  service account holding the new `pmo_agent` role (`integration.read`
+  only). Scope-pinned guards keep key classes from crossing — an RTSM
+  key still cannot read anything, and a PMO key cannot post
+  assignments. Key management is API-first under
+  `/studies/:id/pmo/keys` (`study.manage`)
+- Two new listings for members and PMO keys alike:
+  `GET /studies/:id/visits` (one row per event instance with the
+  resolved visit date) and `GET /studies/:id/form-instances` (status
+  plus first-entry timestamp, the earliest item-value version)
+- Visit-date designation in the build: `edc:VisitDate="Yes"` on an
+  ItemDef. Publish validation hard-fails a non-date or blinded
+  designation, or an event whose forms reach two designated items; at
+  read time a non-ISO stored value is a 422 naming the datum
+- The subjects, queries, and members listings additionally accept a PMO
+  key; query message bodies are omitted on the key path, because a
+  thread can quote captured values
+- The members roster now excludes all `svc-*` service accounts (was
+  `svc-rtsm-*` only)
+
 ### Audit trail hardening
 - Database privilege separation (migration 0024): the API now connects as
   a runtime role (`edc_app`) that does not own the clinical tables and

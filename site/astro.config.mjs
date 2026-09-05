@@ -56,7 +56,7 @@ export default defineConfig({
         },
         {
           label: "Analytics and exports",
-          items: ["guide/analytics", "guide/exports-and-archive"],
+          items: ["guide/analytics", "guide/exports-and-archive", "guide/pmo-integration"],
         },
         {
           label: "Architecture and compliance",

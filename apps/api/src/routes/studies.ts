@@ -8,12 +8,13 @@ import { requireAuth, requirePermission, requireSystemAdmin } from "../auth/plug
 import { grantRole, isStudyMember, revokeRole } from "../auth/rbac.js";
 import type { AuthenticatedUser } from "../auth/service.js";
 import { auditEvents, roles, sites, studies, userStudyRoles, users } from "../db/schema/index.js";
-import { requireMembership } from "./helpers.js";
+import { requireMemberOrPmoKey, requireMembership } from "./helpers.js";
 
 const createSiteSchema = z.object({ oid: oidSchema, name: z.string().min(1) });
 
-// RTSM service accounts are managed in the RTSM panel, not as team members.
-const SERVICE_ACCOUNT_PREFIX = "svc-rtsm-%";
+// Integration service accounts (svc-rtsm-*, svc-pmo-*) are managed in their
+// integration panels, not as team members.
+const SERVICE_ACCOUNT_PREFIX = "svc-%";
 
 function studyScope(request: FastifyRequest) {
   return { studyId: (request.params as { studyId: string }).studyId };
@@ -182,12 +183,11 @@ export const studyRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // Who is on this study: every member can see the team (it's their own
-  // delegation context); only roles.grant holders can change it.
+  // delegation context); only roles.grant holders can change it. PMO read
+  // keys see the same roster (ADR-0017) — it is the access list the
+  // consumer exists to check.
   app.get("/studies/:studyId/members", async (request, reply) => {
-    if (!request.user) return reply.code(401).send({ error: "authentication required" });
-    if (!(await requireMembership(request))) {
-      return reply.code(403).send({ error: "not a member of this study" });
-    }
+    if (!(await requireMemberOrPmoKey(request, reply))) return;
     const { studyId } = request.params as { studyId: string };
     const grantedByUsers = alias(users, "granted_by_users");
     return app.db

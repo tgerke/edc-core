@@ -6,7 +6,7 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { accessLog, users } from "../db/schema/index.js";
-import { API_KEY_PREFIX } from "./api-keys.js";
+import { MACHINE_TOKEN_PREFIXES } from "./api-keys.js";
 import { type AuthConfig, loadAuthConfig } from "./config.js";
 import {
   decodeFlowState,
@@ -69,9 +69,9 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
   app.addHook("onRequest", async (request, reply) => {
     const token = extractToken(request);
     // API keys (machine auth) never resolve to a session or a user; routes
-    // that accept them opt in via requireRtsmKey.
+    // that accept them opt in via requireRtsmKey / requirePmoKey.
     request.user =
-      token && !token.startsWith(API_KEY_PREFIX)
+      token && !MACHINE_TOKEN_PREFIXES.some((p) => token.startsWith(p))
         ? await service.validateSession(token, {
             ...(request.ip ? { ip: request.ip } : {}),
             ...(request.headers["user-agent"] ? { userAgent: request.headers["user-agent"] } : {}),

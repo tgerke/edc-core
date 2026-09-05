@@ -90,6 +90,11 @@ export const itemDefSchema = z.object({
   // verbatim terms to be coded against the named dictionary. Protocol
   // metadata, so it versions with the build like everything else.
   codingDictionary: z.enum(["MedDRA", "WHODrug"]).optional(),
+  // Vendor extension (edc:VisitDate in XML): this item's captured value is
+  // the subject's visit date for any StudyEvent whose forms collect it,
+  // served through the PMO read surface (ADR-0017). Protocol metadata, so
+  // it versions with the build like everything else.
+  visitDate: z.boolean().optional(),
   extra,
 });
 export type ItemDef = z.infer<typeof itemDefSchema>;
