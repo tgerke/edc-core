@@ -20,7 +20,7 @@ capability:
 ### Use it two ways
 
 **Import into an existing study**: open a study in the web UI and click
-*Import ODM*, or `POST /studies/:id/study-builds` with the file content.
+*Import ODM*, or `POST /studies/:id/metadata-versions` with the file content.
 
 **Seed a full demo environment** (study + sites + one user per clinical role
 + enrolled subjects, one with an open system query):
@@ -38,6 +38,16 @@ vitals (the systolic value has an open query — correct it and watch the
 query auto-close), as `demo-cra` verify the form, as `demo-inv` sign it
 (Part 11 re-authentication), as `demo-dm` publish a snapshot on the
 *analytics* page, run SQL/R against it, and download the study archive.
+
+## A full oncology study, elsewhere
+
+The PCWG4 prostate cancer eCRFs in
+[pcwg4-data-standards](https://github.com/mskcc/pcwg4-data-standards) are a
+complete ODM v2.0 build for edc-core: five events, eighteen forms, cross-form
+checks against a treatment-start form, skip logic behind every yes/no gate,
+and derived PSA progression dates. Its `deploy/edc-core/` directory runs the
+released images and seeds three subjects over the REST API, which is also a
+worked example of scripting a build without touching the database.
 
 ## dictionaries/ — synthetic coding dictionary samples
 

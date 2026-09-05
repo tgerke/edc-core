@@ -11,10 +11,14 @@ matrix, edit-check evaluation, and the analytics dataset layout.
 ## Three ways to build, one API
 
 **Import an ODM file.** Open a study and click **Import ODM** (or `POST` the
-document to `/studies/:id/study-builds`). Both the XML and JSON serializations
+document to `/studies/:id/metadata-versions`). Both the XML and JSON serializations
 of ODM v2.0 are accepted and validated. The repository ships a complete
 CDASH-aligned example in
 [`examples/demo-study.xml`](https://github.com/tgerke/edc-core/blob/main/examples/demo-study.xml).
+For a full-size example, the
+[PCWG4 prostate cancer eCRFs](https://github.com/mskcc/pcwg4-data-standards)
+are an eighteen-form oncology build authored for edc-core, with a REST seed
+script that imports it and enters subjects.
 
 Legacy **ODM 1.3.x** metadata imports through a built-in upconversion shim:
 `FormDef`s become `ItemGroupDef Type="Form"`, `GlobalVariables` become study

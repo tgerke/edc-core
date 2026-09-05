@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Documentation
+- The import endpoint is `POST /studies/:id/metadata-versions`; the
+  examples README and the study-builds guide said `/study-builds`, which
+  does not exist. Both now link the PCWG4 prostate cancer study
+  (mskcc/pcwg4-data-standards) as a full-size ODM v2.0 build.
+
 ### PMO read surface (ADR-0017)
 - Read-only integration keys: a second API-key class (`edcpmo_` prefix,
   `scope` column via migration 0025) bound to a per-study `svc-pmo-*`
