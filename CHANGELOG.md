@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 — Dynamic fields, cleaning workbench, PMO read surface (2026-09)
 
 ### Documentation
 - The import endpoint is `POST /studies/:id/metadata-versions`; the

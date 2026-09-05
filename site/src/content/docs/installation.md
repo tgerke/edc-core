@@ -137,7 +137,7 @@ For a networked deployment, don't harden the dev stack; use the production
 one. On any host with Docker (or Podman) and a DNS name pointed at it:
 
 ```sh
-git clone --depth 1 --branch v0.5.1 https://github.com/tgerke/edc-core
+git clone --depth 1 --branch v0.6.0 https://github.com/tgerke/edc-core
 cd edc-core/infra
 cp .env.example .env    # set EDC_DOMAIN, EDC_VERSION, POSTGRES_PASSWORD
 docker compose -f compose.prod.yaml up -d
@@ -160,7 +160,7 @@ the result into the provider's *user data* field:
 
 ```sh
 sed -e 's/${domain}/edc.example.org/' \
-    -e 's/${app_version}/0.5.1/' \
+    -e 's/${app_version}/0.6.0/' \
     -e "s/\${postgres_password}/$(openssl rand -hex 24)/" \
     -e 's/${compose_profiles}/local-db,engines/' \
     -e 's/${extra_env}//' \
